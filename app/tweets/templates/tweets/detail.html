@@ -1,4 +1,4 @@
-{%  extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}{{ tweet.tweet_id }}{% endblock %}
 
@@ -6,7 +6,13 @@
 
 {% block sidebar %}
     <ul class="well nav nav-list">
-    <li><h4>Hashtags</h4></li>
+        <li><h4>Hashtags</h4></li>
+        {% for hashtag in hashtags %}
+            <li>{{ hashtag.hashtags }}</li>
+        {% endfor %}
+        {% for cashtag in cashtags %}
+            <li>{{ cashtag.cashtags }}</li>
+        {% endfor %}
     </ul>
     <p>Published {{ tweet.date }} @ {{ tweet.time }}</p>
 {% endblock %}

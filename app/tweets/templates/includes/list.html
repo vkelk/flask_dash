@@ -1,0 +1,6 @@
+{% for tweet in object_list.items %}
+    <div>
+    <p><b>{{ tweet.user_user_name }}</b></p>
+    <p><a href="{{ url_for('tweets.detail', tweet_id=tweet.tweet_id) }}">{{ tweet.text }}</a></p>
+    </div>
+{% endfor %}

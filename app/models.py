@@ -14,6 +14,7 @@ def slugify(s):
 
 class User(db.Model):
     __table__ = db.Model.metadata.tables['user']
+    # tweets = db.relationship('Tweet', backref='user_id', lazy='dynamic')
 
     def __repr__(self):
         return self.twitter_handle

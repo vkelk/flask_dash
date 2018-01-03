@@ -31,3 +31,18 @@ class Entry(db.Model):
 
     def __repr__(self):
         return '<Entry: %s>' % self.title
+
+
+class User(db.Model):
+    __tablename__ = 'user'
+    user_id = db.Column(db.BigInteger, primary_key=True)
+    twitter_handle = db.Column(db.String(120))
+    user_name = db.Column(db.String(120))
+    location = db.Column(db.String(120))
+    date_joined = db.Column(db.Date)
+    timezone = db.Column(db.String(10))
+    website = db.Column(db.String(75))
+    user_intro = db.Column(db.String(100))
+    verified = db.Column(db.String(10))
+    # tweets = relationship('Tweet')
+    # counts = relationship('UserCount')

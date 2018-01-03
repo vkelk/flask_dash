@@ -1,4 +1,4 @@
-from app import app  # import Flask app
+from app import app, db  # import Flask app
 import models
 import views
 

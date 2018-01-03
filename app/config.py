@@ -1,4 +1,5 @@
 import os
+from db_config import db_config
 
 
 class Configuration(object):
@@ -6,7 +7,8 @@ class Configuration(object):
     DEBUG = True
     # The SQLALCHEMY_DATABASE_URI comprises the following parts:
     # dialect+driver://username:password@host:port/database
-    # dsn = "mysql+mysqlconnector://{username}:{password}@{host}:3306/{database}".format(**my_config)
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///%s/blog.db' % APPLICATION_DIR
+    dsn = "mysql+mysqlconnector://{username}:{password}@{host}:3306/{database}".format(**db_config)
+    # SQLALCHEMY_DATABASE_URI = 'sqlite:///%s/blog.db' % APPLICATION_DIR
+    SQLALCHEMY_DATABASE_URI = dsn
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 

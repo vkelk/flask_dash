@@ -1,0 +1,23 @@
+{% extends "tweets/base_tweets.html" %}
+
+{% block title %}
+    {% if cashtag %}
+        {{ cashtag }}
+    {% endif %}
+    {% if hashtag %}
+        {{ hashtag }}
+    {% endif %}
+{% endblock %}
+
+{% block content_title %}
+{% if cashtag %}
+        {{ cashtag }} Tweets
+    {% endif %}
+    {% if hashtag %}
+        {{ hashtag }} Tweets
+    {% endif %}
+{% endblock %}
+
+{#{% block content %}#}
+{#    {% include "includes/list.html" %}#}
+{#{% endblock %}#}

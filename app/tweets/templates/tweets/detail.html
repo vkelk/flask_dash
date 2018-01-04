@@ -8,10 +8,10 @@
     <ul class="well nav nav-list">
         <li><h4>Hashtags</h4></li>
         {% for hashtag in hashtags %}
-            <li>{{ hashtag.hashtags }}</li>
+            <li><a href="{{ url_for('tweets.hashtag_detail', hashtag=hashtag.hashtags) }}">{{ hashtag.hashtags }}</a></li>
         {% endfor %}
         {% for cashtag in cashtags %}
-            <li>{{ cashtag.cashtags }}</li>
+            <li><a href="{{ url_for('tweets.cashtag_detail', cashtag=cashtag.cashtags) }}">{{ cashtag.cashtags }}</a></li>
         {% endfor %}
     </ul>
     <p>Published {{ tweet.date }} @ {{ tweet.time }}</p>

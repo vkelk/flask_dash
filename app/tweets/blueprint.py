@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request
 from app import db
 
 from helpers import object_list
@@ -7,23 +7,47 @@ from models import *
 tweets = Blueprint('tweets', __name__, template_folder='templates')
 
 
+def tweets_list(template, query, **context):
+    search = request.args.get('q')
+    if search:
+        query = query.filter((Tweet.text.contains(search)) |
+                             (User.user_name.contains(search)) |
+                             (User.twitter_handle.contains(search)))
+    return object_list(template, query, **context)
+
+
 @tweets.route('/')
 def index():
-    # tweets = db.session.query(Tweet, User).join(User, isouter=True).order_by(Tweet.tweet_id.asc())
     tweets = Tweet.query\
         .add_columns(User.user_name, Tweet.tweet_id, Tweet.text)\
         .join(User, isouter=True)\
         .order_by(Tweet.tweet_id.asc())
-    return object_list('tweets/index.html', tweets)
+    # print(tweets)
+    return tweets_list('tweets/index.html', tweets)
 
 
 @tweets.route('/cashtag/<cashtag>')
 def cashtag_detail(cashtag):
-    cashtag = TweetCashtag.query.distinct(TweetCashtag.tweet_id).filter(TweetCashtag.cashtags == cashtag)
-    print(cashtag)
-    tweets = cashtag.tweet_id.order_by(Tweet.tweet_id.asc())
-    print(tweets)
-    return object_list('tweets/cashtag_detail.html', tweets, cashtag=cashtag)
+    tweets = Tweet.query \
+        .add_columns(User.user_name, Tweet.tweet_id, Tweet.text) \
+        .join(User, isouter=True) \
+        .join(TweetCashtag)\
+        .filter(TweetCashtag.cashtags == cashtag)\
+        .order_by(Tweet.tweet_id.asc())
+    # print(tweets)
+    return object_list('tweets/tag_detail.html', tweets, cashtag=cashtag)
+
+
+@tweets.route('/hashtag/<hashtag>')
+def hashtag_detail(hashtag):
+    tweets = Tweet.query \
+        .add_columns(User.user_name, Tweet.tweet_id, Tweet.text) \
+        .join(User, isouter=True) \
+        .join(TweetHashtag)\
+        .filter(TweetHashtag.hashtags == hashtag)\
+        .order_by(Tweet.tweet_id.asc())
+    # print(tweets)
+    return object_list('tweets/tag_detail.html', tweets, hashtag=hashtag)
 
 
 @tweets.route('/<tweet_id>/')

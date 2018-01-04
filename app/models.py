@@ -2,8 +2,21 @@ import datetime, re
 
 from app import db
 from app import bcrypt
+from app import login_manager
 
 db.reflect()  # reflection to get table meta
+
+
+@login_manager.user_loader
+def _user_loader(user_id):
+    """
+    Determine which user is logged in
+    This way Flask-Login knows how to convert a user ID into a User object,
+    and that user will be available to us as g.user
+    :param user_id:
+    :return:
+    """
+    return DashUser.query.get(int(user_id))
 
 
 def slugify(s):

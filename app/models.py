@@ -2,6 +2,8 @@ import datetime, re
 
 from app import db
 
+db.reflect()  # reflection to get table meta
+
 
 def slugify(s):
     """
@@ -13,7 +15,9 @@ def slugify(s):
 
 
 class User(db.Model):
+    __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['user']
+
     # tweets = db.relationship('Tweet', backref='user_id', lazy='dynamic')
 
     def __repr__(self):
@@ -21,6 +25,7 @@ class User(db.Model):
 
 
 class UserCount(db.Model):
+    __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['user_count']
 
     def __repr__(self):
@@ -28,6 +33,7 @@ class UserCount(db.Model):
 
 
 class Tweet(db.Model):
+    __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['tweet']
 
     def __repr__(self):
@@ -35,6 +41,7 @@ class Tweet(db.Model):
 
 
 class Retweet(db.Model):
+    __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['retweet']
 
     def __repr__(self):
@@ -42,6 +49,7 @@ class Retweet(db.Model):
 
 
 class Reply(db.Model):
+    __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['reply']
 
     def __repr__(self):
@@ -49,6 +57,7 @@ class Reply(db.Model):
 
 
 class TweetCashtag(db.Model):
+    __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['tweet_cashtags']
 
     def __repr__(self):
@@ -56,6 +65,7 @@ class TweetCashtag(db.Model):
 
 
 class TweetCount(db.Model):
+    __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['tweet_count']
 
     def __repr__(self):
@@ -63,6 +73,7 @@ class TweetCount(db.Model):
 
 
 class TweetHashtag(db.Model):
+    __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['tweet_hashtags']
 
     def __repr__(self):
@@ -70,6 +81,7 @@ class TweetHashtag(db.Model):
 
 
 class TweetMention(db.Model):
+    __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['tweet_mentions']
 
     def __repr__(self):
@@ -77,7 +89,13 @@ class TweetMention(db.Model):
 
 
 class TweetUrl(db.Model):
+    __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['tweet_url']
 
     def __repr__(self):
         return self.id
+
+
+class DashUser(db.Model):
+    __bind_key__ = 'dashboard'
+    __table__ = db.Model.metadata.tables['users']

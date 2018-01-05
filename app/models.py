@@ -114,6 +114,9 @@ class DashUser(db.Model):
     __bind_key__ = 'dashboard'
     __table__ = db.Model.metadata.tables['users']
 
+    STATUS_ACTIVE = True
+    STATUS_DISABLED = False
+
     # Flask-Login interface
     def get_id(self):
         return self.id
@@ -123,6 +126,9 @@ class DashUser(db.Model):
 
     def is_active(self):
         return self.active
+
+    def is_admin(self):
+        return self.admin
 
     def is_anonymous(self):
         return False

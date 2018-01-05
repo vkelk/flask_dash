@@ -1,4 +1,5 @@
 from app import app, db  # import Flask app
+import admin  # Admin module is loaded after the app
 import models
 import views
 

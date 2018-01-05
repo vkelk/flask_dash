@@ -2,6 +2,8 @@ from flask import Flask, g, request, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, current_user
 from flask_bcrypt import Bcrypt
+from flask_restless import APIManager
+from logging.handlers import RotatingFileHandler
 from datetime import timedelta
 
 from config import Configuration  # imports configuration data from config.py
@@ -10,10 +12,15 @@ app = Flask(__name__)
 app.config.from_object(Configuration)  # use values from Configuration object
 db = SQLAlchemy(app)
 db.Model.metadata.reflect(db.engine)
+api = APIManager(app, flask_sqlalchemy_db=db)
 bcrypt = Bcrypt(app)
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+file_handler = RotatingFileHandler('dashboard.log')
+app.logger.addHandler(file_handler)
+app.logger.setLevel(Configuration.LOG_LEVEL)
 
 
 # This signal handler will load before every request.

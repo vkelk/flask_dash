@@ -8,6 +8,7 @@ from forms import LoginForm
 
 @app.route('/')
 def homepage():
+    app.logger.info("Homepage accessed.")
     return render_template('homepage.html')
 
 
@@ -19,6 +20,9 @@ def login():
             login_user(form.user, remember=form.remember_me.data)
             flash("Successfully logged in as %s" % form.user.email, "success")
             return redirect(request.args.get("next") or url_for("homepage"))
+        else:
+            #     app.logger.warning("'{user}' failed to login successfully.".format(user=form.user.email))
+            return redirect(url_for("login"))
     else:
         form = LoginForm()
         return render_template("login.html", form=form)

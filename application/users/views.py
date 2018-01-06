@@ -6,6 +6,12 @@ from application.users.forms import LoginForm
 users = Blueprint('users', __name__, template_folder='templates')
 
 
+# @users.route('/')
+# def homepage():
+#     # app.logger.info("Homepage accessed.")
+#     return render_template('homepage.html')
+
+
 @users.route('/login/', methods=["GET", "POST"])
 def login():
     if request.method == "POST":

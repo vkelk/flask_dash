@@ -39,7 +39,7 @@ def _user_loader(user_id):
     :param user_id:
     :return:
     """
-    return user_models.query.get(int(user_id))
+    return user_models.DashUser.query.get(int(user_id))
 
 
 # This signal handler will load before every request.

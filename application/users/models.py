@@ -1,5 +1,6 @@
 import datetime, re
-from application import db, bcrypt, login_manager
+from application import db, bcrypt
+from sqlalchemy.ext.hybrid import hybrid_property
 
 
 class DashUser(db.Model):
@@ -8,6 +9,16 @@ class DashUser(db.Model):
 
     STATUS_ACTIVE = True
     STATUS_DISABLED = False
+
+    @hybrid_property
+    def password(self):
+        """The bcrypt'ed password of the given user."""
+        return self.password_hash
+
+    @password.setter
+    def password(self, raw_password):
+        """Bcrypt the password on assignment."""
+        self.password_hash = bcrypt.generate_password_hash(raw_password)
 
     def __repr__(self):
         return '<User: {!r}>'.format(self.email)

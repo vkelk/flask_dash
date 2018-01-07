@@ -1,4 +1,5 @@
-from application import app
+from application import create_app
+from config import Configuration
 
-# app = create_app(config='settings')
-app.run(debug=True)
+app = create_app(config=Configuration)
+app.run()

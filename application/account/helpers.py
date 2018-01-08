@@ -42,7 +42,7 @@ def send_confirmation_email(user_email):
         _external=True)
 
     html = render_template(
-        'email_confirmation.html',
+        'account/email_confirmation.html',
         confirm_url=confirm_url)
 
     # send_email('Confirm Your Email Address', [user_email], html)
@@ -58,7 +58,7 @@ def send_password_reset_email(user_email):
         _external=True)
 
     html = render_template(
-        'email_password_reset.html',
+        'account/email_password_reset.html',
         password_reset_url=password_reset_url)
 
     # send_email('Password Reset Requested', [user_email], html)

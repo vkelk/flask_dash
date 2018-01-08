@@ -1,0 +1,26 @@
+{% extends "_base.html" %}
+
+{% block title %}{{ tweet.tweet_id }}{% endblock %}
+
+{% block content_title %}{{ tweet.tweet_id }}{% endblock %}
+
+{% block sidebar %}
+    <ul class="well nav nav-list">
+        <li><h4>Hashtags</h4></li>
+        {% for hashtag in hashtags %}
+            <li><a href="{{ url_for('fintweet.hashtag_detail', hashtag=hashtag.hashtags) }}">{{ hashtag.hashtags }}</a>
+            </li>
+        {% endfor %}
+        {% for cashtag in cashtags %}
+            <li><a href="{{ url_for('fintweet.cashtag_detail', cashtag=cashtag.cashtags) }}">{{ cashtag.cashtags }}</a>
+            </li>
+        {% endfor %}
+    </ul>
+    <p>Published {{ tweet.date }} @ {{ tweet.time }}</p>
+{% endblock %}
+
+{% block content %}
+    <h3>{{ user.user_name }} (@{{ user.twitter_handle }})</h3>
+    <p>{{ tweet.text }}</p>
+    <a target="_blank" href="https://twitter.com/{{ user.twitter_handle }}/status/{{ tweet.tweet_id }}">Twitter.com</a>
+{% endblock %}

@@ -20,7 +20,7 @@
 {% endblock %}
 
 {% block content %}
-    <h3>{{ user.user_name }} (@{{ user.twitter_handle }})</h3>
+    <h3>{{ tweet.user_name }} (@{{ tweet.twitter_handle }})</h3>
     <p>{{ tweet.text }}</p>
-    <a target="_blank" href="https://twitter.com/{{ user.twitter_handle }}/status/{{ tweet.tweet_id }}">Twitter.com</a>
+    <a target="_blank" href="https://twitter.com/{{ tweet.twitter_handle }}/status/{{ tweet.tweet_id }}">Twitter.com</a>
 {% endblock %}

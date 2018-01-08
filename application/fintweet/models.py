@@ -1,7 +1,9 @@
-from application import db, api
+from flask import url_for, current_app
+from flask_login import AnonymousUserMixin, UserMixin
+from application import db
 
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['user']
 
@@ -9,6 +11,20 @@ class User(db.Model):
 
     def __repr__(self):
         return self.twitter_handle
+
+    @property
+    def serialize(self):
+        """Return object data in easily serializeable format"""
+        return {
+            'id': self.user_id,
+            'handle': self.twitter_handle,
+            'name': self.user_name,
+            'url': url_for('fintweet.api_users_by_id', user_id=self.user_id)
+        }
+
+    @property
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
 class UserCount(db.Model):
@@ -19,12 +35,16 @@ class UserCount(db.Model):
         return self.user_id
 
 
-class Tweet(db.Model):
+class Tweet(UserMixin, db.Model):
     __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['tweet']
 
     def __repr__(self):
         return self.tweet_id
+
+    # @property
+    # def user_name(self):
+    #     return User.query.with_entities(User.user_name).filter(User.user_id == self.user_id).first_or_404()
 
 
 class Retweet(db.Model):
@@ -82,5 +102,9 @@ class TweetUrl(db.Model):
     def __repr__(self):
         return self.id
 
-
-api.create_api(Tweet, methods=['GET'])
+# apimanager.create_api(Tweet, methods=['GET'])
+# api.add_resource(Tweet, "/tweet")
+# api.init_app(current_app)
+# with current_app.app_context():
+# reflection to get table meta
+# pass

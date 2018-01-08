@@ -1,6 +1,7 @@
-from flask import Blueprint, g, session, request
+from flask import Blueprint, g, session, request, current_app
 from flask_login import current_user
-from .models import *
+# from flask_restful import Api, Resource
+from application.fintweet.models import Tweet
 
 fintweet = Blueprint('fintweet', __name__)
 
@@ -16,3 +17,12 @@ def _before_request():
 fintweet.before_request(_before_request)
 
 import application.fintweet.views
+
+# class HelloWorld(Resource):
+#     def get(self):
+#         return {'hello': 'world'}
+#
+#
+# api = Api(prefix='/api/v1')  # Note, no app
+# api.add_resource(HelloWorld, '/hello')
+# api.init_app(fintweet)

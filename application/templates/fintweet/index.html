@@ -580,8 +580,6 @@
 {% endblock %}
 {% block javascript %}
     <script>
-        var JSONAPI_MIMETYPE = "application/vnd.api+json";
-        var SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
         $(document).ready(function () {
             $.getJSON("api/tweet", function (data) {
                 num_results = data.num_results.toLocaleString('en', {useGrouping: true})
@@ -598,16 +596,12 @@
         });
 
         $(document).ready(function () {
-
             var url_eval = encodeURIComponent('"name": "count", "field": "cashtags"')
-            var url = 'http://127.0.0.1:5000/fintweet/api/eval/tweet_cashtag?q={"functions":[{' + url_eval + '}]}'
+            var url = 'http://127.0.0.1:5000/fintweet/api/eval/cashtag?q={"functions":[{' + url_eval + '}]}'
             $.getJSON(url, function (data) {
                 num_results = data.count__cashtags.toLocaleString('en', {useGrouping: true})
                 $('#total_cashtags').html(num_results);
             });
-
         });
-
-
     </script>
 {% endblock %}

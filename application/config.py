@@ -22,7 +22,7 @@ class Configuration(object):
         'dashboard': dsn_main,
         'fintweet': dsn_fintweet
     }
-    SQLALCHEMY_POOL_RECYCLE = 200
+    SQLALCHEMY_POOL_RECYCLE = 300
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Application threads. A common general assumption is

@@ -8,7 +8,7 @@ from flask_bcrypt import Bcrypt
 # from flask_marshmallow import Marshmallow
 from logging.handlers import RotatingFileHandler
 
-from config import Configuration
+from .config import Configuration
 
 db = SQLAlchemy()
 csrf = CSRFProtect()

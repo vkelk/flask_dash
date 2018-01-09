@@ -13,6 +13,7 @@ def check_auth(*args, **kwargs):
 
 preprocessors = {'GET_SINGLE': [check_auth],
                  'GET_MANY': [check_auth]}
+
 api_fintweet = APIManager(flask_sqlalchemy_db=db, allow_functions=True)
 
 api_fintweet.create_api(User, methods=['GET'],
@@ -21,5 +22,5 @@ api_fintweet.create_api(Tweet, methods=['GET'], primary_key='tweet_id',
                         preprocessors=preprocessors, url_prefix='/fintweet/api')
 api_fintweet.create_api(UserCount, methods=['GET'], primary_key='user_id',
                         preprocessors=preprocessors, url_prefix='/fintweet/api')
-api_fintweet.create_api(TweetCashtag, methods=['GET'],
+api_fintweet.create_api(TweetCashtag, methods=['GET'], collection_name='cashtag',
                         preprocessors=preprocessors, url_prefix='/fintweet/api', allow_functions=True)

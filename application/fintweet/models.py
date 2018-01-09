@@ -79,10 +79,6 @@ class TweetCashtag(db.Model):
     def __repr__(self):
         return self.id
 
-    # @classmethod
-    # def distinct(cls):
-    #     return cls.query(func.distinct(TweetCashtag.cashtags))
-
 
 class TweetCount(db.Model):
     __bind_key__ = 'fintweet'

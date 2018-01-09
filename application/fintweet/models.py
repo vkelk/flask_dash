@@ -1,4 +1,5 @@
 from flask import url_for, current_app
+from sqlalchemy import func
 from flask_login import AnonymousUserMixin, UserMixin
 from application import db
 
@@ -19,7 +20,7 @@ class User(UserMixin, db.Model):
             'id': self.user_id,
             'handle': self.twitter_handle,
             'name': self.user_name,
-            'url': url_for('fintweet.api_users_by_id', user_id=self.user_id)
+            # 'url': url_for('fintweet.api_users_by_id', user_id=self.user_id)
         }
 
     @property
@@ -31,6 +32,8 @@ class UserCount(db.Model):
     __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['user_count']
 
+    user = db.relationship('User')
+
     def __repr__(self):
         return self.user_id
 
@@ -38,6 +41,8 @@ class UserCount(db.Model):
 class Tweet(UserMixin, db.Model):
     __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['tweet']
+
+    user = db.relationship('User')
 
     def __repr__(self):
         return self.tweet_id
@@ -67,8 +72,16 @@ class TweetCashtag(db.Model):
     __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['tweet_cashtags']
 
+    tweet = db.relationship('Tweet')
+    user = db.relationship('User', backref='user_count', lazy='dynamic',
+                           primaryjoin="TweetCashtag.user_id==User.user_id", foreign_keys='User.user_id')
+
     def __repr__(self):
         return self.id
+
+    # @classmethod
+    # def distinct(cls):
+    #     return cls.query(func.distinct(TweetCashtag.cashtags))
 
 
 class TweetCount(db.Model):

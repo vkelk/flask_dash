@@ -19,11 +19,11 @@
                     <div class="panel-heading">
                         <div class="row">
                             <div class="col-xs-3">
-                                <i class="fa fa-comments fa-5x"></i>
+                                <i class="fa fa-twitter fa-5x"></i>
                             </div>
                             <div class="col-xs-9 text-right">
-                                <div class="huge">26</div>
-                                <div>New Comments!</div>
+                                <div class="huge" id="total_tweets"></div>
+                                <div>Total tweets</div>
                             </div>
                         </div>
                     </div>
@@ -41,11 +41,11 @@
                     <div class="panel-heading">
                         <div class="row">
                             <div class="col-xs-3">
-                                <i class="fa fa-tasks fa-5x"></i>
+                                <i class="fa fa-user fa-5x"></i>
                             </div>
                             <div class="col-xs-9 text-right">
-                                <div class="huge">12</div>
-                                <div>New Tasks!</div>
+                                <div class="huge" id="total_users"></div>
+                                <div>Total users</div>
                             </div>
                         </div>
                     </div>
@@ -63,11 +63,11 @@
                     <div class="panel-heading">
                         <div class="row">
                             <div class="col-xs-3">
-                                <i class="fa fa-shopping-cart fa-5x"></i>
+                                <i class="fa fa-dollar fa-5x"></i>
                             </div>
                             <div class="col-xs-9 text-right">
-                                <div class="huge">124</div>
-                                <div>New Orders!</div>
+                                <div class="huge" id="total_cashtags"></div>
+                                <div>Unique cashtags</div>
                             </div>
                         </div>
                     </div>
@@ -85,11 +85,11 @@
                     <div class="panel-heading">
                         <div class="row">
                             <div class="col-xs-3">
-                                <i class="fa fa-support fa-5x"></i>
+                                <i class="fa fa-hashtag fa-5x"></i>
                             </div>
                             <div class="col-xs-9 text-right">
-                                <div class="huge">13</div>
-                                <div>Support Tickets!</div>
+                                <div class="huge" id="total_hashtags"></div>
+                                <div>Unique hashtags</div>
                             </div>
                         </div>
                     </div>
@@ -492,8 +492,6 @@
                         <ul class="chat">
                             <li class="left clearfix">
                                     <span class="chat-img pull-left">
-                                        <img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar"
-                                             class="img-circle"/>
                                     </span>
                                 <div class="chat-body clearfix">
                                     <div class="header">
@@ -510,8 +508,6 @@
                             </li>
                             <li class="right clearfix">
                                     <span class="chat-img pull-right">
-                                        <img src="http://placehold.it/50/FA6F57/fff" alt="User Avatar"
-                                             class="img-circle"/>
                                     </span>
                                 <div class="chat-body clearfix">
                                     <div class="header">
@@ -528,8 +524,6 @@
                             </li>
                             <li class="left clearfix">
                                     <span class="chat-img pull-left">
-                                        <img src="http://placehold.it/50/55C1E7/fff" alt="User Avatar"
-                                             class="img-circle"/>
                                     </span>
                                 <div class="chat-body clearfix">
                                     <div class="header">
@@ -546,8 +540,6 @@
                             </li>
                             <li class="right clearfix">
                                     <span class="chat-img pull-right">
-                                        <img src="http://placehold.it/50/FA6F57/fff" alt="User Avatar"
-                                             class="img-circle"/>
                                     </span>
                                 <div class="chat-body clearfix">
                                     <div class="header">
@@ -585,4 +577,37 @@
         <!-- /.row -->
     </div>
     <!-- /#page-wrapper -->
+{% endblock %}
+{% block javascript %}
+    <script>
+        var JSONAPI_MIMETYPE = "application/vnd.api+json";
+        var SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+        $(document).ready(function () {
+            $.getJSON("api/tweet", function (data) {
+                num_results = data.num_results.toLocaleString('en', {useGrouping: true})
+                $('#total_tweets').html(num_results);
+            });
+
+        });
+        $(document).ready(function () {
+            $.getJSON("api/user", function (data) {
+                num_results = data.num_results.toLocaleString('en', {useGrouping: true})
+                $('#total_users').html(num_results);
+            });
+
+        });
+
+        $(document).ready(function () {
+
+            var url_eval = encodeURIComponent('"name": "count", "field": "cashtags"')
+            var url = 'http://127.0.0.1:5000/fintweet/api/eval/tweet_cashtag?q={"functions":[{' + url_eval + '}]}'
+            $.getJSON(url, function (data) {
+                num_results = data.count__cashtags.toLocaleString('en', {useGrouping: true})
+                $('#total_cashtags').html(num_results);
+            });
+
+        });
+
+
+    </script>
 {% endblock %}

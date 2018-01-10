@@ -1,7 +1,7 @@
 from flask import request, render_template, url_for, jsonify
 from flask_login import login_required
 # from application import login_manager
-from datatables import ColumnDT, DataTables
+# from datatables import ColumnDT, DataTables
 from application.fintweet import fintweet
 from application.fintweet.models import *
 
@@ -46,34 +46,34 @@ def dt_110x():
 #     return jsonify(json_list = [user.serialize])
 
 
-@fintweet.route('/data')
-def data():
-    """Return server side data."""
-    # defining columns
-    columns = [
-        ColumnDT(TweetCashtag.cashtags),
-        ColumnDT(TweetCashtag.count)
-        # ColumnDT(Tweet.tweet_id),
-        # ColumnDT(Tweet.text)
-    ]
-
-    # defining the initial query depending on your purpose
-    q = db.session.query(TweetCashtag.cashtags, func.count(TweetCashtag.cashtags).label('count')).group_by(
-        TweetCashtag.cashtags)
-    query = TweetCashtag.query \
-        .add_columns(User.user_id, User.user_name) \
-        .join(User, isouter=True) \
-        .order_by(Tweet.tweet_id.asc())
-    print(str(q))
-
-    # GET parameters
-    params = request.args.to_dict()
-
-    # instantiating a DataTable for the query and table needed
-    rowTable = DataTables(params, query, columns)
-
-    # returns what is needed by DataTable
-    return jsonify(rowTable.output_result())
+# @fintweet.route('/data')
+# def data():
+#     """Return server side data."""
+#     # defining columns
+#     columns = [
+#         ColumnDT(TweetCashtag.cashtags),
+#         ColumnDT(TweetCashtag.count)
+#         # ColumnDT(Tweet.tweet_id),
+#         # ColumnDT(Tweet.text)
+#     ]
+#
+#     # defining the initial query depending on your purpose
+#     q = db.session.query(TweetCashtag.cashtags, func.count(TweetCashtag.cashtags).label('count')).group_by(
+#         TweetCashtag.cashtags)
+#     query = TweetCashtag.query \
+#         .add_columns(User.user_id, User.user_name) \
+#         .join(User, isouter=True) \
+#         .order_by(Tweet.tweet_id.asc())
+#     print(str(q))
+#
+#     # GET parameters
+#     params = request.args.to_dict()
+#
+#     # instantiating a DataTable for the query and table needed
+#     rowTable = DataTables(params, query, columns)
+#
+#     # returns what is needed by DataTable
+#     return jsonify(rowTable.output_result())
 
 
 @fintweet.route('/<tweet_id>/')

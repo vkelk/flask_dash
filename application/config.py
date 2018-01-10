@@ -1,6 +1,6 @@
 import logging
 import os
-from db_config import db_config, MAILGUN_KEY as MK, MAILGUN_DOMAIN as MD
+from application.db_config import db_config, MAILGUN_KEY as MK, MAILGUN_DOMAIN as MD
 
 
 class Configuration(object):

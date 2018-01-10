@@ -1,7 +1,8 @@
-from flask import request, render_template, url_for, jsonify
+from flask import request, render_template, url_for, jsonify, Response
 from flask_login import login_required
 # from application import login_manager
 # from datatables import ColumnDT, DataTables
+from application.fintweet.helpers import Collections, DataTables
 from application.fintweet import fintweet
 from application.fintweet.models import *
 
@@ -115,3 +116,20 @@ def hashtag_detail(hashtag):
         .order_by(Tweet.tweet_id.asc())
     # print(tweets)
     return object_list('fintweet/tag_detail.html', tweets, hashtag=hashtag)
+
+
+@fintweet.route('/dt')
+def dt():
+    dataTables = DataTables(source="data")
+    dataTables.setColumns([{"param": "Parameters"}, {"val": "Value"}])
+    return render_template('fintweet/datatables.html', table=dataTables.render())
+
+
+@fintweet.route("/data")
+def data():
+    list = [
+        {'param': 'foo', 'val': 2},
+        {'param': 'bar', 'val': 10}
+    ]
+    collection = Collections(list)
+    return Response(collection.respond(), mimetype="application/json")

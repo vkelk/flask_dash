@@ -242,7 +242,6 @@ class ServerSideTable(object):
             self.reverse = False
             # return True if str_direction == 'desc' else False
 
-        pprint(self.request_values)
         if (self.request_values['iSortCol_0'] != "") and \
                 (int(self.request_values['iSortingCols']) > 0):
             column_number = int(self.request_values['iSortCol_0'])
@@ -250,7 +249,6 @@ class ServerSideTable(object):
             sort_direction = self.request_values['sSortDir_0']
             self.reverse = False
             is_reverse(sort_direction)
-            pprint(data)
             return sorted(data,
                           key=lambda x: (type(x[column_name]).__name__, x[column_name]),
                           reverse=self.reverse)

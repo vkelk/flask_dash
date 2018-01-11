@@ -1,6 +1,7 @@
-from flask import g
+from flask import jsonify
 from flask_restless import APIManager, ProcessingException
 from flask_login import current_user, login_required
+from pprint import pprint
 from application.fintweet.models import *
 from application.fintweet.helpers import ServerSideTable
 
@@ -67,6 +68,26 @@ DATA_SAMPLE = [
 ]
 
 
+def top_cashtags_j():
+    query = db.session.query(
+        TweetCashtag.cashtags,
+        db.func.count(TweetCashtag.cashtags).label('countc')
+    ).group_by(TweetCashtag.cashtags).order_by(db.desc('countc')).limit(100).all()
+    data_list = []
+    columns = []
+    for item in query:
+        data_dict = {'cashtag': item[0],
+                     'count': item[1]}
+
+        column = {"data_name": "D",
+                  "column_name": "Column D",
+                  "default": 0,
+                  "order": 4,
+                  "searchable": False}
+        data_list.append(data_dict)
+    return data_list
+
+
 class TableBuilder(object):
 
     def collect_data_clientside(self):
@@ -74,4 +95,5 @@ class TableBuilder(object):
 
     def collect_data_serverside(self, request):
         columns = SERVERSIDE_TABLE_COLUMNS
+        top_cashtags_j()
         return ServerSideTable(request, DATA_SAMPLE, columns).output_result()

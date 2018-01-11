@@ -52,12 +52,12 @@ class Tweet(UserMixin, db.Model):
     #     return User.query.with_entities(User.user_name).filter(User.user_id == self.user_id).first_or_404()
 
 
-class Retweet(db.Model):
-    __bind_key__ = 'fintweet'
-    __table__ = db.Model.metadata.tables['retweet']
-
-    def __repr__(self):
-        return self.retweet_id
+# class Retweet(db.Model):
+#     __bind_key__ = 'fintweet'
+#     __table__ = db.Model.metadata.tables['retweet']
+#
+#     def __repr__(self):
+#         return self.retweet_id
 
 
 class Reply(db.Model):

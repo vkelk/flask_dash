@@ -2,9 +2,10 @@ from flask import Blueprint, g, session, request, current_app
 from flask_login import current_user
 # from flask_restful import Api, Resource
 from application.fintweet.models import Tweet
+from application.fintweet.resources import TableBuilder
 
 fintweet = Blueprint('fintweet', __name__)
-
+table_builder = TableBuilder()
 
 # This signal handler will load before every request.
 def _before_request():

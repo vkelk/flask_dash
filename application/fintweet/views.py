@@ -3,7 +3,7 @@ from flask_login import login_required
 # from application import login_manager
 # from datatables import ColumnDT, DataTables
 from application.fintweet.helpers import Collections, DataTables
-from application.fintweet import fintweet
+from application.fintweet import fintweet, table_builder
 from application.fintweet.models import *
 
 from .helpers import object_list
@@ -133,3 +133,25 @@ def data():
     ]
     collection = Collections(list)
     return Response(collection.respond(), mimetype="application/json")
+
+
+@fintweet.route("/clientside_table")
+def clientside_table():
+    return render_template("fintweet/clientside_table.html")
+
+
+@fintweet.route("/clientside_table_data", methods=['GET'])
+def clientside_table_content():
+    data = table_builder.collect_data_clientside()
+    return jsonify(data)
+
+
+@fintweet.route("/serverside_table")
+def serverside_table():
+    return render_template("fintweet/serverside_table.html")
+
+
+@fintweet.route("/serverside_table_data", methods=['GET'])
+def serverside_table_content():
+    data = table_builder.collect_data_serverside(request)
+    return jsonify(data)

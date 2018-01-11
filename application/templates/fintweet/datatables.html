@@ -12,5 +12,33 @@
 </head>
 <body>
 {{ table|safe }}
+<table id="table_id">
+    <thead>
+    <tr>
+        <th>Column A</th>
+        <th>Column B</th>
+        <th>Column C</th>
+        <th>Column D</th>
+    </tr>
+    </thead>
+</table>
+<script>
+    $(document).ready(function () {
+        $('#table_id').DataTable({
+            bProcessing: true,
+            bServerSide: true,
+            sPaginationType: "full_numbers",
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+            bjQueryUI: true,
+            sAjaxSource: '<API_ENDPOINT>',
+            columns: [
+                {"data": "Column A"},
+                {"data": "Column B"},
+                {"data": "Column C"},
+                {"data": "Column D"}
+            ]
+        });
+    });
+</script>
 </body>
 </html>

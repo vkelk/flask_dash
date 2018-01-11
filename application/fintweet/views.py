@@ -155,3 +155,13 @@ def serverside_table():
 def serverside_table_content():
     data = table_builder.collect_data_serverside(request)
     return jsonify(data)
+
+
+@fintweet.route("/eventstudy")
+def eventstudy():
+    permnos = TweetCashtag.query.with_entities(TweetCashtag.permno).order_by(TweetCashtag.permno).group_by(
+        TweetCashtag.permno).all()
+    options = []
+    for item in permnos:
+        options.append(item[0])
+    return render_template('fintweet/eventstudy.html', options=options)

@@ -1,0 +1,19 @@
+{% extends "_base.html" %}
+{% block title %}Event study{% endblock %}
+{% block content %}
+
+    <h2>Chose permno</h2>
+    <table>
+        <form action="" method="POST">
+            <label>Select :</label>
+            <select name="option" width="300px">
+                {% for o in options %}
+                    <option value="{{ o }}">{{ o }}</option>
+                {% endfor %}
+            </select>
+            <input class="button1" type="submit" value="Select">
+
+        </form>
+    </table>
+
+{% endblock %}

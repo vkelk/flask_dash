@@ -240,18 +240,18 @@ class ServerSideTable(object):
             if str_direction == 'desc':
                 self.reverse = True
             self.reverse = False
-            # return True if str_direction == 'desc' else False
+            return True if str_direction == 'desc' else False
 
         if (self.request_values['iSortCol_0'] != "") and \
                 (int(self.request_values['iSortingCols']) > 0):
             column_number = int(self.request_values['iSortCol_0'])
             column_name = self.columns[column_number]['column_name']
             sort_direction = self.request_values['sSortDir_0']
-            self.reverse = False
-            is_reverse(sort_direction)
+            # self.reverse = False
+            # is_reverse(sort_direction)
             return sorted(data,
                           key=lambda x: (type(x[column_name]).__name__, x[column_name]),
-                          reverse=self.reverse)
+                          reverse=is_reverse(sort_direction))
         else:
             return data
 

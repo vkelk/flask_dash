@@ -11,10 +11,10 @@ $(document).ready(function () {
         bjQueryUI: true,
         sAjaxSource: '/fintweet/serverside_table_data',
         columns: [
-            {"data": "Column A"},
-            {"data": "Column B"},
-            {"data": "Column C"},
-            {"data": "Column D"}
+            {"data": "Cashtag"},
+            {"data": "Count"}
+            // {"data": "Column C"},
+            // {"data": "Column D"}
         ]
     });
 });

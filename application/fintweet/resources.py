@@ -72,20 +72,29 @@ def top_cashtags_j():
     query = db.session.query(
         TweetCashtag.cashtags,
         db.func.count(TweetCashtag.cashtags).label('countc')
-    ).group_by(TweetCashtag.cashtags).order_by(db.desc('countc')).limit(100).all()
+    ).group_by(TweetCashtag.cashtags).order_by(db.desc('countc')).limit(5).all()
     data_list = []
-    columns = []
+    columns = [{
+        "data_name": "cashtag",
+        "column_name": "Cashtag",
+        "default": "",
+        "order": 1,
+        "searchable": True
+    },
+        {
+            "data_name": "count",
+            "column_name": "Count",
+            "default": 0,
+            "order": 2,
+            "searchable": False
+        }]
     for item in query:
         data_dict = {'cashtag': item[0],
                      'count': item[1]}
-
-        column = {"data_name": "D",
-                  "column_name": "Column D",
-                  "default": 0,
-                  "order": 4,
-                  "searchable": False}
         data_list.append(data_dict)
-    return data_list
+    pprint(data_list),
+    pprint(columns)
+    return data_list, columns
 
 
 class TableBuilder(object):
@@ -95,5 +104,6 @@ class TableBuilder(object):
 
     def collect_data_serverside(self, request):
         columns = SERVERSIDE_TABLE_COLUMNS
-        top_cashtags_j()
-        return ServerSideTable(request, DATA_SAMPLE, columns).output_result()
+        data, columns = top_cashtags_j()
+        # return ServerSideTable(request, DATA_SAMPLE, columns).output_result()
+        return ServerSideTable(request, data, columns).output_result()

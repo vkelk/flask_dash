@@ -5,6 +5,7 @@ from flask_login import login_required
 from application.fintweet.helpers import Collections, DataTables
 from application.fintweet import fintweet, table_builder
 from application.fintweet.models import *
+from application.fintweet.forms import Form1
 
 from .helpers import object_list
 
@@ -159,9 +160,10 @@ def serverside_table_content():
 
 @fintweet.route("/eventstudy")
 def eventstudy():
+    form = Form1(request.form)
     permnos = TweetCashtag.query.with_entities(TweetCashtag.permno).order_by(TweetCashtag.permno).group_by(
         TweetCashtag.permno).all()
     options = []
     for item in permnos:
         options.append(item[0])
-    return render_template('fintweet/eventstudy.html', options=options)
+    return render_template('fintweet/eventstudy.html', options=options, form=form)

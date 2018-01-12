@@ -1,3 +1,4 @@
+from datetime import timedelta
 from flask import request, render_template, url_for, jsonify, Response
 from flask_login import login_required
 # from application import login_manager
@@ -161,9 +162,13 @@ def serverside_table_content():
 @fintweet.route("/eventstudy")
 def eventstudy():
     form = Form1(request.form)
+    if form.event_window.data:
+        second_event_date = form.event_date.data + timedelta(days=form.event_window.data)
+        start_date = min({form.event_date.data, second_event_date.data})
+        end_date = max({form.event_date.data, second_event_date.data})
     permnos = TweetCashtag.query.with_entities(TweetCashtag.permno).order_by(TweetCashtag.permno).group_by(
         TweetCashtag.permno).all()
-    options = []
+    options1 = []
     for item in permnos:
-        options.append(item[0])
-    return render_template('fintweet/eventstudy.html', options=options, form=form)
+        options1.append(item[0])
+    return render_template('fintweet/eventstudy.html', radio1=options1, form=form)

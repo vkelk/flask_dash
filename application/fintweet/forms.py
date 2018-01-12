@@ -1,10 +1,6 @@
+from datetime import timedelta
 from flask_wtf import FlaskForm
-from wtforms import StringField, SelectField, DateField, RadioField, FileField, FormField
-
-
-class Form2(FlaskForm):
-    company_codes = StringField()
-    codes_file = FileField()
+from wtforms import StringField, SelectField, DateField, RadioField, FileField, FormField, IntegerField
 
 
 class Form1(FlaskForm):
@@ -15,7 +11,8 @@ class Form1(FlaskForm):
                                  choices=[('permno', 'PermNo'), ('ticker', 'Ticker'), ('hashtag', 'Hashtag'),
                                           ('cashtag', 'Cashtag'), ('mentions', 'Mentions'),
                                           ('user_names', 'User Names')])
-    codes_container_radio = FormField(Form2)
+    company_codes = StringField('Company codes')
+    codes_file = FileField('Upload file')
 
-    permno = SelectField()
-    cashtag = SelectField()
+    event_date = DateField('Event date')
+    event_window = IntegerField('Event window')

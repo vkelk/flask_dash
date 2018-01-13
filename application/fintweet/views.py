@@ -177,9 +177,10 @@ def eventstudy():
 
     form = Form1(request.form)
     if request.method == 'POST':
-        if form.validate_on_submit():
+        if form.get_cashtags.data:
             try:
                 cashtags = get_from_radio(form.code_type_radio.data, form.company_codes.data)
+                pprint(cashtags)
                 form.cashtags_options.choices += [(cashtag, cashtag) for cashtag in cashtags]
                 if form.event_window.data:
                     second_event_date = form.event_date.data + timedelta(days=form.event_window.data)

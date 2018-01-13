@@ -17,5 +17,8 @@ class Form1(FlaskForm):
     cashtags_options = SelectField('Cashtags', choices=[("", "---")])
 
     event_date = DateField('Event date')
+    pre_event = IntegerField('Pre event days', default=1)
+    post_event = IntegerField('Post event days', default=2)
     event_window = IntegerField('Event window')
-    submit = SubmitField("Submit")
+    get_cashtags = SubmitField("Get cashtags")
+    get_event_data = SubmitField("Get event date data")

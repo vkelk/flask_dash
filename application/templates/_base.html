@@ -18,7 +18,8 @@
     <link href="{{ url_for('static', filename='css/sb-admin-2.css') }}" rel="stylesheet">
 
     <!-- Morris Charts CSS -->
-    <link href="{{ url_for('static', filename='morrisjs/morris.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.css">
+    {#    <link href="{{ url_for('static', filename='morrisjs/morris.css') }}" rel="stylesheet">#}
 
     <!-- Custom Fonts -->
     <link href="{{ url_for('static', filename='font-awesome/css/font-awesome.min.css') }}" rel="stylesheet"
@@ -95,7 +96,7 @@
     </div>
 </nav>
 
-<div class="container mt-4">
+<div class="container">
     {% for primary_message in get_flashed_messages(category_filter=["primary"]) %}
         <div class="alert alert-primary alert-dismissible fade show" role="alert">
             {{ primary_message }}
@@ -148,7 +149,7 @@
 
 <div class="container">
     {#    <div class="mt-5">#}
-    <h1>{{ self.title() }}</h1>
+    <h3>{{ self.title() }}</h3>
     <hr>
     {#    </div>#}
     {% block content %}{% endblock %}
@@ -181,9 +182,11 @@
 <script src="{{ url_for('static', filename='metisMenu/metisMenu.min.js') }}"></script>
 
 <!-- Morris Charts JavaScript -->
-<script src="{{ url_for('static', filename='raphael/raphael.min.js') }}"></script>
-<script src="{{ url_for('static', filename='morrisjs/morris.min.js') }}"></script>
-<script src="{{ url_for('static', filename='morrisjs/morris-data.js') }}"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/raphael/2.1.0/raphael-min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.min.js"></script>
+{#<script src="{{ url_for('static', filename='raphael/raphael.min.js') }}"></script>#}
+{#<script src="{{ url_for('static', filename='morrisjs/morris.min.js') }}"></script>#}
+{#<script src="{{ url_for('static', filename='morrisjs/morris-data.js') }}"></script>#}
 
 <!-- Custom Theme JavaScript -->
 <script src="{{ url_for('static', filename='js/sb-admin-2.min.js') }}"></script>

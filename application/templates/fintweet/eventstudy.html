@@ -8,11 +8,12 @@
             margin-right: 5px;
         }
     </style>
-    <div>
-        <form action="{{ url_for('fintweet.eventstudy') }}" method="post">
-            <div class="col-sm-6">
+    <div class="row">
+        <form action="{{ url_for('fintweet.eventstudy') }}" method="post" role="form">
+            {{ form.csrf_token }}
+            <div class="col-sm-6 col-md-8">
                 <div class="form-inline">
-                    <h3><b>Step 1:</b> Choose your date range.</h3>
+                    <h4><b>Step 1:</b> Choose your date range.</h4>
                     <div class="form-group">
                         {{ form.start_date.label }}
                         {{ render_field(form.start_date, class="form-control", type="date") }}
@@ -23,7 +24,7 @@
                     </div>
                 </div>
                 <div class="form-inline">
-                    <h3><b>Step 2:</b> Apply your company codes.</h3>
+                    <h4><b>Step 2:</b> Apply your company codes.</h4>
                     <div>
                         {% for subfield in form.code_type_radio %}
                             <tr>
@@ -38,15 +39,37 @@
                     <p><i>Please enter Company codes seperated by commas. <br>Example: FB, IBM, MSFT, AAPL</i></p>
                 </div>
                 <div class="form-inline">
-                    <h3><b>Step 2a:</b> Upload a file</h3>
+                    <h4><b>Step 2a:</b> Upload a file</h4>
                     <div class="form-group">
                         {#                        {{ form.codes_file.label }}{{ form.codes_file }}#}
                         {{ render_field(form.codes_file, class="form-control") }}
                     </div>
                 </div>
-                <input type="submit" value="Get Started!" class="btn btn-lg btn-success">
+                {#                    <input type="submit" value="Get Cashtags" class="btn btn-success">#}
+                {{ render_field(form.submit, class="btn btn-success") }}
+            </div>
+            <div class="col-sm-6 col-md-4">
+                <h3>Event study parameters:</h3>
+                {#        {% if cashtag_options in form %}#}
+                <h5>Cashtags used:</h5>
+                {#        {{ form.cashtags_options }}#}
+                {{ render_field(form.cashtags_options, class="form-control") }}
+                {#        {% endif %}#}
+                {#        {% if form.cashtags_options | length  > 0 %}#}
+                {#        {{ form.cashtags_options }}#}
+                {#        {% endif %}#}
+                {#            {% if cashtags %}#}
+                {#                <h5>Cashtags used:</h5>#}
+                {#                {% for cashtag in cashtags %}#}
+                {#                    <li>{{ cashtag }}</li>#}
+                {#                {% endfor %}#}
+                {#            {% endif %}#}
             </div>
         </form>
+
+    </div>
+    <div class="row">
+        RESULTS GO HERE
     </div>
 
 

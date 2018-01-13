@@ -163,37 +163,34 @@ def serverside_table_content():
 
 @fintweet.route("/eventstudy", methods=["GET", "POST"])
 def eventstudy():
-    def get_from_radio(type, codes):
+    def get_from_radio(code_type, codes):
         code_list = codes.split(',')
-        if type == 'permno':
-            codes = ','.join(code_list)
-            pprint(codes)
-            query = DealNosFT.query.filter(DealNosFT.permno.in_(codes)).all()
-            print(query)
-
+        if code_type == 'permno':
+            query = DealNosFT.query.filter(DealNosFT.permno.in_(code_list)).all()
+            return [item.cashtag for item in query]
+        elif code_type == 'cashtag':
+            return code_list
+        elif code_type == 'ticker':
+            for i, item in enumerate(code_list):
+                code_list[i] = '$' + item.strip()
+            return code_list
 
     form = Form1(request.form)
     if request.method == 'POST':
-        print(form.code_type_radio.data)
-        results1 = get_from_radio(form.code_type_radio.data, form.company_codes.data)
         if form.validate_on_submit():
             try:
-                print(form.code_type_radio.data)
-                results1 = get_from_radio(form.code_type_radio.data, form.company_codes.data)
+                cashtags = get_from_radio(form.code_type_radio.data, form.company_codes.data)
+                form.cashtags_options.choices += [(cashtag, cashtag) for cashtag in cashtags]
                 if form.event_window.data:
                     second_event_date = form.event_date.data + timedelta(days=form.event_window.data)
                     start_date = min({form.event_date.data, second_event_date.data})
                     end_date = max({form.event_date.data, second_event_date.data})
                 permnos = TweetCashtag.query.with_entities(TweetCashtag.permno).order_by(TweetCashtag.permno).group_by(
                     TweetCashtag.permno).all()
-                message = Markup(
-                    "<strong>Success!</strong> Thanks for registering. Please check your email to confirm your email address.")
-                flash(message, 'success')
-                return render_template('fintweet/eventstudy.html', form=form)
+                return render_template('fintweet/eventstudy.html', form=form, cashtags=cashtags)
             except IntegrityError:
-                db.session.rollback()
                 message = Markup(
-                    "<strong>Error!</strong> Unable to process registration.")
+                    "<strong>Error!</strong> Something went wrong.")
                 flash(message, 'danger')
-
+    print(form.errors)
     return render_template('fintweet/eventstudy.html', form=form)

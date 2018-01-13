@@ -4,6 +4,11 @@ from flask_login import AnonymousUserMixin, UserMixin
 from application import db
 
 
+class DealNosFT(db.Model):
+    __bind_key__ = 'fintweet'
+    __table__ = db.Model.metadata.tables['dealnos']
+
+
 class User(UserMixin, db.Model):
     __bind_key__ = 'fintweet'
     __table__ = db.Model.metadata.tables['user']

@@ -1,6 +1,8 @@
 from datetime import timedelta
-from flask import request, render_template, url_for, jsonify, Response
+from pprint import pprint
+from flask import request, render_template, url_for, jsonify, Response, Markup, flash, abort
 from flask_login import login_required
+from sqlalchemy.exc import IntegrityError
 # from application import login_manager
 # from datatables import ColumnDT, DataTables
 from application.fintweet.helpers import Collections, DataTables
@@ -159,16 +161,39 @@ def serverside_table_content():
     return jsonify(data)
 
 
-@fintweet.route("/eventstudy")
+@fintweet.route("/eventstudy", methods=["GET", "POST"])
 def eventstudy():
+    def get_from_radio(type, codes):
+        code_list = codes.split(',')
+        if type == 'permno':
+            codes = ','.join(code_list)
+            pprint(codes)
+            query = DealNosFT.query.filter(DealNosFT.permno.in_(codes)).all()
+            print(query)
+
+
     form = Form1(request.form)
-    if form.event_window.data:
-        second_event_date = form.event_date.data + timedelta(days=form.event_window.data)
-        start_date = min({form.event_date.data, second_event_date.data})
-        end_date = max({form.event_date.data, second_event_date.data})
-    permnos = TweetCashtag.query.with_entities(TweetCashtag.permno).order_by(TweetCashtag.permno).group_by(
-        TweetCashtag.permno).all()
-    options1 = []
-    for item in permnos:
-        options1.append(item[0])
-    return render_template('fintweet/eventstudy.html', radio1=options1, form=form)
+    if request.method == 'POST':
+        print(form.code_type_radio.data)
+        results1 = get_from_radio(form.code_type_radio.data, form.company_codes.data)
+        if form.validate_on_submit():
+            try:
+                print(form.code_type_radio.data)
+                results1 = get_from_radio(form.code_type_radio.data, form.company_codes.data)
+                if form.event_window.data:
+                    second_event_date = form.event_date.data + timedelta(days=form.event_window.data)
+                    start_date = min({form.event_date.data, second_event_date.data})
+                    end_date = max({form.event_date.data, second_event_date.data})
+                permnos = TweetCashtag.query.with_entities(TweetCashtag.permno).order_by(TweetCashtag.permno).group_by(
+                    TweetCashtag.permno).all()
+                message = Markup(
+                    "<strong>Success!</strong> Thanks for registering. Please check your email to confirm your email address.")
+                flash(message, 'success')
+                return render_template('fintweet/eventstudy.html', form=form)
+            except IntegrityError:
+                db.session.rollback()
+                message = Markup(
+                    "<strong>Error!</strong> Unable to process registration.")
+                flash(message, 'danger')
+
+    return render_template('fintweet/eventstudy.html', form=form)

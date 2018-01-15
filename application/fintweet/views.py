@@ -211,11 +211,22 @@ def eventstudy():
                     .filter(Tweet.date <= end_date) \
                     .group_by(Tweet.date).order_by(Tweet.date)
                 data = pd.DataFrame([r._asdict() for r in query.all()])
-                pprint(data)
-                print(data['count'].mean())
-                print(data['count'].median())
+                pre_data = data.loc[data['date'] < form.event_date.data]
+                event_data = data.loc[data['date'] == form.event_date.data]
+                post_data = data.loc[data['date'] > form.event_date.data]
+                # pprint(data)
+                # pprint(pre_data)
+                # pprint(event_data)
+                # pprint(post_data)
+                tables = [pre_data.to_html(classes='table table-striped'),
+                          event_data.to_html(classes='male'),
+                          post_data.to_html(classes='male')]
+                titles = ['na', 'Pre Event', 'On Event', 'Post Event']
+                num = pd.DataFrame([{"pre_event": [pre_data['count'].mean(), pre_data['count'].median()]},
+                                    {"on_event": [event_data['count'].mean(), event_data['count'].median()]},
+                                    {"post_event": [post_data['count'].mean(), post_data['count'].median()]}])
                 return render_template('fintweet/eventstudy.html', form=form,
-                                       table=data.to_html(classes="table table-striped"))
+                                       tables=tables, titles=titles, num=num)
 
             except IntegrityError:
                 message = Markup(

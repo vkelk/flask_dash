@@ -98,7 +98,11 @@
     </div>
     <div class="row">
         RESULTS GO HERE
+        {{ num | safe }}
+        {% for table in tables %}
+            <h5>{{ titles[loop.index] }}</h5>
         {{ table | safe }}
+        {% endfor %}
     </div>
 
 

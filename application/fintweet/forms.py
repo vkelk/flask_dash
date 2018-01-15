@@ -1,6 +1,6 @@
 from datetime import timedelta
 from flask_wtf import FlaskForm
-from wtforms import StringField, SelectField, DateField, RadioField, FileField, FormField, IntegerField, SubmitField
+from wtforms import StringField, SelectField, DateField, RadioField, FileField, HiddenField, IntegerField, SubmitField
 from wtforms.validators import DataRequired
 
 
@@ -15,6 +15,7 @@ class Form1(FlaskForm):
     company_codes = StringField('Company codes')
     codes_file = FileField('Upload file')
     cashtags_options = SelectField('Cashtags', choices=[("", "---")])
+    codes_list = HiddenField()
 
     event_date = DateField('Event date')
     pre_event = IntegerField('Pre event days', default=1)

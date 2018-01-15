@@ -7,6 +7,17 @@
             margin-left: 3px;
             margin-right: 5px;
         }
+
+        table.dataframe, .dataframe th, .dataframe td {
+            border: none;
+            border-bottom: 1px solid #C8C8C8;
+            border-collapse: collapse;
+            text-align: left;
+            padding: 10px;
+            margin-bottom: 40px;
+            font-size: 0.9em;
+        }
+
     </style>
     <div class="row">
         <form action="{{ url_for('fintweet.eventstudy') }}" method="post" role="form">
@@ -59,6 +70,7 @@
                 <div class="panel panel-default">
                     <div class="panel panel-heading">Event study parameters</div>
                     <div class="panel panel-body">
+                        {{ form.codes_list }}
                         {#        {% if cashtag_options in form %}#}
                         <h5>Cashtags used:</h5>
                         {#        {{ form.cashtags_options }}#}
@@ -86,6 +98,7 @@
     </div>
     <div class="row">
         RESULTS GO HERE
+        {{ table | safe }}
     </div>
 
 

@@ -1,4 +1,6 @@
 from datetime import timedelta
+import pandas as pd
+import json
 from pprint import pprint
 from flask import request, render_template, url_for, jsonify, Response, Markup, flash, abort
 from flask_login import login_required
@@ -177,10 +179,13 @@ def eventstudy():
 
     form = Form1(request.form)
     if request.method == 'POST':
-        if form.get_cashtags.data:
+        if form.get_cashtags.data and form.code_type_radio.data and form.company_codes.data:
             try:
                 cashtags = get_from_radio(form.code_type_radio.data, form.company_codes.data)
+                form.codes_list.data = json.dumps(cashtags)
                 pprint(cashtags)
+                pprint(form.codes_list.data)
+                form.cashtags_options.choices = [("", "ALL")]
                 form.cashtags_options.choices += [(cashtag, cashtag) for cashtag in cashtags]
                 if form.event_window.data:
                     second_event_date = form.event_date.data + timedelta(days=form.event_window.data)
@@ -193,5 +198,29 @@ def eventstudy():
                 message = Markup(
                     "<strong>Error!</strong> Something went wrong.")
                 flash(message, 'danger')
-    print(form.errors)
+        elif form.get_event_data.data and form.event_date.data:
+            try:
+                code_list = json.loads(form.codes_list.data)
+                start_date = form.event_date.data - timedelta(days=form.pre_event.data)
+                end_date = form.event_date.data + timedelta(days=form.post_event.data)
+                query = db.session \
+                    .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
+                    .join(TweetCashtag) \
+                    .filter(TweetCashtag.cashtags.in_(code_list)) \
+                    .filter(Tweet.date >= start_date) \
+                    .filter(Tweet.date <= end_date) \
+                    .group_by(Tweet.date).order_by(Tweet.date)
+                data = pd.DataFrame([r._asdict() for r in query.all()])
+                pprint(data)
+                print(data['count'].mean())
+                print(data['count'].median())
+                return render_template('fintweet/eventstudy.html', form=form,
+                                       table=data.to_html(classes="table table-striped"))
+
+            except IntegrityError:
+                message = Markup(
+                    "<strong>Error!</strong> Something went wrong.")
+                flash(message, 'danger')
+    if len(form.errors) > 0:
+        pprint(form.errors)
     return render_template('fintweet/eventstudy.html', form=form)

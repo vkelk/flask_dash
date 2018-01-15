@@ -201,8 +201,12 @@ def eventstudy():
         elif form.get_event_data.data and form.event_date.data:
             try:
                 code_list = json.loads(form.codes_list.data)
+                form.cashtags_options.choices = [("", "ALL")]
+                form.cashtags_options.choices += [(cashtag, cashtag) for cashtag in code_list]
                 start_date = form.event_date.data - timedelta(days=form.pre_event.data)
                 end_date = form.event_date.data + timedelta(days=form.post_event.data)
+                pprint(code_list)
+                print(start_date, end_date)
                 query = db.session \
                     .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
                     .join(TweetCashtag) \
@@ -211,13 +215,15 @@ def eventstudy():
                     .filter(Tweet.date <= end_date) \
                     .group_by(Tweet.date).order_by(Tweet.date)
                 data = pd.DataFrame([r._asdict() for r in query.all()])
+                pprint(data)
+                if len(data) < 1:
+                    message = Markup(
+                        "<strong>Warning</strong> The selected filters didn't produce any data.")
+                    flash(message, 'warning')
+                    return render_template('fintweet/eventstudy.html', form=form)
                 pre_data = data.loc[data['date'] < form.event_date.data]
                 event_data = data.loc[data['date'] == form.event_date.data]
                 post_data = data.loc[data['date'] > form.event_date.data]
-                # pprint(data)
-                # pprint(pre_data)
-                # pprint(event_data)
-                # pprint(post_data)
                 tables = [pre_data.to_html(classes='table table-striped'),
                           event_data.to_html(classes='male'),
                           post_data.to_html(classes='male')]

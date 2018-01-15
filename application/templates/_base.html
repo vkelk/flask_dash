@@ -97,52 +97,10 @@
 </nav>
 
 <div class="container">
-    {% for primary_message in get_flashed_messages(category_filter=["primary"]) %}
-        <div class="alert alert-primary alert-dismissible fade show" role="alert">
-            {{ primary_message }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    {% endfor %}
-    {% for secondary_message in get_flashed_messages(category_filter=["secondary"]) %}
-        <div class="alert alert-secondary alert-dismissible fade show" role="alert">
-            {{ secondary_message }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    {% endfor %}
-    {% for success_message in get_flashed_messages(category_filter=["success"]) %}
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ success_message }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    {% endfor %}
-    {% for danger_message in get_flashed_messages(category_filter=["danger"]) %}
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            {{ danger_message }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    {% endfor %}
-    {% for warning_message in get_flashed_messages(category_filter=["warning"]) %}
-        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            {{ warning_message }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    {% endfor %}
-    {% for info_message in get_flashed_messages(category_filter=["info"]) %}
-        <div class="alert alert-info alert-dismissible fade show" role="alert">
-            {{ info_message }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+        <div class="alert alert-dismissable alert-{{ category }}">
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+            {{ message }}
         </div>
     {% endfor %}
 </div>

@@ -1,7 +1,7 @@
 from datetime import timedelta
 import pandas as pd
 import json
-from io import StringIO
+from functools import reduce
 from pprint import pprint
 from flask import request, render_template, url_for, jsonify, Response, Markup, flash, abort, send_file, make_response
 from flask_login import login_required
@@ -217,34 +217,42 @@ def eventstudy():
                 start_date = form.event_date.data - timedelta(days=form.pre_event.data)
                 end_date = form.event_date.data + timedelta(days=form.post_event.data)
                 dates_range = pd.date_range(start_date, end_date)
-                # pprint(dates_range)
                 pd_index = [i for i in range(-form.pre_event.data, form.post_event.data + 1, 1)]
-                # pprint(pd_index)
-                # pprint(code_list)
-                # print(start_date, end_date)
-                # pprint(form.cashtags_options.data)
                 if form.cashtags_options.data == '':
                     if len(code_list) == 1:
-                        result_list = get_data_from_query(form.cashtags_options.data, start_date, end_date)
-                        data = pd.DataFrame(result_list, index=pd_index, columns=['date', 'count'])
+                        result_list = get_data_from_query(code_list[0], start_date, end_date)
+                        data = pd.DataFrame(i for i in result_list)
+                        data.index = pd.DatetimeIndex(data['date'])
+                        data = data.reindex(dates_range, fill_value=0)
+                        data['days'] = pd_index
                     elif len(code_list) > 1:
-                        res_list = []
-                        for c in code_list:
-                            result_list = get_data_from_query(c, start_date, end_date)
-                            res_list.extend(result_list)
-                        data = pd.DataFrame(res_list, index=pd_index)
+                        q = db.session \
+                            .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
+                            .join(TweetCashtag) \
+                            .filter(TweetCashtag.cashtags.in_(code_list)) \
+                            .filter(Tweet.date >= start_date) \
+                            .filter(Tweet.date <= end_date) \
+                            .group_by(Tweet.date).order_by(Tweet.date)
+                        data = pd.DataFrame([r._asdict() for r in q.all()])
+                        data.index = pd.DatetimeIndex(data['date'])
+                        data = data.reindex(dates_range, fill_value=0)
+                        data['days'] = pd_index
+                        pprint(data)
                 else:
                     result_list = get_data_from_query(form.cashtags_options.data, start_date, end_date)
-                    data = pd.DataFrame(result_list, index=pd_index, columns=['date', 'count'])
+                    data = pd.DataFrame(i for i in result_list)
+                    data.index = pd.DatetimeIndex(data['date'])
+                    data = data.reindex(dates_range, fill_value=0)
+                    data['days'] = pd_index
                 if len(data) < 1:
                     message = Markup(
                         "<strong>Warning</strong> The selected filters didn't produce any data.")
                     flash(message, 'warning')
                     return render_template('fintweet/eventstudy.html', form=form)
-                data = data[['date', 'count']]
-                pre_data = data.loc[data['date'] < form.event_date.data]
-                event_data = data.loc[data['date'] == form.event_date.data]
-                post_data = data.loc[data['date'] > form.event_date.data]
+                data = data[['days', 'count']]
+                pre_data = data.loc[data['days'] < 0]
+                event_data = data.loc[data['days'] == 0]
+                post_data = data.loc[data['days'] > 0]
                 # tables = [pre_data.to_html(classes='table table-striped'),
                 #           event_data.to_html(classes='table table-striped'),
                 #           post_data.to_html(classes='table table-striped')]

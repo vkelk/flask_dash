@@ -23,3 +23,4 @@ class Form1(FlaskForm):
     event_window = IntegerField('Event window')
     get_cashtags = SubmitField("Get cashtags")
     get_event_data = SubmitField("Get event date data")
+    get_csv_data = SubmitField("Get csv data")

@@ -1,8 +1,9 @@
 from datetime import timedelta
 import pandas as pd
 import json
+from io import StringIO
 from pprint import pprint
-from flask import request, render_template, url_for, jsonify, Response, Markup, flash, abort
+from flask import request, render_template, url_for, jsonify, Response, Markup, flash, abort, send_file, make_response
 from flask_login import login_required
 from sqlalchemy.exc import IntegrityError
 # from application import login_manager
@@ -198,24 +199,36 @@ def eventstudy():
                 message = Markup(
                     "<strong>Error!</strong> Something went wrong.")
                 flash(message, 'danger')
-        elif form.get_event_data.data and form.event_date.data:
+        elif (form.get_event_data.data or form.get_csv_data.data) and form.event_date.data:
             try:
                 code_list = json.loads(form.codes_list.data)
                 form.cashtags_options.choices = [("", "ALL")]
                 form.cashtags_options.choices += [(cashtag, cashtag) for cashtag in code_list]
                 start_date = form.event_date.data - timedelta(days=form.pre_event.data)
                 end_date = form.event_date.data + timedelta(days=form.post_event.data)
-                pprint(code_list)
-                print(start_date, end_date)
-                query = db.session \
-                    .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
-                    .join(TweetCashtag) \
-                    .filter(TweetCashtag.cashtags.in_(code_list)) \
-                    .filter(Tweet.date >= start_date) \
-                    .filter(Tweet.date <= end_date) \
-                    .group_by(Tweet.date).order_by(Tweet.date)
-                data = pd.DataFrame([r._asdict() for r in query.all()])
-                pprint(data)
+                pd_index = [i for i in range(-form.pre_event.data, form.post_event.data + 1, 1)]
+                # pprint(pd_index)
+                # pprint(code_list)
+                # print(start_date, end_date)
+                pprint(form.cashtags_options.data)
+                if form.cashtags_options.data == '':
+                    query = db.session \
+                        .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
+                        .join(TweetCashtag) \
+                        .filter(TweetCashtag.cashtags.in_(code_list)) \
+                        .filter(Tweet.date >= start_date) \
+                        .filter(Tweet.date <= end_date) \
+                        .group_by(Tweet.date).order_by(Tweet.date)
+                else:
+                    query = db.session \
+                        .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
+                        .join(TweetCashtag) \
+                        .filter(TweetCashtag.cashtags == form.cashtags_options.data) \
+                        .filter(Tweet.date >= start_date) \
+                        .filter(Tweet.date <= end_date) \
+                        .group_by(Tweet.date).order_by(Tweet.date)
+                data = pd.DataFrame([r._asdict() for r in query.all()], index=pd_index)
+                # pprint(data)
                 if len(data) < 1:
                     message = Markup(
                         "<strong>Warning</strong> The selected filters didn't produce any data.")
@@ -224,15 +237,32 @@ def eventstudy():
                 pre_data = data.loc[data['date'] < form.event_date.data]
                 event_data = data.loc[data['date'] == form.event_date.data]
                 post_data = data.loc[data['date'] > form.event_date.data]
-                tables = [pre_data.to_html(classes='table table-striped'),
-                          event_data.to_html(classes='male'),
-                          post_data.to_html(classes='male')]
-                titles = ['na', 'Pre Event', 'On Event', 'Post Event']
-                num = pd.DataFrame([{"pre_event": [pre_data['count'].mean(), pre_data['count'].median()]},
-                                    {"on_event": [event_data['count'].mean(), event_data['count'].median()]},
-                                    {"post_event": [post_data['count'].mean(), post_data['count'].median()]}])
+                # tables = [pre_data.to_html(classes='table table-striped'),
+                #           event_data.to_html(classes='table table-striped'),
+                #           post_data.to_html(classes='table table-striped')]
+                tables = [data.to_html(classes='table table-striped')]
+                if form.cashtags_options.data == '':
+                    ew_title = 'Event window for cashtag(s) {}'.format(str(code_list))
+                else:
+                    ew_title = 'Event window for cashtag(s) {}'.format(form.cashtags_options.data)
+                titles = ['na', ew_title]
+                stats = pd.DataFrame({'PRE EVENT': [pre_data['count'].mean(), pre_data['count'].median()],
+                                      'ON EVENT': [event_data['count'].mean(), event_data['count'].median()],
+                                      'POST EVENT': [post_data['count'].mean(), post_data['count'].median()]},
+                                     index=['mean', 'median'])
+                if form.get_csv_data.data and len(data) > 1:
+                    resp = make_response(data.to_csv())
+                    resp.headers["Content-Disposition"] = "attachment; filename=export.csv"
+                    resp.headers["Content-Type"] = "text/csv"
+                    return resp
+                    # buffer = StringIO()
+                    # data.to_csv(buffer, encoding='utf-8')
+                    # buffer.seek(0)
+                    # return send_file(buffer,
+                    #                  attachment_filename="test.csv",
+                    #                  mimetype='text/csv')
                 return render_template('fintweet/eventstudy.html', form=form,
-                                       tables=tables, titles=titles, num=num)
+                                       tables=tables, titles=titles, stats=stats.to_html(classes='table table-striped'))
 
             except IntegrityError:
                 message = Markup(

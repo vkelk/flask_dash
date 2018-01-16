@@ -93,16 +93,23 @@
                 </div>
 
             </div>
+            {{ render_field(form.get_csv_data, class="btn btn-success pull-right") }}
         </form>
 
     </div>
     <div class="row">
-        RESULTS GO HERE
-        {{ num | safe }}
-        {% for table in tables %}
-            <h5>{{ titles[loop.index] }}</h5>
-        {{ table | safe }}
-        {% endfor %}
+        <div class="col-sm-6">
+            {% for table in tables %}
+                <h5>{{ titles[loop.index] }}</h5>
+                {{ table | safe }}
+            {% endfor %}
+        </div>
+        <div class="col-sm-6">
+            {% if stats %}
+                <h5>STATS</h5>
+                {{ stats | safe }}
+            {% endif %}
+        </div>
     </div>
 
 

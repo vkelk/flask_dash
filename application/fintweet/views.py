@@ -178,6 +178,16 @@ def eventstudy():
                 code_list[i] = '$' + item.strip()
             return code_list
 
+    def get_data_from_query(c_tag, start, end):
+        q = db.session \
+            .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
+            .join(TweetCashtag) \
+            .filter(TweetCashtag.cashtags == c_tag) \
+            .filter(Tweet.date >= start) \
+            .filter(Tweet.date <= end) \
+            .group_by(Tweet.date).order_by(Tweet.date)
+        return [r._asdict() for r in q.all()]
+
     form = Form1(request.form)
     if request.method == 'POST':
         if form.get_cashtags.data and form.code_type_radio.data and form.company_codes.data:
@@ -210,30 +220,26 @@ def eventstudy():
                 # pprint(pd_index)
                 # pprint(code_list)
                 # print(start_date, end_date)
-                pprint(form.cashtags_options.data)
+                # pprint(form.cashtags_options.data)
                 if form.cashtags_options.data == '':
-                    query = db.session \
-                        .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
-                        .join(TweetCashtag) \
-                        .filter(TweetCashtag.cashtags.in_(code_list)) \
-                        .filter(Tweet.date >= start_date) \
-                        .filter(Tweet.date <= end_date) \
-                        .group_by(Tweet.date).order_by(Tweet.date)
+                    if len(code_list) == 1:
+                        result_list = get_data_from_query(form.cashtags_options.data, start_date, end_date)
+                        data = pd.DataFrame(result_list, index=pd_index, columns=['date', 'count'])
+                    elif len(code_list) > 1:
+                        res_list = []
+                        for c in code_list:
+                            result_list = get_data_from_query(c, start_date, end_date)
+                            res_list.extend(result_list)
+                        data = pd.DataFrame(res_list, index=pd_index)
                 else:
-                    query = db.session \
-                        .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
-                        .join(TweetCashtag) \
-                        .filter(TweetCashtag.cashtags == form.cashtags_options.data) \
-                        .filter(Tweet.date >= start_date) \
-                        .filter(Tweet.date <= end_date) \
-                        .group_by(Tweet.date).order_by(Tweet.date)
-                data = pd.DataFrame([r._asdict() for r in query.all()], index=pd_index)
-                # pprint(data)
+                    result_list = get_data_from_query(form.cashtags_options.data, start_date, end_date)
+                    data = pd.DataFrame(result_list, index=pd_index, columns=['date', 'count'])
                 if len(data) < 1:
                     message = Markup(
                         "<strong>Warning</strong> The selected filters didn't produce any data.")
                     flash(message, 'warning')
                     return render_template('fintweet/eventstudy.html', form=form)
+                data = data[['date', 'count']]
                 pre_data = data.loc[data['date'] < form.event_date.data]
                 event_data = data.loc[data['date'] == form.event_date.data]
                 post_data = data.loc[data['date'] > form.event_date.data]
@@ -249,7 +255,8 @@ def eventstudy():
                 stats = pd.DataFrame({'PRE EVENT': [pre_data['count'].mean(), pre_data['count'].median()],
                                       'ON EVENT': [event_data['count'].mean(), event_data['count'].median()],
                                       'POST EVENT': [post_data['count'].mean(), post_data['count'].median()]},
-                                     index=['mean', 'median'])
+                                     index=['mean', 'median'],
+                                     columns=['PRE EVENT', 'ON EVENT', 'POST EVENT'])
                 if form.get_csv_data.data and len(data) > 1:
                     resp = make_response(data.to_csv())
                     resp.headers["Content-Disposition"] = "attachment; filename=export.csv"

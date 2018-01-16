@@ -216,6 +216,8 @@ def eventstudy():
                 form.cashtags_options.choices += [(cashtag, cashtag) for cashtag in code_list]
                 start_date = form.event_date.data - timedelta(days=form.pre_event.data)
                 end_date = form.event_date.data + timedelta(days=form.post_event.data)
+                dates_range = pd.date_range(start_date, end_date)
+                # pprint(dates_range)
                 pd_index = [i for i in range(-form.pre_event.data, form.post_event.data + 1, 1)]
                 # pprint(pd_index)
                 # pprint(code_list)

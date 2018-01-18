@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from application.fintweet.helpers import Collections, DataTables
 from application.fintweet import fintweet, table_builder
 from application.fintweet.models import *
-from application.fintweet.forms import Form1
+from application.fintweet.forms import EventStydyForm
 
 from .helpers import object_list
 
@@ -164,6 +164,11 @@ def serverside_table_content():
     return jsonify(data)
 
 
+@fintweet.route("/eventstudyfile", methods=["GET", "POST"])
+def eventstudyfile():
+    pass
+
+
 @fintweet.route("/eventstudy", methods=["GET", "POST"])
 def eventstudy():
     def get_from_radio(code_type, codes):
@@ -188,9 +193,9 @@ def eventstudy():
             .group_by(Tweet.date).order_by(Tweet.date)
         return [r._asdict() for r in q.all()]
 
-    form = Form1(request.form)
+    form = EventStydyForm(request.form)
     if request.method == 'POST':
-        if form.get_cashtags.data and form.code_type_radio.data and form.company_codes.data:
+        if form.btn_get_cashtags.data and form.code_type_radio.data and form.company_codes.data:
             try:
                 cashtags = get_from_radio(form.code_type_radio.data, form.company_codes.data)
                 form.codes_list.data = json.dumps(cashtags)
@@ -204,12 +209,13 @@ def eventstudy():
                     end_date = max({form.event_date.data, second_event_date.data})
                 permnos = TweetCashtag.query.with_entities(TweetCashtag.permno).order_by(TweetCashtag.permno).group_by(
                     TweetCashtag.permno).all()
+                del form.btn_download_csv
                 return render_template('fintweet/eventstudy.html', form=form, cashtags=cashtags)
             except IntegrityError:
                 message = Markup(
                     "<strong>Error!</strong> Something went wrong.")
                 flash(message, 'danger')
-        elif (form.get_event_data.data or form.get_csv_data.data) and form.event_date.data:
+        elif (form.btn_get_event_data.data or form.btn_download_csv.data) and form.event_date.data:
             try:
                 code_list = json.loads(form.codes_list.data)
                 form.cashtags_options.choices = [("", "ALL")]
@@ -267,7 +273,7 @@ def eventstudy():
                                       'POST EVENT': [post_data['count'].mean(), post_data['count'].median()]},
                                      index=['mean', 'median'],
                                      columns=['PRE EVENT', 'ON EVENT', 'POST EVENT'])
-                if form.get_csv_data.data and len(data) > 1:
+                if form.btn_download_csv.data and len(data) > 1:
                     resp = make_response(data.to_csv())
                     resp.headers["Content-Disposition"] = "attachment; filename=export.csv"
                     resp.headers["Content-Type"] = "text/csv"
@@ -285,6 +291,8 @@ def eventstudy():
                 message = Markup(
                     "<strong>Error!</strong> Something went wrong.")
                 flash(message, 'danger')
+    del form.btn_get_event_data
+    del form.btn_download_csv
     if len(form.errors) > 0:
         pprint(form.errors)
     return render_template('fintweet/eventstudy.html', form=form)

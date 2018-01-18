@@ -191,6 +191,7 @@ def eventstudy():
             .filter(Tweet.date >= start) \
             .filter(Tweet.date <= end) \
             .group_by(Tweet.date).order_by(Tweet.date)
+        print(q)
         return [r._asdict() for r in q.all()]
 
     form = EventStydyForm(request.form)
@@ -220,10 +221,11 @@ def eventstudy():
                 code_list = json.loads(form.codes_list.data)
                 form.cashtags_options.choices = [("", "ALL")]
                 form.cashtags_options.choices += [(cashtag, cashtag) for cashtag in code_list]
-                start_date = form.event_date.data - timedelta(days=form.pre_event.data)
+                days_pre_event = abs(form.pre_event.data)
+                start_date = form.event_date.data - timedelta(days=days_pre_event)
                 end_date = form.event_date.data + timedelta(days=form.post_event.data)
                 dates_range = pd.date_range(start_date, end_date)
-                pd_index = [i for i in range(-form.pre_event.data, form.post_event.data + 1, 1)]
+                pd_index = [i for i in range(-days_pre_event, form.post_event.data + 1, 1)]
                 if form.cashtags_options.data == '':
                     if len(code_list) == 1:
                         result_list = get_data_from_query(code_list[0], start_date, end_date)
@@ -239,6 +241,7 @@ def eventstudy():
                             .filter(Tweet.date >= start_date) \
                             .filter(Tweet.date <= end_date) \
                             .group_by(Tweet.date).order_by(Tweet.date)
+                        print(q)
                         data = pd.DataFrame([r._asdict() for r in q.all()])
                         data.index = pd.DatetimeIndex(data['date'])
                         data = data.reindex(dates_range, fill_value=0)

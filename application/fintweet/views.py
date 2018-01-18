@@ -166,7 +166,7 @@ def serverside_table_content():
 
 @fintweet.route("/eventstudyfile", methods=["GET", "POST"])
 def eventstudyfile():
-    pass
+    return render_template('fintweet/eventstudyfile.html')
 
 
 @fintweet.route("/eventstudy", methods=["GET", "POST"])

@@ -2,7 +2,7 @@ from datetime import timedelta, datetime
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 from wtforms import StringField, SelectField, DateField, RadioField, HiddenField, IntegerField, SubmitField
-from wtforms.validators import DataRequired
+from wtforms.validators import DataRequired, NumberRange
 from application.config import Configuration
 
 
@@ -34,10 +34,13 @@ class EventStydyForm(FlaskForm):
 class EventStudyFileForm(FlaskForm):
     date_range_start = DateField('From:', default=datetime(2013, 1, 1), validators=[DataRequired()])
     date_range_end = DateField('to', default=datetime(2016, 12, 31), validators=[DataRequired()])
-    days_pre_event = IntegerField('Pre event days', default=-1)
-    days_post_event = IntegerField('Post event days', default=2)
-    days_estimation = IntegerField('Estimation days', default=120)
-    days_grace_period = IntegerField('Grace period days', default=0)
+    days_pre_event = IntegerField('Pre event days', default=-1, validators=[DataRequired()])
+    days_post_event = IntegerField('Post event days', default=2,
+                                   validators=[DataRequired(), NumberRange(min=0, message='Must be non-negative')])
+    days_estimation = IntegerField('Estimation days', default=120,
+                                   validators=[DataRequired(), NumberRange(min=0, message='Must be non-negative')])
+    days_grace_period = IntegerField('Grace period days', default=0,
+                                     validators=[NumberRange(min=0, message='Must be non-negative')])
 
     file_input = FileField(validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text only!')])
 

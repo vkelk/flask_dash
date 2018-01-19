@@ -176,13 +176,13 @@ def eventstudyfile():
             df.columns = [slugify(col) for col in df.columns]
             return df
 
-    def get_data_from_query(c_tag, start, end):
+    def get_data_from_query(c_tag, estimation):
         q = db.session \
             .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
             .join(TweetCashtag) \
             .filter(TweetCashtag.cashtags == c_tag) \
-            .filter(Tweet.date >= start) \
-            .filter(Tweet.date <= end) \
+            .filter(Tweet.date >= estimation['pre_start']) \
+            .filter(Tweet.date <= estimation['post_end']) \
             .group_by(Tweet.date).order_by(Tweet.date)
         # print(q)
         return [r._asdict() for r in q.all()]
@@ -194,20 +194,48 @@ def eventstudyfile():
                 file_input = secure_filename(form.file_input.data.filename)
                 form.file_input.data.save(os.path.join(Configuration.UPLOAD_FOLDER, file_input))
                 df_in = dataframe_from_file(os.path.join(Configuration.UPLOAD_FOLDER, file_input))
+                df_in["median_pre_event"] = ""
+                df_in["mean_pre_event"] = ""
+                df_in["total_during_event"] = ""
                 df_in["median_during_event"] = ""
                 df_in["mean_during_event"] = ""
+                df_in["median_post_event"] = ""
+                df_in["mean_post_event"] = ""
                 for index, row in df_in.iterrows():
                     date_on_event = row['event_date'].to_pydatetime()
+                    print('Event date:', date_on_event)
                     days_pre_event = abs(form.days_pre_event.data)
-                    date_event_start = date_on_event - timedelta(days=days_pre_event)
-                    date_event_end = date_on_event + timedelta(days=form.days_post_event.data)
-                    result_list = get_data_from_query(row['cashtag'], date_event_start, date_event_end)
+                    event_window = {'date': date_on_event,
+                                    'start': date_on_event - timedelta(days=days_pre_event),
+                                    'end': date_on_event + timedelta(days=form.days_post_event.data)}
+                    date_estwin_pre_end = event_window['start'] - timedelta(days=(form.days_grace_period.data + 1))
+                    date_estwin_pre_start = date_estwin_pre_end - timedelta(days=form.days_estimation.data)
+                    date_estwin_post_start = event_window['end'] + timedelta(days=1)
+                    date_estwin_post_end = date_estwin_post_start + timedelta(days=form.days_estimation.data)
+
+                    estimation_window = {'pre_end': date_estwin_pre_end,
+                                         'pre_start': date_estwin_pre_start,
+                                         'post_start': date_estwin_post_start,
+                                         'post_end': date_estwin_post_end}
+                    result_list = get_data_from_query(row['cashtag'], estimation_window)
                     if len(result_list) > 0:
-                        pprint(row['cashtag'])
-                        df_event = pd.DataFrame.from_records(result_list, index='date')
+                        # pprint(row['cashtag'])
+                        df_full = pd.DataFrame.from_records(result_list, index='date')
+                        df_pre_est = df_full.loc[: estimation_window['pre_end'].date()]
+                        df_event = df_full.loc[event_window['start'].date():event_window['end'].date()]
+                        df_post_est = df_full.loc[event_window['end'].date():]
+
+                        df_in.loc[index, "median_pre_event"] = df_pre_est['count'].median()
+                        df_in.loc[index, "mean_pre_event"] = df_pre_est['count'].mean()
+                        df_in.loc[index, "total_during_event"] = df_event['count'].sum()
                         df_in.loc[index, "median_during_event"] = df_event['count'].median()
                         df_in.loc[index, "mean_during_event"] = df_event['count'].mean()
-                        pprint(df_event)
+                        df_in.loc[index, "median_post_event"] = df_post_est['count'].median()
+                        df_in.loc[index, "mean_post_event"] = df_post_est['count'].mean()
+
+                        # pprint(df_pre_est)
+                        # pprint(df_event)
+                        # pprint(df_post_est)
                 return render_template('fintweet/eventstudyfile.html', form=form,
                                        df_in=df_in.to_html(classes='table table-striped'))
 

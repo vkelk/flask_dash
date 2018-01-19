@@ -10,7 +10,7 @@ class EventStydyForm(FlaskForm):
     # dates
     date_range_start = DateField('Date range:', default=datetime(2013, 1, 1), validators=[DataRequired()])
     date_range_end = DateField('to', default=datetime(2016, 12, 31), validators=[DataRequired()])
-    pre_event = IntegerField('Pre event days', default=1)
+    pre_event = IntegerField('Pre event days', default=-1)
     post_event = IntegerField('Post event days', default=2)
     event_date = DateField('Event date')
 
@@ -32,9 +32,14 @@ class EventStydyForm(FlaskForm):
 
 
 class EventStudyFileForm(FlaskForm):
-    date_range_start = DateField('Date range:', default=datetime(2013, 1, 1), validators=[DataRequired()])
+    date_range_start = DateField('From:', default=datetime(2013, 1, 1), validators=[DataRequired()])
     date_range_end = DateField('to', default=datetime(2016, 12, 31), validators=[DataRequired()])
+    days_pre_event = IntegerField('Pre event days', default=-1)
+    days_post_event = IntegerField('Post event days', default=2)
+    days_estimation = IntegerField('Estimation days', default=120)
+    days_grace_period = IntegerField('Grace period days', default=0)
 
     file_input = FileField(validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text only!')])
 
     btn_file_upload = SubmitField("Upload file")
+    btn_calculate = SubmitField("Calculate data")

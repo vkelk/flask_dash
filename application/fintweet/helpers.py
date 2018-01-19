@@ -18,6 +18,10 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in Configuration.ALLOWED_EXTENSIONS
 
 
+def slugify(s):
+    return re.sub('[^\w]+', '-', s).lower()
+
+
 class DataTables():
     __source = None
     __paginationType = "full_numbers"

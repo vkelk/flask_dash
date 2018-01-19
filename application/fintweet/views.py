@@ -11,7 +11,7 @@ from werkzeug.utils import secure_filename, CombinedMultiDict
 from application.config import Configuration
 # from application import login_manager
 # from datatables import ColumnDT, DataTables
-from application.fintweet.helpers import Collections, DataTables
+from application.fintweet.helpers import Collections, DataTables, slugify
 from application.fintweet import fintweet, table_builder
 from application.fintweet.models import *
 from application.fintweet.forms import *
@@ -169,20 +169,47 @@ def serverside_table_content():
 
 @fintweet.route("/eventstudyfile", methods=["GET", "POST"])
 def eventstudyfile():
-    def get_data_from_file(filename):
+    def dataframe_from_file(filename):
         ext = os.path.splitext(filename)[1]
         if ext in ['.xls', '.xlsx']:
-            return pd.read_excel(filename)
+            df = pd.read_excel(filename)
+            df.columns = [slugify(col) for col in df.columns]
+            return df
+
+    def get_data_from_query(c_tag, start, end):
+        q = db.session \
+            .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
+            .join(TweetCashtag) \
+            .filter(TweetCashtag.cashtags == c_tag) \
+            .filter(Tweet.date >= start) \
+            .filter(Tweet.date <= end) \
+            .group_by(Tweet.date).order_by(Tweet.date)
+        # print(q)
+        return [r._asdict() for r in q.all()]
 
     form = EventStudyFileForm(CombinedMultiDict((request.files, request.form)))
     if request.method == "POST":
         if form.validate_on_submit():
-            file_input = secure_filename(form.file_input.data.filename)
-            form.file_input.data.save(os.path.join(Configuration.UPLOAD_FOLDER, file_input))
-            df_in = get_data_from_file(os.path.join(Configuration.UPLOAD_FOLDER, file_input))
-            pprint(df_in)
-            return render_template('fintweet/eventstudyfile.html', form=form,
-                                   df_in=df_in.to_html(classes='table table-striped'))
+            if form.btn_file_upload.data:
+                file_input = secure_filename(form.file_input.data.filename)
+                form.file_input.data.save(os.path.join(Configuration.UPLOAD_FOLDER, file_input))
+                df_in = dataframe_from_file(os.path.join(Configuration.UPLOAD_FOLDER, file_input))
+                df_in["median_during_event"] = ""
+                df_in["mean_during_event"] = ""
+                for index, row in df_in.iterrows():
+                    date_on_event = row['event_date'].to_pydatetime()
+                    days_pre_event = abs(form.days_pre_event.data)
+                    date_event_start = date_on_event - timedelta(days=days_pre_event)
+                    date_event_end = date_on_event + timedelta(days=form.days_post_event.data)
+                    result_list = get_data_from_query(row['cashtag'], date_event_start, date_event_end)
+                    if len(result_list) > 0:
+                        pprint(row['cashtag'])
+                        df_event = pd.DataFrame.from_records(result_list, index='date')
+                        df_in.loc[index, "median_during_event"] = df_event['count'].median()
+                        df_in.loc[index, "mean_during_event"] = df_event['count'].mean()
+                        pprint(df_event)
+                return render_template('fintweet/eventstudyfile.html', form=form,
+                                       df_in=df_in.to_html(classes='table table-striped'))
 
     if len(form.errors) > 0:
         pprint(form.errors)

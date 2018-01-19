@@ -28,13 +28,15 @@
                     <div class="panel-body">
                         <div class="form-inline">
                             <p><b>Step 1:</b> Choose your date range.</p>
-                            <div class="form-group">
-                                {{ form.date_range_start.label }}
-                                {{ render_field(form.date_range_start, class="form-control", type="date") }}
-                            </div>
-                            <div class="form-group">
-                                {{ form.date_range_end.label }}
-                                {{ render_field(form.date_range_end, class="form-control", type="date") }}
+                            <div class="form-group row">
+                                <div class="col-sm-6">
+                                    {{ form.date_range_start.label }}
+                                    {{ render_field(form.date_range_start, class="form-control", type="date") }}
+                                </div>
+                                <div class="col-sm-6">
+                                    {{ form.date_range_end.label }}
+                                    {{ render_field(form.date_range_end, class="form-control", type="date") }}
+                                </div>
                             </div>
                         </div>
                         <div class="form-inline">
@@ -53,10 +55,37 @@
                 <div class="panel panel-default">
                     <div class="panel-heading">Event study parameters</div>
                     <div class="panel-body">
+                        <div class="row">
+                            <div class="col-sm-12" style="text-align: center;">
+                                <b>Event window</b>
+                            </div>
+                            <div class="col-sm-6">
+                                {{ form.days_pre_event.label }}
+                                {{ render_field(form.days_pre_event, class="form-control form-group-sm") }}
 
+                            </div>
+                            <div class="col-sm-6">
+                                {{ form.days_post_event.label }}
+                                {{ render_field(form.days_post_event, class="form-control form-group-sm") }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-12" style="text-align: center;">
+                                <b>Estimation window</b>
+                            </div>
+                            <div class="col-sm-6">
+                                {{ form.days_estimation.label }}
+                                {{ render_field(form.days_estimation, class="form-control form-group-sm") }}
+
+                            </div>
+                            <div class="col-sm-6">
+                                {{ form.days_grace_period.label }}
+                                {{ render_field(form.days_grace_period, class="form-control form-group-sm") }}
+                            </div>
+                        </div>
                     </div>
                     <div class="panel-footer">
-
+                        {{ render_field(form.btn_calculate, class="btn btn-success") }}
                     </div>
                 </div>
 

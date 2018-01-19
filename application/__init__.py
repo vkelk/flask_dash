@@ -1,3 +1,4 @@
+import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
@@ -59,5 +60,10 @@ def create_app(config=None):
     app.register_blueprint(fintweet_blueprint, url_prefix='/fintweet')
 
     print(app.url_map)
+    if not os.path.exists(Configuration.UPLOAD_FOLDER):
+        try:
+            os.makedirs(os.path.dirname(Configuration.UPLOAD_FOLDER), exist_ok=True)
+        except Exception as e:  # Guard against race condition
+            print(e)
 
     return app

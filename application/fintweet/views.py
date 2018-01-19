@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta
 import pandas as pd
 import json
@@ -6,12 +7,14 @@ from pprint import pprint
 from flask import request, render_template, url_for, jsonify, Response, Markup, flash, abort, send_file, make_response
 from flask_login import login_required
 from sqlalchemy.exc import IntegrityError
+from werkzeug.utils import secure_filename, CombinedMultiDict
+from application.config import Configuration
 # from application import login_manager
 # from datatables import ColumnDT, DataTables
 from application.fintweet.helpers import Collections, DataTables
 from application.fintweet import fintweet, table_builder
 from application.fintweet.models import *
-from application.fintweet.forms import EventStydyForm
+from application.fintweet.forms import *
 
 from .helpers import object_list
 
@@ -166,7 +169,24 @@ def serverside_table_content():
 
 @fintweet.route("/eventstudyfile", methods=["GET", "POST"])
 def eventstudyfile():
-    return render_template('fintweet/eventstudyfile.html')
+    def get_data_from_file(filename):
+        ext = os.path.splitext(filename)[1]
+        if ext in ['.xls', '.xlsx']:
+            return pd.read_excel(filename)
+
+    form = EventStudyFileForm(CombinedMultiDict((request.files, request.form)))
+    if request.method == "POST":
+        if form.validate_on_submit():
+            file_input = secure_filename(form.file_input.data.filename)
+            form.file_input.data.save(os.path.join(Configuration.UPLOAD_FOLDER, file_input))
+            df_in = get_data_from_file(os.path.join(Configuration.UPLOAD_FOLDER, file_input))
+            pprint(df_in)
+            return render_template('fintweet/eventstudyfile.html', form=form,
+                                   df_in=df_in.to_html(classes='table table-striped'))
+
+    if len(form.errors) > 0:
+        pprint(form.errors)
+    return render_template('fintweet/eventstudyfile.html', form=form)
 
 
 @fintweet.route("/eventstudy", methods=["GET", "POST"])

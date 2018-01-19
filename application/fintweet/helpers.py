@@ -1,6 +1,7 @@
 import json, random, string, re
 from pprint import pprint
 from flask import render_template, request
+from application.config import Configuration
 
 
 def object_list(template_name, query, paginate_by=20, **context):
@@ -11,6 +12,10 @@ def object_list(template_name, query, paginate_by=20, **context):
         page = 1
     object_list = query.paginate(page, paginate_by)
     return render_template(template_name, object_list=object_list, **context)
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in Configuration.ALLOWED_EXTENSIONS
 
 
 class DataTables():

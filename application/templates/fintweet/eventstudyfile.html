@@ -20,7 +20,7 @@
 
     </style>
     <div class="row">
-        <form action="{{ url_for('fintweet.eventstudy') }}" method="post" role="form">
+        <form action="{{ url_for('fintweet.eventstudyfile') }}" method="post" enctype="multipart/form-data" role="form">
             {{ form.csrf_token }}
             <div class="col-sm-6">
                 <div class="panel panel-default">
@@ -38,31 +38,14 @@
                             </div>
                         </div>
                         <div class="form-inline">
-                            <p><b>Step 2:</b> Apply your company codes.</p>
+                            <p><b>Step 2:</b> Select file.</p>
                             <div>
-                                {% for subfield in form.code_type_radio %}
-                                    <tr>
-                                        <td>{{ subfield }}</td>
-                                        <td>{{ subfield.label }}</td>
-                                    </tr>
-                                {% endfor %}
+                                {{ render_field(form.file_input) }}
                             </div>
                         </div>
-                        <div>
-                            {{ render_field(form.company_codes, class="form-control", type="text", placeholder="Company Codes") }}
-                            <p><i>Please enter Company codes seperated by commas. <br>Example: FB, IBM, MSFT, AAPL</i>
-                            </p>
-                        </div>
-                        {#                        <div class="form-inline">#}
-                        {#                            <p><b>Step 2a:</b> Upload a file</p>#}
-                        {#                            <div class="form-group">#}
-                        {#                        {{ form.codes_file.label }}{{ form.codes_file }}#}
-                        {#                                {{ render_field(form.codes_file, class="form-control") }}#}
-                        {#                            </div>#}
-                        {#                        </div>#}
                     </div>
                     <div class="panel-footer">
-                        {{ render_field(form.btn_get_cashtags, class="btn btn-success") }}
+                        {{ render_field(form.btn_file_upload, class="btn btn-success") }}
                     </div>
                 </div>
             </div>
@@ -70,36 +53,10 @@
                 <div class="panel panel-default">
                     <div class="panel-heading">Event study parameters</div>
                     <div class="panel-body">
-                        {{ form.codes_list }}
-                        <div class="row">
-                            <div class="col-sm-6">
-                                <label for="cashtags_options">Select cashtag(s)</label>
-                                {{ render_field(form.cashtags_options, class="form-control") }}
-                            </div>
-                            <div class="col-sm-6">
-                                {{ form.event_date.label }}
-                                {{ render_field(form.event_date, class="form-control", type="date" ) }}
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-sm-6">
-                                {{ form.pre_event.label }}
-                                {{ render_field(form.pre_event, class="form-control form-group-sm") }}
 
-                            </div>
-                            <div class="col-sm-6">
-                                {{ form.post_event.label }}
-                                {{ render_field(form.post_event, class="form-control form-group-sm") }}
-                            </div>
-                        </div>
                     </div>
                     <div class="panel-footer">
-                        {% if form.btn_get_event_data %}
-                            {{ render_field(form.btn_get_event_data, class="btn btn-success") }}
-                        {% endif %}
-                        {% if form.btn_download_csv %}
-                            {{ render_field(form.btn_download_csv, class="btn btn-success pull-right") }}
-                        {% endif %}
+
                     </div>
                 </div>
 
@@ -108,18 +65,20 @@
 
     </div>
     <div class="row">
-        <div class="col-sm-6">
-            {% for table in tables %}
-                <h5>{{ titles[loop.index] }}</h5>
-                {{ table | safe }}
-            {% endfor %}
-        </div>
-        <div class="col-sm-6">
-            {% if stats %}
-                <h5>STATS</h5>
-                {{ stats | safe }}
-            {% endif %}
-        </div>
+        {% if df_in %}
+            <div class="panel-group">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <a data-toggle="collapse" href="#df_in_collapse">Input data (click here to collapse)</a>
+                    </div>
+                    <div id="df_in_collapse" class="panel-collapse collapse in">
+                        <div class="panel-body">{{ df_in | safe }}</div>
+                    </div>
+                    <div class="panel-footer">Compute...</div>
+                </div>
+            </div>
+
+        {% endif %}
     </div>
 
 

@@ -1,7 +1,9 @@
 from datetime import timedelta, datetime
 from flask_wtf import FlaskForm
-from wtforms import StringField, SelectField, DateField, RadioField, FileField, HiddenField, IntegerField, SubmitField
+from flask_wtf.file import FileField, FileRequired, FileAllowed
+from wtforms import StringField, SelectField, DateField, RadioField, HiddenField, IntegerField, SubmitField
 from wtforms.validators import DataRequired
+from application.config import Configuration
 
 
 class EventStydyForm(FlaskForm):
@@ -27,3 +29,12 @@ class EventStydyForm(FlaskForm):
     btn_get_cashtags = SubmitField("Get cashtags")
     btn_get_event_data = SubmitField("Get event data")
     btn_download_csv = SubmitField("Download to CSV")
+
+
+class EventStudyFileForm(FlaskForm):
+    date_range_start = DateField('Date range:', default=datetime(2013, 1, 1), validators=[DataRequired()])
+    date_range_end = DateField('to', default=datetime(2016, 12, 31), validators=[DataRequired()])
+
+    file_input = FileField(validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text only!')])
+
+    btn_file_upload = SubmitField("Upload file")

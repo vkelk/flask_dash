@@ -10,6 +10,8 @@ class Configuration(object):
     # Define the application directory
     APPLICATION_DIR = os.path.dirname(os.path.realpath(__file__))
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(BASE_DIR), 'uploads/')
+    ALLOWED_EXTENSIONS = set(['txt', 'csv', 'xls', 'xlsx'])
 
     # Define the database - we are working with
     # The SQLALCHEMY_DATABASE_URI comprises the following parts:

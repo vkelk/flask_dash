@@ -47,7 +47,12 @@
                         </div>
                     </div>
                     <div class="panel-footer">
-                        {#                        {{ render_field(form.btn_file_upload, class="btn btn-success") }}#}
+                        {% if form.file_name.data %}
+                            {{ form.file_name }}
+                            <p>Working file: <b>{{ form.file_name.data }}</b></p>
+                        {% else %}
+                            {{ render_field(form.btn_file_upload, class="btn btn-success") }}
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -84,7 +89,7 @@
                             </div>
                         </div>
                         <div class="row">
-                            <div>
+                            <div class="col-sm-12">
                                 {{ form.select_deal_resolution.label }}
                                 {% for subfield in form.select_deal_resolution %}
                                     <tr>
@@ -96,16 +101,20 @@
                         </div>
                     </div>
                     <div class="panel-footer">
-                        {{ render_field(form.btn_calculate, class="btn btn-success") }}
+                        {% if form.btn_calculate %}
+                            {{ render_field(form.btn_calculate, class="btn btn-success") }}
+                            {{ render_field(form.btn_download_csv, class="btn btn-success pull-right") }}
+                        {% endif %}
                     </div>
                 </div>
 
             </div>
         </form>
-
     </div>
     <div class="row">
+        <div class="col-sm-12">
         {% if df_in %}
+            {{ form.file_csv }}
             <div class="panel-group">
                 <div class="panel panel-default">
                     <div class="panel-heading">
@@ -114,12 +123,24 @@
                     <div id="df_in_collapse" class="panel-collapse collapse in">
                         <div class="panel-body">{{ df_in | safe }}</div>
                     </div>
-                    <div class="panel-footer">Compute...</div>
+                    <div class="panel-footer">
+
+                    </div>
                 </div>
             </div>
 
         {% endif %}
+        </div>
     </div>
-
-
+{% endblock %}
+{% block javascript %}
+    <script>
+        $(function () {
+            $('#btn_download_csv').click(function (event) {
+                event.preventDefault();
+                window.open('{{ url_for('fintweet.send_csv') }}');
+                {#window.location.href = '{{ url_for('fintweet.send_csv') }}';#}
+            });
+        });
+    </script>
 {% endblock %}

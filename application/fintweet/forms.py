@@ -47,7 +47,10 @@ class EventStudyFileForm(FlaskForm):
                                         validators=[DataRequired()])
 
     file_input = FileField(
-        validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text files only!')])
+        validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text data files only!')])
+    file_name = HiddenField()
+    file_csv = HiddenField()
 
     btn_file_upload = SubmitField("Upload file")
     btn_calculate = SubmitField("Calculate data")
+    btn_download_csv = SubmitField("Download as Excel")

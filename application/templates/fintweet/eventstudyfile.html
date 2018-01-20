@@ -47,7 +47,7 @@
                         </div>
                     </div>
                     <div class="panel-footer">
-                        {{ render_field(form.btn_file_upload, class="btn btn-success") }}
+                        {#                        {{ render_field(form.btn_file_upload, class="btn btn-success") }}#}
                     </div>
                 </div>
             </div>
@@ -56,7 +56,7 @@
                     <div class="panel-heading">Event study parameters</div>
                     <div class="panel-body">
                         <div class="row" style="margin-bottom: 15px;">
-                            <div class="col-sm-12" style="text-align: center; mar">
+                            <div class="col-sm-12" style="text-align: center;">
                                 <b>Event window</b>
                             </div>
                             <div class="col-sm-6">
@@ -69,7 +69,7 @@
                                 {{ render_field(form.days_post_event, class="form-control form-group-sm") }}
                             </div>
                         </div>
-                        <div class="row">
+                        <div class="row" style="margin-bottom: 15px;">
                             <div class="col-sm-12" style="text-align: center;">
                                 <b>Estimation window</b>
                             </div>
@@ -81,6 +81,17 @@
                             <div class="col-sm-6">
                                 {{ form.days_grace_period.label }}
                                 {{ render_field(form.days_grace_period, class="form-control form-group-sm") }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div>
+                                {{ form.select_deal_resolution.label }}
+                                {% for subfield in form.select_deal_resolution %}
+                                    <tr>
+                                        <td>{{ subfield }}</td>
+                                        <td>{{ subfield.label }}</td>
+                                    </tr>
+                                {% endfor %}
                             </div>
                         </div>
                     </div>

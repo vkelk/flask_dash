@@ -42,7 +42,12 @@ class EventStudyFileForm(FlaskForm):
     days_grace_period = IntegerField('Grace period days', default=0,
                                      validators=[NumberRange(min=0, message='Must be non-negative')])
 
-    file_input = FileField(validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text only!')])
+    select_deal_resolution = RadioField('Include deal resolution', default='false',
+                                        choices=[('false', 'No'), ('true', 'Yes')],
+                                        validators=[DataRequired()])
+
+    file_input = FileField(
+        validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text files only!')])
 
     btn_file_upload = SubmitField("Upload file")
     btn_calculate = SubmitField("Calculate data")

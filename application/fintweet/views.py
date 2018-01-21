@@ -239,6 +239,7 @@ def eventstudyfile():
                     df_in.loc[index, "median post event"] = df_post_est['count'].median()
                     df_in.loc[index, "mean post event"] = df_post_est['count'].mean()
             df_in.to_excel(os.path.join(Configuration.UPLOAD_FOLDER, 'output.xlsx'), index=False)
+            df_in.to_stata(os.path.join(Configuration.UPLOAD_FOLDER, 'output.dta'), index=False)
             form.file_csv.data = 'upload/output.xlsx'
 
             return render_template('fintweet/eventstudyfile.html', form=form,

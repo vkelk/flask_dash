@@ -1,6 +1,6 @@
 import logging
 import os
-from application.db_config import db_config, MAILGUN_KEY as MK, MAILGUN_DOMAIN as MD
+from application.db_config import db_config, pg_config, MAILGUN_KEY as MK, MAILGUN_DOMAIN as MD
 
 
 class Configuration(object):
@@ -18,12 +18,13 @@ class Configuration(object):
     # dialect+driver://username:password@host:port/database
     dsn_main = "mysql+mysqlconnector://{username}:{password}@{host}:3306/dashboard".format(**db_config)
     dsn_fintweet = "mysql+mysqlconnector://{username}:{password}@{host}:3306/fintweet2".format(**db_config)
+    pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
     # SQLALCHEMY_DATABASE_URI = 'sqlite:///%s/blog.db' % APPLICATION_DIR
-    SQLALCHEMY_DATABASE_URI = dsn_main
-    SQLALCHEMY_BINDS = {
-        'dashboard': dsn_main,
-        'fintweet': dsn_fintweet
-    }
+    SQLALCHEMY_DATABASE_URI = pg_dsn
+    # SQLALCHEMY_BINDS = {
+    #     'dashboard': dsn_main,
+    #     'fintweet': dsn_fintweet
+    # }
     SQLALCHEMY_POOL_RECYCLE = 300
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 

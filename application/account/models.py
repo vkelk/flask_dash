@@ -17,9 +17,13 @@ from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
 
 
 class Account(UserMixin, db.Model):
-    __bind_key__ = 'dashboard'
-    # __tablename__ = 'accounts'
-    __table__ = db.Model.metadata.tables['accounts']
+    # __bind_key__ = 'dashboard'
+    __tablename__ = 'accounts'
+    __table_args__ = {"schema": "dashboard"}
+
+    # __table__ = db.Model.metadata.tables['accounts']
+
+    id = db.Column(db.Integer, primary_key=True)
 
     def __init__(self, email, password, email_confirmation_sent_on=None, role='user'):
         self.email = email

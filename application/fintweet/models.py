@@ -5,13 +5,23 @@ from application import db
 
 
 class DealNosFT(db.Model):
-    __bind_key__ = 'fintweet'
-    __table__ = db.Model.metadata.tables['dealnos']
+    # __bind_key__ = 'fintweet'
+    # __table__ = db.Model.metadata.tables['dealnos']
+
+    __tablename__ = 'dealnos'
+    __table_args__ = {"schema": "fintweet"}
+
+    dealno = db.Column(db.BigInteger, primary_key=True)
 
 
 class User(UserMixin, db.Model):
-    __bind_key__ = 'fintweet'
-    __table__ = db.Model.metadata.tables['user']
+    # __bind_key__ = 'fintweet'
+    # __table__ = db.Model.metadata.tables['user']
+
+    __tablename__ = 'user'
+    __table_args__ = {"schema": "fintweet"}
+
+    user_id = db.Column(db.BigInteger, primary_key=True)
 
     # tweets = db.relationship('Tweet', backref='user_id', lazy='dynamic')
 
@@ -34,19 +44,29 @@ class User(UserMixin, db.Model):
 
 
 class UserCount(db.Model):
-    __bind_key__ = 'fintweet'
-    __table__ = db.Model.metadata.tables['user_count']
+    # __bind_key__ = 'fintweet'
+    # __table__ = db.Model.metadata.tables['user_count']
 
-    user = db.relationship('User')
+    __tablename__ = 'user_count'
+    __table_args__ = {"schema": "fintweet"}
+
+    user_id = db.Column(db.BigInteger, primary_key=True)
+    # user = db.relationship('User')
+    user = db.relationship('User', backref='user_count', lazy='dynamic',
+                           primaryjoin="UserCount.user_id==User.user_id", foreign_keys='User.user_id')
 
     def __repr__(self):
         return self.user_id
 
 
 class Tweet(UserMixin, db.Model):
-    __bind_key__ = 'fintweet'
-    __table__ = db.Model.metadata.tables['tweet']
+    # __bind_key__ = 'fintweet'
+    # __table__ = db.Model.metadata.tables['tweet']
 
+    __tablename__ = 'tweet'
+    __table_args__ = {"schema": "fintweet"}
+
+    tweet_id = db.Column(db.BigInteger, primary_key=True)
     user = db.relationship('User')
 
     def __repr__(self):
@@ -65,53 +85,78 @@ class Tweet(UserMixin, db.Model):
 #         return self.retweet_id
 
 
-class Reply(db.Model):
-    __bind_key__ = 'fintweet'
-    __table__ = db.Model.metadata.tables['reply']
-
-    def __repr__(self):
-        return self.reply_id
+# class Reply(db.Model):
+#     __bind_key__ = 'fintweet'
+#     __table__ = db.Model.metadata.tables['reply']
+#
+#     def __repr__(self):
+#         return self.reply_id
 
 
 class TweetCashtag(db.Model):
-    __bind_key__ = 'fintweet'
-    __table__ = db.Model.metadata.tables['tweet_cashtags']
+    # __bind_key__ = 'fintweet'
+    # __table__ = db.Model.metadata.tables['tweet_cashtags']
 
+    __tablename__ = 'tweet_cashtags'
+    __table_args__ = {"schema": "fintweet"}
+
+    id = db.Column(db.BigInteger, db.Sequence('tweet_cashtags_id_seq'), primary_key=True)
     tweet = db.relationship('Tweet')
-    user = db.relationship('User', backref='user_count', lazy='dynamic',
-                           primaryjoin="TweetCashtag.user_id==User.user_id", foreign_keys='User.user_id')
+
+    # user = db.relationship('User', backref='user_count', lazy='dynamic',
+    #                        primaryjoin="TweetCashtag.user_id==User.user_id", foreign_keys='User.user_id')
 
     def __repr__(self):
         return self.id
 
 
 class TweetCount(db.Model):
-    __bind_key__ = 'fintweet'
-    __table__ = db.Model.metadata.tables['tweet_count']
+    # __bind_key__ = 'fintweet'
+    # __table__ = db.Model.metadata.tables['tweet_count']
+
+    __tablename__ = 'tweet_count'
+    __table_args__ = {"schema": "fintweet"}
+
+    id = db.Column(db.BigInteger, db.Sequence('tweet_count_id_seq'), primary_key=True)
 
     def __repr__(self):
         return self.tweet_id
 
 
 class TweetHashtag(db.Model):
-    __bind_key__ = 'fintweet'
-    __table__ = db.Model.metadata.tables['tweet_hashtags']
+    # __bind_key__ = 'fintweet'
+    # __table__ = db.Model.metadata.tables['tweet_hashtags']
+
+    __tablename__ = 'tweet_hashtags'
+    __table_args__ = {"schema": "fintweet"}
+
+    id = db.Column(db.BigInteger, db.Sequence('tweet_hashtags_id_seq'), primary_key=True)
 
     def __repr__(self):
         return self.id
 
 
 class TweetMention(db.Model):
-    __bind_key__ = 'fintweet'
-    __table__ = db.Model.metadata.tables['tweet_mentions']
+    # __bind_key__ = 'fintweet'
+    # __table__ = db.Model.metadata.tables['tweet_mentions']
+
+    __tablename__ = 'tweet_mentions'
+    __table_args__ = {"schema": "fintweet"}
+
+    id = db.Column(db.BigInteger, db.Sequence('tweet_mentions_id_seq'), primary_key=True)
 
     def __repr__(self):
         return self.id
 
 
 class TweetUrl(db.Model):
-    __bind_key__ = 'fintweet'
-    __table__ = db.Model.metadata.tables['tweet_url']
+    # __bind_key__ = 'fintweet'
+    # __table__ = db.Model.metadata.tables['tweet_url']
+
+    __tablename__ = 'tweet_url'
+    __table_args__ = {"schema": "fintweet"}
+
+    id = db.Column(db.BigInteger, db.Sequence('tweet_url_id_seq'), primary_key=True)
 
     def __repr__(self):
         return self.id

@@ -18,12 +18,13 @@ from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
 
 class Account(UserMixin, db.Model):
     # __bind_key__ = 'dashboard'
+    # __tablename__ = 'accounts'
+    # __table_args__ = {"schema":"dashboard"}
+    # __tablename__ = db.Model.metadata.tables['dashboard.accounts']
     __tablename__ = 'accounts'
     __table_args__ = {"schema": "dashboard"}
-
-    # __table__ = db.Model.metadata.tables['accounts']
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    # __mapper_args__ = {'primary_key': [__tablename__.c.id]}
+    id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String, unique=True, nullable=False)
     _password = db.Column(db.Binary(60), nullable=False)
     authenticated = db.Column(db.Boolean, default=False)
@@ -53,11 +54,11 @@ class Account(UserMixin, db.Model):
 
     @password.setter
     def set_password(self, password):
-        self._password = bcrypt.generate_password_hash(password)
+        self._password = bcrypt.generate_password_hash(password).decode('utf-8')
 
     @hybrid_method
     def is_correct_password(self, password):
-        return bcrypt.check_password_hash(self._password, password)
+        return bcrypt.check_password_hash(self._password, password.encode('utf-8'))
 
     @property
     def is_authenticated(self):

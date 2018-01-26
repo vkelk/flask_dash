@@ -1,23 +1,22 @@
 import concurrent.futures as cf
-import MySQLdb
 from sqlalchemy import *
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
 from pprint import pprint
 from datetime import datetime
 
-PG_DBNAME = 'tweets'
-PG_USER = 'postgres'
+PG_DBNAME = ''
+PG_USER = ''
 PG_PASSWORD = ''
-MY_DBNAME = 'mydrive55'
-MY_USER = 'root'
-MY_PASWORD = 'iIe8jrzYvmB1dxQbbCR9'
-DB_HOST = 'localhost'
+MY_DBNAME = ''
+MY_USER = ''
+MY_PASWORD = ''
+DB_HOST = ''
 
 my_config = {'username': MY_USER, 'password': MY_PASWORD, 'database': MY_DBNAME, 'host': DB_HOST}
 pg_config = {'username': PG_USER, 'password': PG_PASSWORD, 'database': PG_DBNAME, 'host': DB_HOST}
 
-mydrive = "mysql://{username}:{password}@{host}:3306/mydrive55".format(**my_config)
+mydrive = "mysql://{username}:{password}@{host}:3306/{database}".format(**my_config)
 pg_dsn = "postgresql+psycopg2://{username}@{host}:5432/{database}".format(**pg_config)
 
 Base = declarative_base()
@@ -241,7 +240,7 @@ def transfer_tweet_urls(row):
         print("Inserting urls with tweet_id:", row.tweet_id)
         item = PgTweetUrls(
             tweet_id=row.tweet_id,
-            url=row.mentions
+            url=row.url
         )
         dstssn.add(item)
         dstssn.commit()
@@ -303,5 +302,62 @@ if __name__ == '__main__':
             .first()
         if pg_urls is None:
             transfer_tweet_urls(my_urls)
+
+    # srcssn.execute("SET FOREIGN_KEY_CHECKS=0;")
+    # for obj in srcssn.query(MyTweets).execution_options(stream_results=True).yield_per(100):
+    #     transfer_tweets(obj)
+
+    # tweets = srcssn.query(MyTweets).yield_per(200).enable_eagerloads(False)
+    # with cf.ThreadPoolExecutor(max_workers=4) as executor:
+    #     try:
+    #         executor.map(transfer_tweets, tweets)
+    #     except BaseException as e:
+    #         print(str(e))
+    #         raise
+    # del tweets
+
+    # tweet_counts = srcssn.query(MyTweetCounts).yield_per(1000).enable_eagerloads(False)
+    # with cf.ThreadPoolExecutor(max_workers=4) as executor:
+    #     try:
+    #         executor.map(transfer_tweet_counts, tweet_counts)
+    #     except BaseException as e:
+    #         print(str(e))
+    #         raise
+    # del tweet_counts
+    #
+    # tweet_cashtags = srcssn.query(MyTweetCashtags).yield_per(1000).enable_eagerloads(False)
+    # with cf.ThreadPoolExecutor(max_workers=4) as executor:
+    #     try:
+    #         executor.map(transfer_tweet_cashtags, tweet_cashtags)
+    #     except BaseException as e:
+    #         print(str(e))
+    #         raise
+    # del tweet_cashtags
+    #
+    # tweet_hashtags = srcssn.query(MyTweetHashtags).yield_per(1000).enable_eagerloads(False)
+    # with cf.ThreadPoolExecutor(max_workers=4) as executor:
+    #     try:
+    #         executor.map(transfer_tweet_hashtags, tweet_hashtags)
+    #     except BaseException as e:
+    #         print(str(e))
+    #         raise
+    # del tweet_hashtags
+    #
+    # tweet_mentions = srcssn.query(MyTweetMentions).yield_per(1000).enable_eagerloads(False)
+    # with cf.ThreadPoolExecutor(max_workers=4) as executor:
+    #     try:
+    #         executor.map(transfer_tweet_mentions, tweet_mentions)
+    #     except BaseException as e:
+    #         print(str(e))
+    #         raise
+    # del tweet_mentions
+    #
+    # tweet_urls = srcssn.query(MyTweetUrls).yield_per(1000).enable_eagerloads(False)
+    # with cf.ThreadPoolExecutor(max_workers=4) as executor:
+    #     try:
+    #         executor.map(transfer_tweet_urls, tweet_urls)
+    #     except BaseException as e:
+    #         print(str(e))
+    #         raise
 
     print("ALL DONE.")

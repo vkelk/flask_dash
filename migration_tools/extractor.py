@@ -10,7 +10,7 @@ from application.db_config import pg_config
 pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
 
 Base = declarative_base()
-db = create_engine(pg_dsn)
+db = create_engine(pg_dsn, pool_size=100, max_overflow=0)
 pg_meta = MetaData(bind=db, schema="fintweet")
 
 
@@ -48,10 +48,8 @@ class PgTweetUrls(Base):
 
 # Create a session to use the tables
 session_factory = sessionmaker(db, autocommit=True, autoflush=True)
-# DstSession = scoped_session(session_factory)
-DstSession = sessionmaker(bind=db)
-
-session = DstSession()
+# Session = scoped_session(session_factory)
+Session = sessionmaker(bind=db)
 
 emoticons_str = r"""
     (?:
@@ -93,46 +91,119 @@ def extract(tweet):
     global i
     tokens = preprocess(tweet.text)
     cashtags = [term for term in tokens if term.startswith('$') and len(term) > 1]
-    hashtags = [term for term in tokens if term.startswith('#')]
-    mentions = [term for term in tokens if term.startswith('@')]
-    urls = [term for term in tokens if term.startswith('http')]
+    hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
+    mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
+    urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
     if len(cashtags) > 0:
-        print(tweet.tweet_id)
-        pprint(cashtags)
-        pprint(hashtags)
-        pprint(mentions)
-        pprint(urls)
-        i += 1
+        for cashtag in cashtags:
+            process_cashtag(tweet.tweet_id, cashtag)
+        for hashtag in hashtags:
+            process_hashtag(tweet.tweet_id, hashtag)
+        for mention in mentions:
+            process_mention(tweet.tweet_id, mention)
+        for url in urls:
+            process_url(tweet.tweet_id, url)
 
 
-if __name__ == '__main__':
-    tweets = session.query(PgTweets).filter(PgTweets.tweet_id > 1425962270).order_by(PgTweets.tweet_id.asc()).yield_per(
-        20)
-    i = 0
-    for t in tweets:
-        extract(t)
-        if i > 10:
-            exit()
-    exit()
-    with cf.ThreadPoolExecutor(max_workers=4) as executor:
+def process_cashtag(tweet_id, cashtag):
+    subsession = Session()
+    pg_cashtag = subsession.query(PgTweetCashtags).filter_by(tweet_id=tweet_id).filter_by(cashtags=cashtag).first()
+    if pg_cashtag is None:
         try:
-            executor.map(extract, tweets)
+            item = PgTweetCashtags(
+                tweet_id=tweet_id,
+                cashtags=cashtag
+            )
+            subsession.add(item)
+            subsession.commit()
+            print(tweet_id, "-> Inserted cashtag", cashtag)
         except BaseException as e:
             print(str(e))
             raise
-    exit()
-    # for my_tweet in srcssn.query(MyTweets).execution_options(stream_results=True).yield_per(20):
-    #     pg_tweet = dstssn.query(PgTweets).filter_by(tweet_id=my_tweet.tweet_id).first()
-    #     if pg_tweet is None:
-    #         transfer_tweets(my_tweet)
 
-    # tweets = srcssn.query(MyTweets).yield_per(200).enable_eagerloads(False)
-    # with cf.ThreadPoolExecutor(max_workers=4) as executor:
+
+def process_hashtag(tweet_id, hashtag):
+    subsession = Session()
+    pg_hashtag = subsession.query(PgTweetHashtags).filter_by(tweet_id=tweet_id).filter_by(hashtags=hashtag).first()
+    if pg_hashtag is None:
+        try:
+            item = PgTweetHashtags(
+                tweet_id=tweet_id,
+                hashtags=hashtag
+            )
+            subsession.add(item)
+            subsession.commit()
+            print(tweet_id, "-> Inserted cashtag", hashtag)
+        except BaseException as e:
+            print(str(e))
+            raise
+
+
+def process_hashtag(tweet_id, hashtag):
+    subsession = Session()
+    pg_hashtag = subsession.query(PgTweetHashtags).filter_by(tweet_id=tweet_id).filter_by(hashtags=hashtag).first()
+    if pg_hashtag is None:
+        try:
+            item = PgTweetHashtags(
+                tweet_id=tweet_id,
+                hashtags=hashtag
+            )
+            subsession.add(item)
+            subsession.commit()
+            print(tweet_id, "-> Inserted hashtag", hashtag)
+        except BaseException as e:
+            print(str(e))
+            raise
+
+
+def process_mention(tweet_id, mention):
+    subsession = Session()
+    pg_mention = subsession.query(PgTweetMentions).filter_by(tweet_id=tweet_id).filter_by(mentions=mention).first()
+    if pg_mention is None:
+        try:
+            item = PgTweetMentions(
+                tweet_id=tweet_id,
+                mentions=mention
+            )
+            subsession.add(item)
+            subsession.commit()
+            print(tweet_id, "-> Inserted mention", mention)
+        except BaseException as e:
+            print(str(e))
+            raise
+
+
+def process_url(tweet_id, url):
+    subsession = Session()
+    pg_url = subsession.query(PgTweetUrls).filter_by(tweet_id=tweet_id).filter_by(url=url).first()
+    if pg_url is None:
+        try:
+            item = PgTweetUrls(
+                tweet_id=tweet_id,
+                url=url
+            )
+            subsession.add(item)
+            subsession.commit()
+            print(tweet_id, "-> Inserted url", url)
+        except BaseException as e:
+            print(str(e))
+            raise
+
+
+if __name__ == '__main__':
+    session = Session()
+
+    for t in session.query(PgTweets).filter(PgTweets.tweet_id > 295453374990671872) \
+            .order_by(PgTweets.tweet_id.asc()).yield_per(100):
+        extract(t)
+
+    # tweets = session.query(PgTweets).filter(PgTweets.tweet_id > 295453374990671872) \
+    #     .order_by(PgTweets.tweet_id.asc()).yield_per(100)
+    # with cf.ProcessPoolExecutor(max_workers=4) as executor:
     #     try:
-    #         executor.map(transfer_tweets, tweets)
+    #         executor.map(extract, tweets)
     #     except BaseException as e:
     #         print(str(e))
     #         raise
-    # del tweets
 
     print("ALL DONE.")

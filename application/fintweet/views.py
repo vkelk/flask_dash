@@ -39,6 +39,19 @@ def index():
     return tweets_list('fintweet/index.html', tweets)
 
 
+@fintweet.route('/ajaxtest')
+def ajax_users_tweets():
+    q = db.session.query(TweetCashtag.cashtags, func.count(TweetCashtag.cashtags).label('count')).group_by(
+        TweetCashtag.cashtags).order_by('count desc').limit(25).all()
+    # return json.dumps(dict(q))
+    return jsonify(q)
+
+
+@fintweet.route('/layout')
+def layout():
+    return render_template('_base_layout.html')
+
+
 @fintweet.route("/dt_110x")
 def dt_110x():
     """List users with DataTables <= 1.10.x."""

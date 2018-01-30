@@ -41,8 +41,8 @@ def index():
 
 @fintweet.route('/ajaxtest')
 def ajax_users_tweets():
-    q = db.session.query(TweetCashtag.cashtags, func.count(TweetCashtag.cashtags).label('count')).group_by(
-        TweetCashtag.cashtags).order_by('count desc').limit(25).all()
+    q = db.session.query(TweetCashtag.cashtags, func.count(TweetCashtag.cashtags).label('count')) \
+        .group_by(TweetCashtag.cashtags).order_by('count desc').limit(25).all()
     # return json.dumps(dict(q))
     return jsonify(q)
 
@@ -98,21 +98,6 @@ def dt_110x():
 #
 #     # returns what is needed by DataTable
 #     return jsonify(rowTable.output_result())
-
-
-@fintweet.route('/<tweet_id>/')
-@login_required
-def detail(tweet_id):
-    # tweet = Tweet.query.filter(Tweet.tweet_id == tweet_id).first_or_404()
-    tweet = Tweet.query \
-        .add_columns(Tweet.user_id, Tweet.text, Tweet.date, Tweet.time,
-                     User.user_name, User.twitter_handle) \
-        .join(User) \
-        .filter(Tweet.tweet_id == tweet_id).first_or_404()
-    # user = User.query.filter(User.user_id == tweet.user_id).first_or_404()
-    hashtags = TweetHashtag.query.filter(TweetHashtag.tweet_id == tweet_id)
-    cashtags = TweetCashtag.query.filter(TweetCashtag.tweet_id == tweet_id)
-    return render_template('fintweet/detail.html', tweet=tweet, hashtags=hashtags, cashtags=cashtags)
 
 
 @fintweet.route('/cashtag/<cashtag>')
@@ -402,3 +387,17 @@ def eventstudy():
     if len(form.errors) > 0:
         pprint(form.errors)
     return render_template('fintweet/eventstudy.html', form=form)
+
+# @fintweet.route('/<tweet_id>/')
+# @login_required
+# def detail(tweet_id):
+#     # tweet = Tweet.query.filter(Tweet.tweet_id == tweet_id).first_or_404()
+#     tweet = Tweet.query \
+#         .add_columns(Tweet.user_id, Tweet.text, Tweet.date, Tweet.time,
+#                      User.user_name, User.twitter_handle) \
+#         .join(User) \
+#         .filter(Tweet.tweet_id == tweet_id).first_or_404()
+#     # user = User.query.filter(User.user_id == tweet.user_id).first_or_404()
+#     hashtags = TweetHashtag.query.filter(TweetHashtag.tweet_id == tweet_id)
+#     cashtags = TweetCashtag.query.filter(TweetCashtag.tweet_id == tweet_id)
+#     return render_template('fintweet/detail.html', tweet=tweet, hashtags=hashtags, cashtags=cashtags)

@@ -18,6 +18,21 @@
     {% block css %} {% endblock %}
     <!-- /global stylesheets -->
 
+    <!-- Core JS files -->
+    <script type="text/javascript" src="{{ url_for('static', filename='js/core/libraries/jquery.min.js') }}"></script>
+    <script type="text/javascript"
+            src="{{ url_for('static', filename='js/core/libraries/bootstrap.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/plugins/ui/nicescroll.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/plugins/ui/drilldown.js') }}"></script>
+    <!-- /core JS files -->
+
+    <!-- Theme JS files -->
+    <script type="text/javascript" src="{{ url_for('static', filename='js/core/app.js') }}"></script>
+    <script type="text/javascript"
+            src="{{ url_for('static', filename='js/pages/layout_navbar_secondary_fixed.js') }}"></script>
+    <!-- /theme JS files -->
+    {% block javascript_libs %}{% endblock %}
+
 </head>
 
 <body>
@@ -73,37 +88,37 @@
 
 <!-- Second navbar -->
 {% if current_user.is_authenticated %}
-<div class="navbar navbar-default" id="navbar-second">
-    <ul class="nav navbar-nav no-border visible-xs-block">
-        <li><a class="text-center collapsed" data-toggle="collapse" data-target="#navbar-second-toggle"><i
-                class="icon-menu7"></i></a></li>
-    </ul>
+    <div class="navbar navbar-default" id="navbar-second">
+        <ul class="nav navbar-nav no-border visible-xs-block">
+            <li><a class="text-center collapsed" data-toggle="collapse" data-target="#navbar-second-toggle"><i
+                    class="icon-menu7"></i></a></li>
+        </ul>
 
-    <div class="navbar-collapse collapse" id="navbar-second-toggle">
-        <ul class="nav navbar-nav">
-            <li class="{% if request.path == url_for('main.home') %}active{% endif %}">
-                <a href="{{ url_for('main.home') }}">Home</a>
-            </li>
-            <li class="dropdown {% if request.path in [
+        <div class="navbar-collapse collapse" id="navbar-second-toggle">
+            <ul class="nav navbar-nav">
+                <li class="{% if request.path == url_for('main.home') %}active{% endif %}">
+                    <a href="{{ url_for('main.home') }}">Home</a>
+                </li>
+                <li class="dropdown {% if request.path in [
                                         url_for('fintweet.index'),
                                         url_for('fintweet.eventstudy'),
                                         url_for('fintweet.eventstudyfile')] %}
                                         active{% endif %}">
-                <a class="dropdown-toggle" data-toggle="dropdown" href="{{ url_for('fintweet.index') }}">
-                    Fintweet <span class="caret"></span></a>
-                <ul class="dropdown-menu">
-                    <li class="{% if request.path == url_for('fintweet.index') %}active{% endif %}">
-                        <a href="{{ url_for('fintweet.index') }}">Dashboard </a></li>
-                    <li class="divider"></li>
-                    <li class="{% if request.path == url_for('fintweet.eventstudy') %}active{% endif %}">
-                        <a href="{{ url_for('fintweet.eventstudy') }}">Event Study</a></li>
-                    <li class="{% if request.path == url_for('fintweet.eventstudyfile') %}active{% endif %}">
-                        <a href="{{ url_for('fintweet.eventstudyfile') }}">Event Study File</a></li>
-                </ul>
-            </li>
-        </ul>
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="{{ url_for('fintweet.index') }}">
+                        Fintweet <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        <li class="{% if request.path == url_for('fintweet.index') %}active{% endif %}">
+                            <a href="{{ url_for('fintweet.index') }}">Dashboard </a></li>
+                        <li class="divider"></li>
+                        <li class="{% if request.path == url_for('fintweet.eventstudy') %}active{% endif %}">
+                            <a href="{{ url_for('fintweet.eventstudy') }}">Event Study</a></li>
+                        <li class="{% if request.path == url_for('fintweet.eventstudyfile') %}active{% endif %}">
+                            <a href="{{ url_for('fintweet.eventstudyfile') }}">Event Study File</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
     </div>
-</div>
 {% endif %}
 <!-- /second navbar -->
 
@@ -136,20 +151,8 @@
 </div>
 <!-- /footer -->
 
-<!-- Core JS files -->
-<script type="text/javascript" src="{{ url_for('static', filename='js/core/libraries/jquery.min.js') }}"></script>
-<script type="text/javascript"
-        src="{{ url_for('static', filename='js/core/libraries/bootstrap.min.js') }}"></script>
-<script type="text/javascript" src="{{ url_for('static', filename='js/plugins/ui/nicescroll.min.js') }}"></script>
-<script type="text/javascript" src="{{ url_for('static', filename='js/plugins/ui/drilldown.js') }}"></script>
-<!-- /core JS files -->
-
-<!-- Theme JS files -->
-<script type="text/javascript" src="{{ url_for('static', filename='js/core/app.js') }}"></script>
-<script type="text/javascript"
-        src="{{ url_for('static', filename='js/pages/layout_navbar_secondary_fixed.js') }}"></script>
-<!-- /theme JS files -->
-{% block javascript %}{% endblock %}
+{% block javascript_code %}
+{% endblock %}
 
 </body>
 </html>

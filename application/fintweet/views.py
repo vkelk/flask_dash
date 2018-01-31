@@ -29,11 +29,13 @@ def tweets_list(template, query, **context):
 @fintweet.route('/')
 @login_required
 def index():
-    tweets = Tweet.query \
-        .add_columns(User.user_name, Tweet.tweet_id, Tweet.text) \
-        .join(User, isouter=True) \
-        .order_by(Tweet.tweet_id.asc())
-    return tweets_list('fintweet/index.html', tweets)
+    return render_template('fintweet/index.html')
+
+
+@fintweet.route('/users')
+@login_required
+def users():
+    return render_template('fintweet/users.html')
 
 
 @fintweet.route("/eventstudyfile", methods=["GET", "POST"])
@@ -67,11 +69,13 @@ def eventstudyfile():
 
         if form.btn_calculate.data:
             df_in = dataframe_from_file(os.path.join(Configuration.UPLOAD_FOLDER, form.file_name.data))
+            df_in["total pre event"] = ""
             df_in["median pre event"] = ""
             df_in["mean pre event"] = ""
             df_in["total during event"] = ""
             df_in["median during event"] = ""
             df_in["mean during event"] = ""
+            df_in["total post event"] = ""
             df_in["median post event"] = ""
             df_in["mean post event"] = ""
             for index, row in df_in.iterrows():
@@ -82,12 +86,14 @@ def eventstudyfile():
                                 'end': date_on_event + timedelta(days=form.days_post_event.data)}
                 date_estwin_pre_end = event_window['start'] - timedelta(days=(form.days_grace_period.data + 1))
                 date_estwin_pre_start = date_estwin_pre_end - timedelta(days=form.days_estimation.data)
+                date_estwin_pre_start = min(date_estwin_pre_start.date(), form.date_range_start.data)
                 if form.select_deal_resolution.data == 'false':
                     date_estwin_post_start = event_window['end'] + timedelta(days=1)
                     date_estwin_post_end = date_estwin_post_start + timedelta(days=form.days_estimation.data)
                 else:
                     date_estwin_post_start = event_window['end'] + timedelta(days=1)
                     date_estwin_post_end = date_estwin_post_start + timedelta(days=row['deal_resolution'])
+                    date_estwin_post_end = max(date_estwin_post_end.date(), form.date_range_end.data)
 
                 estimation_window = {'pre_end': date_estwin_pre_end,
                                      'pre_start': date_estwin_pre_start,
@@ -100,11 +106,13 @@ def eventstudyfile():
                     df_event = df_full.loc[event_window['start'].date():event_window['end'].date()]
                     df_post_est = df_full.loc[event_window['end'].date():]
 
+                    df_in.loc[index, "total pre event"] = df_pre_est['count'].sum()
                     df_in.loc[index, "median pre event"] = df_pre_est['count'].median()
                     df_in.loc[index, "mean pre event"] = df_pre_est['count'].mean()
                     df_in.loc[index, "total during event"] = df_event['count'].sum()
                     df_in.loc[index, "median during event"] = df_event['count'].median()
                     df_in.loc[index, "mean during event"] = df_event['count'].mean()
+                    df_in.loc[index, "total post event"] = df_post_est['count'].sum()
                     df_in.loc[index, "median post event"] = df_post_est['count'].median()
                     df_in.loc[index, "mean post event"] = df_post_est['count'].mean()
             df_in.to_excel(os.path.join(Configuration.UPLOAD_FOLDER, 'output.xlsx'), index=False)
@@ -270,8 +278,9 @@ def ajax_topctags():
 
 @fintweet.route('/ajax_topusers')
 def ajax_topusers():
-    q = db.session.query(Tweet.user_id, User.twitter_handle, func.count(Tweet.tweet_id).label('count')) \
-        .select_from(User).join(Tweet).group_by(Tweet.user_id).group_by(User.twitter_handle) \
+    q = db.session.query(Tweet.user_id, User.twitter_handle, User.date_joined,
+                         func.count(Tweet.tweet_id).label('count')) \
+        .select_from(User).join(Tweet).group_by(Tweet.user_id).group_by(User.twitter_handle).group_by(User.date_joined) \
         .order_by('count desc').limit(25).all()
     # return json.dumps(dict(q))
     return jsonify(q)

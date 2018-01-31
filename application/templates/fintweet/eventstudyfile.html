@@ -22,13 +22,13 @@
     <div class="row">
         <form action="{{ url_for('fintweet.eventstudyfile') }}" method="post" enctype="multipart/form-data" role="form">
             {{ form.csrf_token }}
-            <div class="col-sm-6">
+            <div class="col-sm-6 col-md-4 col-md-offset-2">
                 <div class="panel panel-default">
                     <div class="panel-heading">Topic</div>
                     <div class="panel-body">
                         <div class="form-inline">
                             <p><b>Step 1:</b> Choose your date range.</p>
-                            <div class="form-group row">
+                            <div class="row">
                                 <div class="col-sm-6">
                                     {{ form.date_range_start.label }}
                                     {{ render_field(form.date_range_start, class="form-control", type="date") }}
@@ -56,7 +56,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-6  col-md-4">
                 <div class="panel panel-default">
                     <div class="panel-heading">Event study parameters</div>
                     <div class="panel-body">

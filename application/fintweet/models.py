@@ -31,7 +31,7 @@ class User(UserMixin, db.Model):
     user_intro = db.Column(db.String(255))
     verified = db.Column(db.String(10))
 
-    tweets = db.relationship('Tweet', lazy='dynamic')
+    # tweets = db.relationship('Tweet', lazy='dynamic')
     counts = db.relationship('UserCount', backref='user_counts', lazy='dynamic')
     mentions = db.relationship('TweetMention', primaryjoin="TweetMention.user_id==User.user_id", lazy='dynamic')
 
@@ -68,7 +68,7 @@ class UserCount(db.Model):
     likes = db.Column(db.Integer)
     lists = db.Column(db.Integer)
 
-    # user = db.relationship('User')
+    # user = db.relationship('User', backref='counts')
     # user = db.relationship('User', backref='user_count', lazy='dynamic',
     #                        primaryjoin="UserCount.user_id==User.user_id", foreign_keys='User.user_id')
 
@@ -95,8 +95,10 @@ class Tweet(UserMixin, db.Model):
     reply_to = db.Column(db.BigInteger)
     permalink = db.Column(db.String(255))
 
-    cashtags = db.relationship('TweetCashtag', lazy='dynamic')
-    counts = db.relationship('TweetCount', lazy='dynamic')
+    user = db.relationship('User')
+
+    # cashtags = db.relationship('TweetCashtag', lazy='dynamic')
+    # counts = db.relationship('TweetCount', lazy='dynamic')
     # ment_s = relationship('TweetMentions')
     # cash_s = relationship('TweetCashtags')
     # hash_s = relationship('TweetHashtags')
@@ -104,7 +106,7 @@ class Tweet(UserMixin, db.Model):
     # replies = relationship('Reply')
     # retweets = relationship('Retweet')
     # emoticon = Column(TEXT)
-    # user = db.relationship('User')
+
 
     def __repr__(self):
         return self.tweet_id
@@ -145,10 +147,10 @@ class TweetCashtag(db.Model):
 
     # user_id = Column(BIGINT)
 
-    # tweet = db.relationship('Tweet')
+    tweet = db.relationship('Tweet', backref="cashtags")
 
-    # user = db.relationship('User', backref='user_count', lazy='dynamic',
-    #                        primaryjoin="TweetCashtag.user_id==User.user_id", foreign_keys='User.user_id')
+    # user = db.relationship('User', backref='user', lazy='dynamic',
+    #                        primaryjoin="TweetCashtag.tweet_id==Tweet.tweetr_id", foreign_keys='User.user_id')
 
     def __repr__(self):
         return self.id
@@ -167,6 +169,8 @@ class TweetCount(db.Model):
     retweet = db.Column(db.Integer)
     favorite = db.Column(db.Integer)
 
+    tweet = db.relationship('Tweet', backref="counts")
+
     def __repr__(self):
         return self.tweet_id
 
@@ -181,6 +185,8 @@ class TweetHashtag(db.Model):
     id = db.Column(db.BigInteger, primary_key=True)
     tweet_id = db.Column(db.BigInteger, db.ForeignKey(Tweet.tweet_id))
     hashtags = db.Column(db.String(120))
+
+    tweet = db.relationship('Tweet', backref="hashtags")
 
     def __repr__(self):
         return self.id

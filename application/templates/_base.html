@@ -127,6 +127,11 @@
 
 <!-- Page header -->
 <div class="page-header">
+    <div class="row">
+        <div class="col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4">
+            <h4>{% block content_title %}{% endblock %}</h4>
+        </div>
+    </div>
     <div class="col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4">
         {% for category, message in get_flashed_messages(with_categories=true) %}
             <div class="alert alert-dismissable alert-{{ category }}">

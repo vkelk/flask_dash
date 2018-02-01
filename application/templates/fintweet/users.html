@@ -1,8 +1,8 @@
 {% extends "_base.html" %}
 
-{% block title %}Tweets{% endblock %}
+{% block title %}Fintweet | Users{% endblock %}
 
-{% block content_title %}Tweets{% endblock %}
+{% block content_title %}Fintweet | Users{% endblock %}
 
 {% block css %}
     <!-- Custom Fonts -->
@@ -19,7 +19,7 @@
 {% block content %}
     <div class="row">
         <div class="col-sm-4 col-sm-offset-3">
-            <h3>Top users</h3>
+            <h5>Top users</h5>
         </div>
         <div class="clearfix"></div>
         <div class="col-sm-4 col-md-3 col-lg-2">
@@ -29,6 +29,86 @@
         <div class="col-sm-8 col-md-9 col-lg-10">
             <div class="chart-container">
                 <div class="chart" id="c3_top_users"></div>
+            </div>
+        </div>
+    </div>
+    <div id="user_stats" class="row" style="margin-top: 3em; display: none;">
+        <div class="row">
+            <div id="user_info" class="col-sm-6 col-md-4">
+                <div class="col-sm-12"><h4 id="twitter_handle"></h4></div>
+                <div class="col-sm-12">Website: <span id="website"></span></div>
+                <div class="col-sm-12">Location: <span id="location"></span></div>
+            </div>
+            <div id="user_counts" class="col-sm-6 col-md-4">
+                <div class="row">
+                    <div class="col-sm-3">Tweets: <h4 id="user_tweets"></h4></div>
+                    <div class="col-sm-3">Followers: <h4 id="followers"></h4></div>
+                    <div class="col-sm-3">Following: <h4 id="following"></h4></div>
+                    <div class="col-sm-3">Likes: <h4 id="likes"></h4></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4 col-sm-offset-3">
+            <h5>Database stats</h5>
+        </div>
+        <div class="clearfix"></div>
+        <div class="col-sm-3 col-md-3">
+            <div class="panel panel-body bg-blue-400 has-bg-image">
+                <div class="media no-margin">
+                    <div class="media-body">
+                        <h3 id="total_tweets" class="no-margin"></h3>
+                        <span class="text-uppercase text-size-mini">total tweeted</span>
+                    </div>
+
+                    <div class="media-right media-middle">
+                        <i class="fa fa-twitter fa-3x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-3 col-md-3">
+            <div class="panel panel-body bg-danger-400 has-bg-image">
+                <div class="media no-margin">
+                    <div class="media-body">
+                        <h3 id="total_mentions" class="no-margin"></h3>
+                        <span class="text-uppercase text-size-mini">total mentioned</span>
+                    </div>
+
+                    <div class="media-right media-middle">
+                        <i class="fa fa-user fa-3x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-3 col-md-3">
+            <div class="panel panel-body bg-success-400 has-bg-image">
+                <div class="media no-margin">
+                    <div class="media-left media-middle">
+                        <i class="fa fa-dollar fa-3x opacity-75"></i>
+                    </div>
+
+                    <div class="media-body text-right">
+                        <h3 id="total_cashtags" class="no-margin"></h3>
+                        <span class="text-uppercase text-size-mini">total cashtags</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-3 col-md-3">
+            <div class="panel panel-body bg-indigo-400 has-bg-image">
+                <div class="media no-margin">
+                    <div class="media-left media-middle">
+                        <i class="fa fa-hashtag fa-3x opacity-75"></i>
+                    </div>
+
+                    <div class="media-body text-right">
+                        <h3 id="total_hashtags" class="no-margin"></h3>
+                        <span class="text-uppercase text-size-mini">total hashtags</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -49,6 +129,7 @@
             src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.17.1/moment-with-locales.min.js"></script>
     <script>
         var json_data;
+        var colors = ['#2196F3', '#FF5722', '#00BCD4', '#9C27B0', "#FF9800"];
 
         function loadTableUsers(jsonData) {
             tblUsers = $('#dt_top_users').DataTable({
@@ -70,6 +151,62 @@
             });
         }
 
+        function getTweets(user_id) {
+            var filters = [{"name": "user_id", "op": "==", "val": user_id}];
+            $.ajax({
+                url: 'api/tweet',
+                data: {"q": JSON.stringify({"filters": filters})},
+                dataType: "json",
+                contentType: "application/json",
+                success: function (data) {
+                    num_results = data.num_results.toLocaleString('en', {useGrouping: true})
+                    $('#total_tweets').html(num_results);
+                }
+            });
+        }
+
+        function getUserCounts(user_id) {
+            var url = "api/user/" + user_id + "/counts";
+            $.ajax({
+                url: url,
+                {#data: {"q": JSON.stringify({"filters": filters})},#}
+                dataType: "json",
+                contentType: "application/json",
+                success: function (data) {
+                    console.log(data);
+                    console.log(data.objects[0].follower);
+                    var followers = data.objects[0].follower.toLocaleString('en', {useGrouping: true});
+                    var following = data.objects[0].following.toLocaleString('en', {useGrouping: true});
+                    var likes = data.objects[0].likes.toLocaleString('en', {useGrouping: true});
+                    var tweets = data.objects[0].tweets.toLocaleString('en', {useGrouping: true});
+                    var twitter_handle = data.objects[0].user_counts.twitter_handle;
+                    var website = data.objects[0].user_counts.website;
+                    var location = data.objects[0].user_counts.location;
+                    $('#followers').html(followers);
+                    $('#user_tweets').html(tweets);
+                    $('#following').html(following);
+                    $('#likes').html(likes);
+                    $("#twitter_handle").html("@" + twitter_handle);
+                    $("#website").html(website);
+                    $("#location").html(location);
+                }
+            });
+        }
+
+        function getMentions(user_id) {
+            var filters = [{"name": "user_id", "op": "==", "val": user_id}];
+            $.ajax({
+                url: 'api/mention',
+                data: {"q": JSON.stringify({"filters": filters})},
+                dataType: "json",
+                contentType: "application/json",
+                success: function (data) {
+                    num_results = data.num_results.toLocaleString('en', {useGrouping: true})
+                    $('#total_mentions').html(num_results);
+                }
+            });
+        }
+
         $(document).ready(function () {
 
             $.getJSON("api/user", function (data) {
@@ -78,27 +215,27 @@
             });
 
 
-            $.getJSON("api/hashtag", function (data) {
-                num_results = data.num_results.toLocaleString('en', {useGrouping: true})
-                $('#total_hashtags').html(num_results);
-            });
-
             $.getJSON("ajax_topusers", function (data) {
 
                 loadTableUsers(data);
 
                 $('#dt_top_users tbody').on('click', 'tr', function () {
-                    user_data = tblUsers.row(this).data();
-                    console.log(user_data);
+                    var user_data = tblUsers.row(this).data();
+                    {#console.log(user_data);#}
+                    var user_id = user_data.user_id;
+                    console.log(user_id);
+                    getTweets(user_id);
+                    getMentions(user_id);
+                    getUserCounts(user_id);
                     if ($(this).hasClass('selected')) {
                         $(this).removeClass('selected');
                     } else {
                         tblUsers.$('tr.selected').removeClass('selected');
                         $(this).addClass('selected');
                     }
+                    $("#user_stats").show();
                 });
 
-                var colors = ['#2196F3', '#FF5722', '#00BCD4', '#9C27B0', "#FF9800"];
 
                 var chart = c3.generate({
                     bindto: '#c3_top_users',

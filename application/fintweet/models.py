@@ -31,7 +31,9 @@ class User(UserMixin, db.Model):
     user_intro = db.Column(db.String(255))
     verified = db.Column(db.String(10))
 
-    # tweets = db.relationship('Tweet', backref='user_id', lazy='dynamic')
+    tweets = db.relationship('Tweet', lazy='dynamic')
+    counts = db.relationship('UserCount', backref='user_counts', lazy='dynamic')
+    mentions = db.relationship('TweetMention', primaryjoin="TweetMention.user_id==User.user_id", lazy='dynamic')
 
     def __repr__(self):
         return self.twitter_handle
@@ -93,7 +95,8 @@ class Tweet(UserMixin, db.Model):
     reply_to = db.Column(db.BigInteger)
     permalink = db.Column(db.String(255))
 
-    # counts = relationship('TweetCount')
+    cashtags = db.relationship('TweetCashtag', lazy='dynamic')
+    counts = db.relationship('TweetCount', lazy='dynamic')
     # ment_s = relationship('TweetMentions')
     # cash_s = relationship('TweetCashtags')
     # hash_s = relationship('TweetHashtags')
@@ -158,8 +161,8 @@ class TweetCount(db.Model):
     __tablename__ = 'tweet_count'
     __table_args__ = {"schema": "fintweet"}
 
-    id = db.Column(db.BigInteger, primary_key=True)
-    tweet_id = db.Column(db.BigInteger, db.ForeignKey(Tweet.tweet_id))
+    # id = db.Column(db.BigInteger, primary_key=True)
+    tweet_id = db.Column(db.BigInteger, db.ForeignKey(Tweet.tweet_id), primary_key=True)
     reply = db.Column(db.Integer)
     retweet = db.Column(db.Integer)
     favorite = db.Column(db.Integer)
@@ -193,7 +196,7 @@ class TweetMention(db.Model):
     id = db.Column(db.BigInteger, primary_key=True)
     tweet_id = db.Column(db.BigInteger, db.ForeignKey(Tweet.tweet_id))
     mentions = db.Column(db.String(120))
-    user_id = db.Column(db.BigInteger)
+    user_id = db.Column(db.BigInteger, db.ForeignKey(User.user_id))
 
     def __repr__(self):
         return self.id

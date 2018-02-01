@@ -38,6 +38,12 @@ def users():
     return render_template('fintweet/users.html')
 
 
+@fintweet.route('/tweets')
+@login_required
+def tweets():
+    return render_template('fintweet/tweets.html')
+
+
 @fintweet.route("/eventstudyfile", methods=["GET", "POST"])
 def eventstudyfile():
     def dataframe_from_file(filename):
@@ -276,13 +282,29 @@ def ajax_topctags():
     return jsonify(q)
 
 
-@fintweet.route('/ajax_topusers')
-def ajax_topusers():
+@fintweet.route('/ajax_topusers/<limit>')
+def ajax_topusers(limit=25):
     q = db.session.query(Tweet.user_id, User.twitter_handle, User.date_joined,
                          func.count(Tweet.tweet_id).label('count')) \
         .select_from(User).join(Tweet).group_by(Tweet.user_id).group_by(User.twitter_handle).group_by(User.date_joined) \
-        .order_by('count desc').limit(25).all()
+        .order_by('count desc').limit(limit).all()
     # return json.dumps(dict(q))
+    return jsonify(q)
+
+
+@fintweet.route('/ajax_ctags_by_user/<user_id>')
+def ajax_ctags_by_user(user_id):
+    q = db.session.query(TweetCashtag.cashtags, func.count(TweetCashtag.tweet_id).label('count')) \
+        .select_from(TweetCashtag).join(Tweet).filter(Tweet.user_id == user_id).group_by(TweetCashtag.cashtags) \
+        .order_by('count desc').limit(10).all()
+    return jsonify(q)
+
+
+@fintweet.route('/ajax_htags_by_user/<user_id>')
+def ajax_htags_by_user(user_id):
+    q = db.session.query(TweetHashtag.hashtags, func.count(TweetHashtag.tweet_id).label('count')) \
+        .select_from(TweetHashtag).join(Tweet).filter(Tweet.user_id == user_id).group_by(TweetHashtag.hashtags) \
+        .order_by('count desc').limit(10).all()
     return jsonify(q)
 
 

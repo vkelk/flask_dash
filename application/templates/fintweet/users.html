@@ -18,15 +18,25 @@
 
 {% block content %}
     <div class="row">
-        <div class="col-sm-4 col-sm-offset-3">
-            <h5>Top users</h5>
+        <div class="col-sm-4 col-md-4 col-lg-3">
+            <div class="form-group form-inline">
+                <label for="sel1">Select number of top users:</label>
+                <select class="form-control" id="limit_top_users">
+                    <option>10</option>
+                    <option selected>25</option>
+                    <option>50</option>
+                    <option>100</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-sm-4 col-md-4 col-lg-3">
+            <h5>Top users with tweets</h5>
         </div>
         <div class="clearfix"></div>
-        <div class="col-sm-4 col-md-3 col-lg-2">
-            <table id="dt_top_users" class="table display compact" cellspacing="0" width="100%">
-            </table>
+        <div class="col-sm-4 col-md-4 col-lg-3">
+            <table id="dt_top_users" class="table display compact" cellspacing="0" width="100%"></table>
         </div>
-        <div class="col-sm-8 col-md-9 col-lg-10">
+        <div class="col-sm-8 col-md-8 col-lg-9">
             <div class="chart-container">
                 <div class="chart" id="c3_top_users"></div>
             </div>
@@ -34,8 +44,9 @@
     </div>
     <div id="user_stats" class="row" style="margin-top: 3em; display: none;">
         <div class="row">
-            <div id="user_info" class="col-sm-6 col-md-4">
+            <div id="user_info" class="col-sm-4 col-md-4 col-lg-3">
                 <div class="col-sm-12"><h4 id="twitter_handle"></h4></div>
+                <div class="col-sm-12">Date joined: <span id="date_joined"></span></div>
                 <div class="col-sm-12">Website: <span id="website"></span></div>
                 <div class="col-sm-12">Location: <span id="location"></span></div>
             </div>
@@ -48,67 +59,69 @@
                 </div>
             </div>
         </div>
-        <div class="col-sm-4 col-sm-offset-3">
-            <h5>Database stats</h5>
-        </div>
-        <div class="clearfix"></div>
-        <div class="col-sm-3 col-md-3">
-            <div class="panel panel-body bg-blue-400 has-bg-image">
-                <div class="media no-margin">
-                    <div class="media-body">
-                        <h3 id="total_tweets" class="no-margin"></h3>
-                        <span class="text-uppercase text-size-mini">total tweeted</span>
-                    </div>
+        <div class="row">
+            <div class="col-sm-4 col-sm-offset-3">
+                <h5>Database stats</h5>
+            </div>
+            <div class="clearfix"></div>
+            <div class="col-sm-4">
+                <div class="panel panel-body bg-blue-400 has-bg-image">
+                    <div class="media no-margin">
+                        <div class="media-body">
+                            <h3 id="total_tweets" class="no-margin"></h3>
+                            <span class="text-uppercase text-size-mini">total tweeted</span>
+                        </div>
 
-                    <div class="media-right media-middle">
-                        <i class="fa fa-twitter fa-3x opacity-75"></i>
+                        <div class="media-right media-middle">
+                            <i class="fa fa-twitter fa-3x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel panel-body bg-danger-400 has-bg-image">
+                    <div class="media no-margin">
+                        <div class="media-body">
+                            <h3 id="total_mentions" class="no-margin"></h3>
+                            <span class="text-uppercase text-size-mini">total mentioned</span>
+                        </div>
+
+                        <div class="media-right media-middle">
+                            <i class="fa fa-user fa-3x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel panel-body bg-success-400 has-bg-image">
+                    <div class="media no-margin">
+                        <div class="media-left media-middle">
+                            <i class="fa fa-dollar fa-3x opacity-75"></i>
+                        </div>
+
+                        <div class="media-body text-right">
+                            <h3 id="total_cashtags" class="no-margin"></h3>
+                            <span class="text-uppercase text-size-mini">total cashtags</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel panel-body bg-indigo-400 has-bg-image">
+                    <div class="media no-margin">
+                        <div class="media-left media-middle">
+                            <i class="fa fa-hashtag fa-3x opacity-75"></i>
+                        </div>
+
+                        <div class="media-body text-right">
+                            <h3 id="total_hashtags" class="no-margin"></h3>
+                            <span class="text-uppercase text-size-mini">total hashtags</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="col-sm-3 col-md-3">
-            <div class="panel panel-body bg-danger-400 has-bg-image">
-                <div class="media no-margin">
-                    <div class="media-body">
-                        <h3 id="total_mentions" class="no-margin"></h3>
-                        <span class="text-uppercase text-size-mini">total mentioned</span>
-                    </div>
-
-                    <div class="media-right media-middle">
-                        <i class="fa fa-user fa-3x opacity-75"></i>
-                    </div>
-                </div>
+            <div class="col-sm-4">
+                <table id="dt_top_ctags" class="table display compact" cellspacing="0" width="100%"></table>
             </div>
-        </div>
-
-        <div class="col-sm-3 col-md-3">
-            <div class="panel panel-body bg-success-400 has-bg-image">
-                <div class="media no-margin">
-                    <div class="media-left media-middle">
-                        <i class="fa fa-dollar fa-3x opacity-75"></i>
-                    </div>
-
-                    <div class="media-body text-right">
-                        <h3 id="total_cashtags" class="no-margin"></h3>
-                        <span class="text-uppercase text-size-mini">total cashtags</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-sm-3 col-md-3">
-            <div class="panel panel-body bg-indigo-400 has-bg-image">
-                <div class="media no-margin">
-                    <div class="media-left media-middle">
-                        <i class="fa fa-hashtag fa-3x opacity-75"></i>
-                    </div>
-
-                    <div class="media-body text-right">
-                        <h3 id="total_hashtags" class="no-margin"></h3>
-                        <span class="text-uppercase text-size-mini">total hashtags</span>
-                    </div>
-                </div>
+            <div class="col-sm-4">
+                <table id="dt_top_htags" class="table display compact" cellspacing="0" width="100%"></table>
             </div>
         </div>
     </div>
@@ -131,91 +144,9 @@
         var json_data;
         var colors = ['#2196F3', '#FF5722', '#00BCD4', '#9C27B0', "#FF9800"];
 
-        function loadTableUsers(jsonData) {
-            tblUsers = $('#dt_top_users').DataTable({
-                "data": jsonData,
-                "columns": [
-                    {title: "Username", data: "twitter_handle"},
-                    {title: "Tweets count", data: "count"},
-                    {
-                        title: "Date joined", data: "date_joined",
-                        render: function (d) {
-                            return moment(d).format("YYYY-MM-DD");
-                        }
-                    },
-                ],
-                "order": [[1, "desc"]],
-                "searching": false,
-                "info": false,
-                "lengthChange": false
-            });
-        }
-
-        function getTweets(user_id) {
-            var filters = [{"name": "user_id", "op": "==", "val": user_id}];
-            $.ajax({
-                url: 'api/tweet',
-                data: {"q": JSON.stringify({"filters": filters})},
-                dataType: "json",
-                contentType: "application/json",
-                success: function (data) {
-                    num_results = data.num_results.toLocaleString('en', {useGrouping: true})
-                    $('#total_tweets').html(num_results);
-                }
-            });
-        }
-
-        function getUserCounts(user_id) {
-            var url = "api/user/" + user_id + "/counts";
-            $.ajax({
-                url: url,
-                {#data: {"q": JSON.stringify({"filters": filters})},#}
-                dataType: "json",
-                contentType: "application/json",
-                success: function (data) {
-                    console.log(data);
-                    console.log(data.objects[0].follower);
-                    var followers = data.objects[0].follower.toLocaleString('en', {useGrouping: true});
-                    var following = data.objects[0].following.toLocaleString('en', {useGrouping: true});
-                    var likes = data.objects[0].likes.toLocaleString('en', {useGrouping: true});
-                    var tweets = data.objects[0].tweets.toLocaleString('en', {useGrouping: true});
-                    var twitter_handle = data.objects[0].user_counts.twitter_handle;
-                    var website = data.objects[0].user_counts.website;
-                    var location = data.objects[0].user_counts.location;
-                    $('#followers').html(followers);
-                    $('#user_tweets').html(tweets);
-                    $('#following').html(following);
-                    $('#likes').html(likes);
-                    $("#twitter_handle").html("@" + twitter_handle);
-                    $("#website").html(website);
-                    $("#location").html(location);
-                }
-            });
-        }
-
-        function getMentions(user_id) {
-            var filters = [{"name": "user_id", "op": "==", "val": user_id}];
-            $.ajax({
-                url: 'api/mention',
-                data: {"q": JSON.stringify({"filters": filters})},
-                dataType: "json",
-                contentType: "application/json",
-                success: function (data) {
-                    num_results = data.num_results.toLocaleString('en', {useGrouping: true})
-                    $('#total_mentions').html(num_results);
-                }
-            });
-        }
-
-        $(document).ready(function () {
-
-            $.getJSON("api/user", function (data) {
-                num_results = data.num_results.toLocaleString('en', {useGrouping: true})
-                $('#total_users').html(num_results);
-            });
-
-
-            $.getJSON("ajax_topusers", function (data) {
+        function loadTopUsers(limit) {
+            var url = "ajax_topusers/" + limit;
+            $.getJSON(url, function (data) {
 
                 loadTableUsers(data);
 
@@ -227,6 +158,8 @@
                     getTweets(user_id);
                     getMentions(user_id);
                     getUserCounts(user_id);
+                    loadCtags(user_id);
+                    loadHtags(user_id);
                     if ($(this).hasClass('selected')) {
                         $(this).removeClass('selected');
                     } else {
@@ -269,7 +202,145 @@
                     }
                 });
             })
+        }
 
+        function loadCtags(user_id) {
+            var url = "ajax_ctags_by_user/" + user_id;
+            $.getJSON(url, function (data) {
+                loadTableCashtags(data);
+            });
+        }
+
+        function loadHtags(user_id) {
+            var url = "ajax_htags_by_user/" + user_id;
+            $.getJSON(url, function (data) {
+                loadTableHashtags(data);
+            });
+        }
+
+        function loadTableUsers(jsonData) {
+            tblUsers = $('#dt_top_users').DataTable({
+                "data": jsonData,
+                "columns": [
+                    {title: "Username", data: "twitter_handle"},
+                    {title: "Tweets count", data: "count"},
+                    {
+                        title: "Twitter age ", data: "date_joined",
+                        render: function (d) {
+                            return moment(d).fromNow();
+                        }
+                    },
+                ],
+                "order": [[1, "desc"]],
+                "searching": false,
+                "info": false,
+                "lengthChange": false,
+                destroy: true
+            });
+        }
+
+        function loadTableCashtags(jsonData) {
+            var tblCashtags = $('#dt_top_ctags').DataTable({
+                "data": jsonData,
+                "columns": [
+                    {title: "Cashtag", data: "cashtags"},
+                    {title: "Tweets count", data: "count"},
+                ],
+                "order": [[1, "desc"]],
+                "searching": false,
+                "info": false,
+                "lengthChange": false,
+                destroy: true,
+                "paging": false
+            });
+        }
+
+        function loadTableHashtags(jsonData) {
+            var tblCashtags = $('#dt_top_htags').DataTable({
+                "data": jsonData,
+                "columns": [
+                    {title: "Hashtag", data: "hashtags"},
+                    {title: "Tweets count", data: "count"},
+                ],
+                "order": [[1, "desc"]],
+                "searching": false,
+                "info": false,
+                "lengthChange": false,
+                destroy: true,
+                "paging": false
+            });
+        }
+
+        function getTweets(user_id) {
+            var filters = [{"name": "user_id", "op": "==", "val": user_id}];
+            $.ajax({
+                url: 'api/tweet',
+                data: {"q": JSON.stringify({"filters": filters})},
+                dataType: "json",
+                contentType: "application/json",
+                success: function (data) {
+                    num_results = data.num_results.toLocaleString('en', {useGrouping: true})
+                    $('#total_tweets').html(num_results);
+                }
+            });
+        }
+
+        function getUserCounts(user_id) {
+            var url = "api/user/" + user_id + "/counts";
+            $.ajax({
+                url: url,
+                {#data: {"q": JSON.stringify({"filters": filters})},#}
+                dataType: "json",
+                contentType: "application/json",
+                success: function (data) {
+                    console.log(data);
+                    console.log(data.objects[0].follower);
+                    var followers = data.objects[0].follower.toLocaleString('en', {useGrouping: true});
+                    var following = data.objects[0].following.toLocaleString('en', {useGrouping: true});
+                    var likes = data.objects[0].likes.toLocaleString('en', {useGrouping: true});
+                    var tweets = data.objects[0].tweets.toLocaleString('en', {useGrouping: true});
+                    var twitter_handle = data.objects[0].user_counts.twitter_handle;
+                    var website = data.objects[0].user_counts.website;
+                    var location = data.objects[0].user_counts.location;
+                    var date_joined = data.objects[0].user_counts.date_joined;
+                    $('#followers').html(followers);
+                    $('#user_tweets').html(tweets);
+                    $('#following').html(following);
+                    $('#likes').html(likes);
+                    $("#twitter_handle").html("@" + twitter_handle);
+                    $("#website").html(website);
+                    $("#location").html(location);
+                    $("#date_joined").html(date_joined);
+                }
+            });
+        }
+
+        function getMentions(user_id) {
+            var filters = [{"name": "user_id", "op": "==", "val": user_id}];
+            $.ajax({
+                url: 'api/mention',
+                data: {"q": JSON.stringify({"filters": filters})},
+                dataType: "json",
+                contentType: "application/json",
+                success: function (data) {
+                    num_results = data.num_results.toLocaleString('en', {useGrouping: true})
+                    $('#total_mentions').html(num_results);
+                }
+            });
+        }
+
+        $(document).ready(function () {
+
+            loadTopUsers(25);
+
+            $.getJSON("api/user", function (data) {
+                num_results = data.num_results.toLocaleString('en', {useGrouping: true})
+                $('#total_users').html(num_results);
+            });
+
+            $("#limit_top_users").on('change', function () {
+                loadTopUsers(this.value);
+            })
 
         });
 

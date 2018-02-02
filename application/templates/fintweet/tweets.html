@@ -18,76 +18,41 @@
 
 {% block content %}
     <div class="row">
-        <div class="col-sm-4 col-sm-offset-3">
-            <h5>Top 25 users with tweets</h5>
-        </div>
-        <div class="clearfix"></div>
-        <div class="col-sm-4 col-md-4 col-lg-3">
-            <table id="dt_top_users" class="table display compact" cellspacing="0" width="100%">
-            </table>
-        </div>
-        <div class="col-sm-8 col-md-8 col-lg-9">
-            <div class="chart-container">
-                <div class="chart" id="c3_top_users"></div>
-            </div>
-        </div>
-    </div>
-    <div id="user_stats" class="row" style="margin-top: 3em; display: none;">
-        <div class="row">
-            <div id="user_info" class="col-sm-4 col-md-4 col-lg-3">
-                <div class="col-sm-12"><h4 id="twitter_handle"></h4></div>
-                <div class="col-sm-12">Date joined: <span id="date_joined"></span></div>
-                <div class="col-sm-12">Website: <span id="website"></span></div>
-                <div class="col-sm-12">Location: <span id="location"></span></div>
-            </div>
-            <div id="user_counts" class="col-sm-6 col-md-4">
-                <div class="row">
-                    <div class="col-sm-3">Tweets: <h4 id="user_tweets"></h4></div>
-                    <div class="col-sm-3">Followers: <h4 id="followers"></h4></div>
-                    <div class="col-sm-3">Following: <h4 id="following"></h4></div>
-                    <div class="col-sm-3">Likes: <h4 id="likes"></h4></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-sm-4 col-sm-offset-3">
-            <h5>Database stats</h5>
-        </div>
-        <div class="clearfix"></div>
-        <div class="col-sm-3 col-md-3">
+        <div class="col-sm-6 col-md-3">
             <div class="panel panel-body bg-blue-400 has-bg-image">
                 <div class="media no-margin">
                     <div class="media-body">
                         <h3 id="total_tweets" class="no-margin"></h3>
-                        <span class="text-uppercase text-size-mini">total tweeted</span>
+                        <span class="text-uppercase text-size-mini">total tweets</span>
                     </div>
 
                     <div class="media-right media-middle">
-                        <i class="fa fa-twitter fa-3x opacity-75"></i>
+                        <i class="fa fa-twitter fa-4x opacity-75"></i>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-sm-3 col-md-3">
+        <div class="col-sm-6 col-md-3">
             <div class="panel panel-body bg-danger-400 has-bg-image">
                 <div class="media no-margin">
                     <div class="media-body">
-                        <h3 id="total_mentions" class="no-margin"></h3>
-                        <span class="text-uppercase text-size-mini">total mentioned</span>
+                        <h3 id="total_users" class="no-margin"></h3>
+                        <span class="text-uppercase text-size-mini">total users</span>
                     </div>
 
                     <div class="media-right media-middle">
-                        <i class="fa fa-user fa-3x opacity-75"></i>
+                        <i class="fa fa-user fa-4x opacity-75"></i>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-sm-3 col-md-3">
+        <div class="col-sm-6 col-md-3">
             <div class="panel panel-body bg-success-400 has-bg-image">
                 <div class="media no-margin">
                     <div class="media-left media-middle">
-                        <i class="fa fa-dollar fa-3x opacity-75"></i>
+                        <i class="fa fa-dollar fa-4x opacity-75"></i>
                     </div>
 
                     <div class="media-body text-right">
@@ -98,11 +63,11 @@
             </div>
         </div>
 
-        <div class="col-sm-3 col-md-3">
+        <div class="col-sm-6 col-md-3">
             <div class="panel panel-body bg-indigo-400 has-bg-image">
                 <div class="media no-margin">
                     <div class="media-left media-middle">
-                        <i class="fa fa-hashtag fa-3x opacity-75"></i>
+                        <i class="fa fa-hashtag fa-4x opacity-75"></i>
                     </div>
 
                     <div class="media-body text-right">
@@ -113,6 +78,46 @@
             </div>
         </div>
     </div>
+    <div id="cashtags" class="row">
+        <div class="col-sm-4 col-sm-offset-3">
+            <h3>Top cashtags</h3>
+        </div>
+        <div class="clearfix"></div>
+        <div class="col-sm-4 col-md-3 col-lg-2">
+            <table id="dt_top_ctags" class="table display compact" cellspacing="0" width="100%"></table>
+        </div>
+        <div class="col-sm-8 col-md-9 col-lg-10">
+            <div class="chart-container">
+                <div class="chart" id="c3_top_ctags"></div>
+            </div>
+        </div>
+    </div>
+    <div id="cashtags" class="row">
+        <div class="col-sm-4 col-sm-offset-3">
+            <h3>Top hashtags</h3>
+        </div>
+        <div class="clearfix"></div>
+        <div class="col-sm-4 col-md-3 col-lg-2">
+            <table id="dt_top_htags" class="table display compact" cellspacing="0" width="100%"></table>
+        </div>
+        <div class="col-sm-8 col-md-9 col-lg-10">
+            <div class="chart-container">
+                <div class="chart" id="c3_top_htags"></div>
+            </div>
+        </div>
+    </div>
+    <div id="cashtags" class="row">
+        <div class="col-sm-4 col-sm-offset-3">
+            <h3>Timeline</h3>
+        </div>
+        <div class="clearfix"></div>
+        <div class="col-sm-12">
+            <div class="chart-container">
+                <div class="chart" id="c3_timeline"></div>
+            </div>
+        </div>
+    </div>
+
 {% endblock %}
 
 {% block javascript %}
@@ -212,43 +217,51 @@
 
         $(document).ready(function () {
 
+            $.getJSON("api/tweet", function (data) {
+                num_results = data.num_results.toLocaleString('en', {useGrouping: true})
+                $('#total_tweets').html(num_results);
+            });
+
             $.getJSON("api/user", function (data) {
                 num_results = data.num_results.toLocaleString('en', {useGrouping: true})
                 $('#total_users').html(num_results);
             });
 
+            $.getJSON("api/cashtag", function (data) {
+                num_results = data.num_results.toLocaleString('en', {useGrouping: true})
+                $('#total_cashtags').html(num_results);
+            });
 
-            $.getJSON("ajax_topusers", function (data) {
+            $.getJSON("api/hashtag", function (data) {
+                num_results = data.num_results.toLocaleString('en', {useGrouping: true})
+                $('#total_hashtags').html(num_results);
+            });
 
-                loadTableUsers(data);
+            $.getJSON("ajax_topctags", function (data) {
 
-                $('#dt_top_users tbody').on('click', 'tr', function () {
-                    var user_data = tblUsers.row(this).data();
-                    {#console.log(user_data);#}
-                    var user_id = user_data.user_id;
-                    console.log(user_id);
-                    getTweets(user_id);
-                    getMentions(user_id);
-                    getUserCounts(user_id);
-                    if ($(this).hasClass('selected')) {
-                        $(this).removeClass('selected');
-                    } else {
-                        tblUsers.$('tr.selected').removeClass('selected');
-                        $(this).addClass('selected');
-                    }
-                    $("#user_stats").show();
+                $('#dt_top_ctags').DataTable({
+                    "data": data,
+                    "columns": [
+                        {title: "Cashtag", "data": "cashtags"},
+                        {title: "count", "data": "count"},
+                    ],
+                    "order": [[1, "desc"]],
+                    "searching": false,
+                    "info": false,
+                    "lengthChange": false
                 });
 
+                var colors = ['#2196F3', '#FF5722', '#00BCD4', '#9C27B0', "#FF9800"];
 
                 var chart = c3.generate({
-                    bindto: '#c3_top_users',
+                    bindto: '#c3_top_ctags',
                     data: {
                         {#url: 'ajaxtest',#}
                         {#mimeType: 'json',#}
                         json: data,
                         type: 'bar',
                         keys: {
-                            x: 'twitter_handle',
+                            x: 'cashtags',
                             value: ['count']
                         },
                         labels: true,
@@ -271,7 +284,96 @@
                         show: false
                     }
                 });
-            })
+                {#$("#cashtags").show(1000);#}
+            });
+
+            $.getJSON("ajax_tophtags", function (data) {
+
+                $('#dt_top_htags').DataTable({
+                    "data": data,
+                    "columns": [
+                        {title: "Hashtag", "data": "hashtags"},
+                        {title: "count", "data": "count"},
+                    ],
+                    "order": [[1, "desc"]],
+                    "searching": false,
+                    "info": false,
+                    "lengthChange": false
+                });
+
+                var colors = ['#2196F3', '#FF5722', '#00BCD4', '#9C27B0', "#FF9800"];
+
+                var chart = c3.generate({
+                    bindto: '#c3_top_htags',
+                    data: {
+                        {#url: 'ajaxtest',#}
+                        {#mimeType: 'json',#}
+                        json: data,
+                        type: 'bar',
+                        keys: {
+                            x: 'hashtags',
+                            value: ['count']
+                        },
+                        labels: true,
+                        color: function (color, d) {
+                            cc = d.index % 5;
+                            return colors[cc];
+                        }
+                    },
+                    axis: {
+                        x: {
+                            type: 'category'
+                        }
+                    },
+                    bar: {
+                        width: {
+                            ratio: 0.5
+                        }
+                    },
+                    legend: {
+                        show: false
+                    }
+                });
+                {#$("#cashtags").show(1000);#}
+            });
+
+            $.getJSON("ajax_tweetcount_timeline", function (data) {
+                var chart = c3.generate({
+                    bindto: '#c3_timeline',
+                    data: {
+                        {#url: 'ajaxtest',#}
+                        {#mimeType: 'json',#}
+                        json: data,
+                        {#type: 'timeseries',#}
+                        keys: {
+                            x: 'date',
+                            value: ['count']
+                        },
+                        labels: true,
+                        color: function (color, d) {
+                            cc = d.index % 5;
+                            return colors[cc];
+                        }
+                    },
+                    axis: {
+                        x: {
+                            type: 'timeseries'
+                            ,
+                            tick: {
+                                format: '%Y-%m-%d'
+                            }
+                        }
+                    },
+                    bar: {
+                        width: {
+                            ratio: 0.5
+                        }
+                    },
+                    legend: {
+                        show: false
+                    }
+                });
+            });
 
 
         });

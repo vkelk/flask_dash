@@ -1,8 +1,8 @@
 {% extends "_base.html" %}
 
-{% block title %}Tweets{% endblock %}
+{% block title %}Fintweet | Overview{% endblock %}
 
-{% block content_title %}Tweets{% endblock %}
+{% block content_title %}Fintweet | Overview{% endblock %}
 
 {% block css %}
     <!-- Custom Fonts -->
@@ -107,18 +107,25 @@
         <div class="clearfix"></div>
 
         <div class="col-sm-4 col-md-3 col-lg-2">
-            <table id="dt_top_ctags" class="table display compact" cellspacing="0" width="100%">
-                <thead>
-                <tr>
-                    <th>Cashtag</th>
-                    <th>Tweets Count</th>
-                </tr>
-                </thead>
-            </table>
+            <table id="dt_top_ctags" class="table display compact" cellspacing="0" width="100%"></table>
         </div>
         <div class="col-sm-8 col-md-9 col-lg-10">
             <div class="chart-container">
                 <div class="chart" id="c3_top_ctags"></div>
+            </div>
+        </div>
+    </div>
+    <div id="cashtags" class="row">
+        <div class="col-sm-4 col-sm-offset-3">
+            <h3>Top hashtags</h3>
+        </div>
+        <div class="clearfix"></div>
+        <div class="col-sm-4 col-md-3 col-lg-2">
+            <table id="dt_top_htags" class="table display compact" cellspacing="0" width="100%"></table>
+        </div>
+        <div class="col-sm-8 col-md-9 col-lg-10">
+            <div class="chart-container">
+                <div class="chart" id="c3_top_htags"></div>
             </div>
         </div>
     </div>
@@ -167,8 +174,8 @@
                 $('#dt_top_ctags').DataTable({
                     "data": data,
                     "columns": [
-                        {"data": "cashtags"},
-                        {"data": "count"},
+                        {title: "Cashtag", "data": "cashtags"},
+                        {title: "count", "data": "count"},
                     ],
                     "order": [[1, "desc"]],
                     "searching": false,
@@ -212,7 +219,57 @@
                 {#$("#cashtags").show(1000);#}
             });
 
-            $.getJSON("ajax_topusers", function (data) {
+            $.getJSON("ajax_tophtags", function (data) {
+
+                $('#dt_top_htags').DataTable({
+                    "data": data,
+                    "columns": [
+                        {title: "Hashtag", "data": "hashtags"},
+                        {title: "count", "data": "count"},
+                    ],
+                    "order": [[1, "desc"]],
+                    "searching": false,
+                    "info": false,
+                    "lengthChange": false
+                });
+
+                var colors = ['#2196F3', '#FF5722', '#00BCD4', '#9C27B0', "#FF9800"];
+
+                var chart = c3.generate({
+                    bindto: '#c3_top_htags',
+                    data: {
+                        {#url: 'ajaxtest',#}
+                        {#mimeType: 'json',#}
+                        json: data,
+                        type: 'bar',
+                        keys: {
+                            x: 'hashtags',
+                            value: ['count']
+                        },
+                        labels: true,
+                        color: function (color, d) {
+                            cc = d.index % 5;
+                            return colors[cc];
+                        }
+                    },
+                    axis: {
+                        x: {
+                            type: 'category'
+                        }
+                    },
+                    bar: {
+                        width: {
+                            ratio: 0.5
+                        }
+                    },
+                    legend: {
+                        show: false
+                    }
+                });
+                {#$("#cashtags").show(1000);#}
+            });
+
+            $.getJSON("ajax_topusers/25", function (data) {
                 $('#dt_top_users').DataTable({
                     "data": data,
                     "columns": [

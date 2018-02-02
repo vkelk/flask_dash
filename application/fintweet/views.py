@@ -282,6 +282,14 @@ def ajax_topctags():
     return jsonify(q)
 
 
+@fintweet.route('/ajax_tophtags')
+def ajax_tophtags():
+    q = db.session.query(TweetHashtag.hashtags, func.count(TweetHashtag.hashtags).label('count')) \
+        .group_by(TweetHashtag.hashtags).order_by('count desc').limit(25).all()
+    # return json.dumps(dict(q))
+    return jsonify(q)
+
+
 @fintweet.route('/ajax_topusers/<limit>')
 def ajax_topusers(limit=25):
     q = db.session.query(Tweet.user_id, User.twitter_handle, User.date_joined,
@@ -306,6 +314,14 @@ def ajax_htags_by_user(user_id):
         .select_from(TweetHashtag).join(Tweet).filter(Tweet.user_id == user_id).group_by(TweetHashtag.hashtags) \
         .order_by('count desc').limit(10).all()
     return jsonify(q)
+
+
+@fintweet.route('/ajax_tweetcount_timeline')
+def ajax_tweetcount_timeline():
+    q = db.session.query(func.to_char(Tweet.date, 'YYYY-MM-dd').label('date'),
+                         func.count(Tweet.tweet_id).label('count')) \
+        .group_by(Tweet.date).order_by(Tweet.date.asc())
+    return jsonify(q.all())
 
 
 @fintweet.route('/layout')

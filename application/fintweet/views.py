@@ -318,9 +318,12 @@ def ajax_htags_by_user(user_id):
 
 @fintweet.route('/ajax_tweetcount_timeline')
 def ajax_tweetcount_timeline():
-    q = db.session.query(func.to_char(Tweet.date, 'YYYY-MM-dd').label('date'),
+    # q = db.session.query(func.to_char(Tweet.date, 'YYYY-MM-dd').label('date'),
+    #                      func.count(Tweet.tweet_id).label('count')) \
+    #     .group_by(Tweet.date).order_by(Tweet.date.asc())
+    q = db.session.query(func.to_char(func.date_trunc('month', Tweet.date), 'YYYY-MM-DD').label('month'),
                          func.count(Tweet.tweet_id).label('count')) \
-        .group_by(Tweet.date).order_by(Tweet.date.asc())
+        .group_by('month')
     return jsonify(q.all())
 
 

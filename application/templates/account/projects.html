@@ -1,0 +1,42 @@
+{% extends "_base.html" %}
+{% block title %}Dashboard | Projects{% endblock %}
+{% block content_title %}Dashboard | Projects{% endblock %}
+{% block css %}
+    <!-- Custom Fonts -->
+    <link href="{{ url_for('static', filename='font-awesome/css/font-awesome.min.css') }}" rel="stylesheet"
+          type="text/css">
+{% endblock %}
+
+{% block content %}
+    <table class="table table-stripe">
+        <thead>
+        <tr>
+            <th class="border-top-0">Name</th>
+            <th class="border-top-0">Start Date</th>
+            <th class="border-top-0">End Date</th>
+            <th class="border-top-0">Description</th>
+            <th class="border-top-0">Active</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for project in projects %}
+            <tr>
+                <td> {{ project.name }} </td>
+                <td> {{ project.date_start }} </td>
+                <td> {{ project.date_end }} </td>
+                <td> {{ project.description }} </td>
+                <td> {{ project.active }} </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
+
+{% block javascript %}
+    <script>
+        $(document).ready(function () {
+
+        });
+
+    </script>
+{% endblock %}

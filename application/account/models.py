@@ -90,18 +90,21 @@ class Account(UserMixin, db.Model):
     def __repr__(self):
         return '<User {}>'.format(self.email)
 
-#
-# class AnonymousUser(AnonymousUserMixin):
-#     def can(self, _):
-#         return False
-#
-#     def is_admin(self):
-#         return False
-#
-#
-# login_manager.anonymous_user = AnonymousUser
-#
-#
-# @login_manager.user_loader
-# def load_user(user_id):
-#     return Account.query.get(int(user_id))
+
+class Project(db.Model):
+    __tablename__ = 'projects'
+    __table_args__ = {"schema": "dashboard"}
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    account_id = db.Column(db.Integer, db.ForeignKey(Account.id))
+    name = db.Column(db.String(60))
+    description = db.Column(db.Text)
+    date_start = db.Column(db.Date)
+    date_end = db.Column(db.Date)
+    active = db.Column(db.Boolean)
+
+    def __init__(self, name, description, date_start, date_end):
+        self.name = name
+        self.description = description
+        self.date_start = date_start
+        self.date_end = date_end

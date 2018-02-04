@@ -1,6 +1,8 @@
+from datetime import datetime
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField
+from wtforms import StringField, PasswordField, DateField, SubmitField
 from wtforms.validators import DataRequired, Length, EqualTo, Email
+from wtforms.widgets import TextArea
 
 
 class RegisterForm(FlaskForm):
@@ -27,3 +29,12 @@ class EmailForm(FlaskForm):
 
 class PasswordForm(FlaskForm):
     password = PasswordField('Password', validators=[DataRequired()])
+
+
+class NewProjectForm(FlaskForm):
+    name = StringField("Project name", validators=[DataRequired()])
+    description = StringField("Project description", widget=TextArea())
+    date_start = DateField('Date start:', default=datetime(2013, 1, 1), validators=[DataRequired()])
+    date_end = DateField('Date end', default=datetime(2016, 12, 31), validators=[DataRequired()])
+    btn_enable = SubmitField("Enable project")
+    btn_disable = SubmitField("Disable project")

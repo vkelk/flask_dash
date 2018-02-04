@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from pprint import pprint
-from flask import render_template, request, Markup, flash, redirect, url_for, abort
+from flask import render_template, request, Markup, flash, redirect, url_for, abort, session
 from flask_login import login_user, current_user, login_required, logout_user
 from sqlalchemy.exc import IntegrityError
 from itsdangerous import URLSafeTimedSerializer
@@ -307,6 +307,9 @@ def project_add():
 @account.route('/projects')
 @login_required
 def projects():
+    if 'active_project' in session:
+        active_p = session['active_project']
+        pprint(active_p)
     projects = Project.query.filter(Project.account_id == current_user.get_id()).order_by(Project.id).all()
     return render_template('account/projects.html', projects=projects)
 
@@ -314,4 +317,8 @@ def projects():
 @account.route('/project/<id>')
 @login_required
 def project(id):
+    project = Project.query.filter(Project.id == id).first()
+    if project:
+        session['active_project'] = id
+        session['active_project_name'] = project.name
     return render_template('account/project_details.html')

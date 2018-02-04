@@ -53,7 +53,10 @@
         </ul>
         {% if current_user.is_authenticated %}
             <ul class="nav navbar-nav navbar-right">
-                <p class="navbar-text">Working project: <span class="label bg-success-400">Proj1</span></p>
+                {% if session['active_project_name'] %}
+                    <p class="navbar-text">Working project: <span
+                            class="label bg-success-400">{{ session['active_project_name'] }}</span></p>
+                {% endif %}
                 <li class="dropdown dropdown-user">
                     <a class="dropdown-toggle" data-toggle="dropdown">
                         <img src="{{ url_for('static', filename='images/image.png') }}" alt="">

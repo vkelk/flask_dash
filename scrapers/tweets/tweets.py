@@ -716,26 +716,26 @@ def scra(query, i, proxy, lock, session):
 
         if not session.query(TweetHashtags).filter_by(tweet_id=data['tweet_id']).first():
             for hash_s in t.hashtags:
-                tweet_hashtag = TweetHashtags(hashtags=hash_s[:45])
-                twit.hash_s.append(tweet_hashtag)
+                tweet_hashtag = TweetHashtags(tweet_id=data['tweet_id'], hashtags=hash_s[:45])
+                # twit.hash_s.append(tweet_hashtag)
                 session.add(tweet_hashtag)
 
         if not session.query(TweetUrl).filter_by(tweet_id=data['tweet_id']).first():
             for url_s in t.urls:
-                tweet_url = TweetUrl(url=t.permalink[:75], link=url_s[:75])
-                twit.url_s.append(tweet_url)
+                tweet_url = TweetUrl(tweet_id=data['tweet_id'], url=t.permalink[:255], link=url_s[:255])
+                # twit.url_s.append(tweet_url)
                 session.add(tweet_url)
 
         if not session.query(TweetCashtags).filter_by(tweet_id=data['tweet_id']).first():
             for cash_s in t.symbols:
-                tweet_cashtag = TweetCashtags(cashtags=cash_s[:45])
-                twit.cash_s.append(tweet_cashtag)
+                tweet_cashtag = TweetCashtags(tweet_id=data['tweet_id'], cashtags=cash_s[:45])
+                # twit.cash_s.append(tweet_cashtag)
                 session.add(tweet_cashtag)
 
         if not session.query(TweetMentions).filter_by(tweet_id=data['tweet_id']).first():
             for ment_s in t.ment_s:
-                tweet_mentions = TweetMentions(mentions=ment_s[0][:45], user_id=ment_s[1])
-                twit.ment_s.append(tweet_mentions)
+                tweet_mentions = TweetMentions(tweet_id=data['tweet_id'], mentions=ment_s[0][:45], user_id=ment_s[1])
+                # twit.ment_s.append(tweet_mentions)
                 session.add(tweet_mentions)
         user.tweets.append(twit)
         twit.counts.append(tweet_count)

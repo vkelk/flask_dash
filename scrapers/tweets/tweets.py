@@ -9,6 +9,7 @@ import re
 import requests
 import sys
 import time
+from dateutil import parser as dateparser
 from openpyxl import load_workbook
 from pyquery import PyQuery
 from datetime import datetime
@@ -25,6 +26,30 @@ from pprint import pprint
 
 time_wait = 0
 flag1 = False
+
+emoticons_str = r"""
+    (?:
+        [:=;] # Eyes
+        [oO\-]? # Nose (optional)
+        [D\)\]\(\]/\\OpP] # Mouth
+    )"""
+
+regex_str = [
+    emoticons_str,
+    r'<[^>]+>',  # HTML tags
+    r'(?:@[\w_]+)',  # @-mentions
+    r"(?:\#+[\w_]+[\w\'_\-]*[\w_]+)",  # hash-tags
+    r"(?:\$+[a-zA-Z]+[\w\'_\-]*[\w_]+)",  # cash-tags
+    r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+',  # URLs
+
+    r'(?:(?:\d+,?)+(?:\.?\d+)?)',  # numbers
+    r"(?:[a-z][a-z'\-_]+[a-z])",  # words with - and '
+    r'(?:[\w_]+)',  # other words
+    r'(?:\S)'  # anything else
+]
+
+tokens_re = re.compile(r'(' + '|'.join(regex_str) + ')', re.VERBOSE | re.IGNORECASE)
+emoticon_re = re.compile(r'^' + emoticons_str + '$', re.VERBOSE | re.IGNORECASE)
 
 
 class LoadingError(Exception):
@@ -406,8 +431,10 @@ def cont(page, r, query_string):
         tweet.retweets_count = retweets
         tweet.favorites_count = favorites
         tweet.replyes_count = replyes
-        tweet.mentions = re.compile('(@\\w*)').findall(tweet.text)
-        tweet.hashtags = re.compile('(#\\w*)').findall(tweet.text)
+        # tweet.mentions = re.compile('(@\\w*)').findall(tweet.text)
+        tweet.mentions = re.compile('(?:@[\w_]+)').findall(tweet.text)
+        # tweet.hashtags = re.compile('(#\\w*)').findall(tweet.text)
+        tweet.hashtags = re.compile('(?:\#+[\w_]+[\w\'_\-]*[\w_]+)').findall(tweet.text)
 
         tweet.geo = {}
 
@@ -545,6 +572,15 @@ def get_symbols(s):
 
 
 def scra(query, i, proxy, lock, session):
+    def tokenize(s):
+        return tokens_re.findall(s)
+
+    def preprocess(s, lowercase=False):
+        tokens = tokenize(s)
+        if lowercase:
+            tokens = [token if emoticon_re.search(token) else token.lower() for token in tokens]
+        return tokens
+
     q = query[4]
     fieldnames = ["QueryStartDate", "QueryEndDate", "Query", "DateOfActivity", "UserScreenName", "Keyword",
                   "Location", "Website", "DateJoined", "IsMention", "UserID", "TimeOfActivity", "Hashtags",
@@ -607,20 +643,28 @@ def scra(query, i, proxy, lock, session):
         data['IsMention'] = ' '.join(t.mentions_name)
         data['Location'] = t.location_name
         # data['Location ID'] = t.location_id
-        data['DateJoined'] = t.user_created
+        data['DateJoined'] = dateparser.parse(t.user_created)
         data['Tweet'] = t.text
 
+        tokens = preprocess(t.text)
+        cashtags = [term for term in tokens if term.startswith('$') and len(term) > 1]
+        hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
+        mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
+        urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
+
         tweet_list.append(data)
+        # pprint(data)
 
         print(query, count, t.date)
         # print(data)
         if settings.ISUSERPROFILE:
-            dd = re.findall('\w+ (\w+) (\d+) \d+:\d+:\d+ \+\d+ (\d+)', data['DateJoined'])
-            try:
-                date_joined = datetime.strptime(' '.join(dd[0]), '%b %d %Y')
-            except IndexError:
-                print(data['DateJoined'], dd)
-                exit()
+            pass
+            # dd = re.findall('\w+ (\w+) (\d+) \d+:\d+:\d+ \+\d+ (\d+)', data['DateJoined'])
+            # try:
+            #     date_joined = datetime.strptime(' '.join(dd[0]), '%b %d %Y')
+            # except IndexError:
+            #     print(data['DateJoined'], dd)
+            #     exit()
         else:
             date_joined = None
             t.user_listed_count = None
@@ -643,9 +687,9 @@ def scra(query, i, proxy, lock, session):
             session.add(user_count)
             user = User(user_id=data['UserID'],
                         twitter_handle=data['UserScreenName'][:120],
-                        user_name=t.username[:120],
+                        user_name=data['UserName'][:120],
                         location=data['user_location'][:255] if data['user_location'] else None,
-                        date_joined=date_joined,
+                        date_joined=data['DateJoined'],
                         timezone=t.user_timezone[:10] if t.user_timezone else None,
                         website=data['Website'][:255] if data['Website'] else None,
                         user_intro=t.user_description[:255] if t.user_description else None,
@@ -658,6 +702,9 @@ def scra(query, i, proxy, lock, session):
                 if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)", err.args[0]):
                     print('ROLLBACK USER')
                     session.rollback()
+            except Exception as e:
+                print(e)
+                raise
 
         twit = session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first()
         if not twit:
@@ -668,10 +715,12 @@ def scra(query, i, proxy, lock, session):
                          retweet_status=data['Re_tweet'],
                          text=data['Tweet'],
                          location=data['Location'][:255] if data['Location'] else None,
+                         permalink=data['tweet_url'] if data['tweet_url'] else None,
                          emoticon=','.join(t.emoji) if t.emoji else None)
             tweet_count = TweetCount(reply=data['NumberOfReplies'],
                                      favorite=data['NumberOfFavorites'],
                                      retweet=t.retweets_count)
+
         if t.is_reply and settings.ISREPLY:
             url = 'https://twitter.com/' + t.screen_name + '/status/' + str(
                 data['tweet_id']) + '?conversation_id=' + str(t.data_conversation_id)
@@ -713,29 +762,32 @@ def scra(query, i, proxy, lock, session):
                     if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)", err.args[0]):
                         print('ROLLBACK REPLY')
                         session.rollback()
+                except Exception as e:
+                    print(e)
+                    raise
 
         if not session.query(TweetHashtags).filter_by(tweet_id=data['tweet_id']).first():
-            for hash_s in t.hashtags:
-                tweet_hashtag = TweetHashtags(tweet_id=data['tweet_id'], hashtags=hash_s[:45])
-                # twit.hash_s.append(tweet_hashtag)
+            for hash_s in hashtags:
+                tweet_hashtag = TweetHashtags(hashtags=hash_s[:45])
+                twit.hash_s.append(tweet_hashtag)
                 session.add(tweet_hashtag)
 
         if not session.query(TweetUrl).filter_by(tweet_id=data['tweet_id']).first():
-            for url_s in t.urls:
-                tweet_url = TweetUrl(tweet_id=data['tweet_id'], url=t.permalink[:255], link=url_s[:255])
-                # twit.url_s.append(tweet_url)
+            for url_s in urls:
+                tweet_url = TweetUrl(url=url_s[:255])
+                twit.url_s.append(tweet_url)
                 session.add(tweet_url)
 
         if not session.query(TweetCashtags).filter_by(tweet_id=data['tweet_id']).first():
-            for cash_s in t.symbols:
-                tweet_cashtag = TweetCashtags(tweet_id=data['tweet_id'], cashtags=cash_s[:45])
-                # twit.cash_s.append(tweet_cashtag)
+            for cash_s in cashtags:
+                tweet_cashtag = TweetCashtags(cashtags=cash_s[:45])
+                twit.cash_s.append(tweet_cashtag)
                 session.add(tweet_cashtag)
 
         if not session.query(TweetMentions).filter_by(tweet_id=data['tweet_id']).first():
             for ment_s in t.ment_s:
-                tweet_mentions = TweetMentions(tweet_id=data['tweet_id'], mentions=ment_s[0][:45], user_id=ment_s[1])
-                # twit.ment_s.append(tweet_mentions)
+                tweet_mentions = TweetMentions(mentions=ment_s[0][:45], user_id=ment_s[1])
+                twit.ment_s.append(tweet_mentions)
                 session.add(tweet_mentions)
         user.tweets.append(twit)
         twit.counts.append(tweet_count)
@@ -747,6 +799,9 @@ def scra(query, i, proxy, lock, session):
             if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)", err.args[0]):
                 print('ROLLBACK USER')
                 session.rollback()
+        except Exception as e:
+            print(e)
+            raise
         count += 1
 
     lock.acquire()
@@ -810,7 +865,7 @@ def compare_90(string1, string2):
 def scrape_query(user_queue, proxy, lock, pg_dsn):
     db_engine = create_engine(pg_dsn, pool_size=1)
     add_engine_pidguard(db_engine)
-    DstSession = sessionmaker(bind=db_engine)
+    DstSession = sessionmaker(bind=db_engine, autoflush=False)
     session = DstSession()
 
     active = True
@@ -957,6 +1012,7 @@ if __name__ == '__main__':
     pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
     Base = declarative_base()
     db_engine = create_engine(pg_dsn)
+    add_engine_pidguard(db_engine)
     pg_meta = MetaData(bind=db_engine, schema="fintweet")
 
 
@@ -1014,7 +1070,7 @@ if __name__ == '__main__':
 
     # config = load_config()
 
-    DstSession = sessionmaker(bind=db_engine)
+    DstSession = sessionmaker(bind=db_engine, autoflush=False)
     dstssn = DstSession()
 
     if True:  # settings.tweets:

@@ -1,6 +1,6 @@
 from datetime import datetime
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, DateField, SubmitField
+from wtforms import StringField, PasswordField, DateField, SubmitField, SelectField
 from wtforms.validators import DataRequired, Length, EqualTo, Email
 from wtforms.widgets import TextArea
 
@@ -38,3 +38,13 @@ class NewProjectForm(FlaskForm):
     date_end = DateField('Date end', default=datetime(2016, 12, 31), validators=[DataRequired()])
     btn_enable = SubmitField("Enable project")
     btn_disable = SubmitField("Disable project")
+
+
+class ProjectDetails(FlaskForm):
+    type = SelectField('Label', validators=[DataRequired()],
+                       choices=[('permno', 'PermNo'), ('tickers', 'Ticker'), ('hashtags', 'Hashtag'),
+                                ('cashtags', 'Cashtag'), ('mentions', 'Mentions'),
+                                ('user_names', 'User Names')])
+    text = StringField('Search codes', validators=[DataRequired()])
+    btn_enable = SubmitField("Enable Criteria")
+    btn_disable = SubmitField("Disable Criteria")

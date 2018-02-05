@@ -103,8 +103,21 @@ class Project(db.Model):
     date_end = db.Column(db.Date)
     active = db.Column(db.Boolean)
 
+    details = db.relationship('ProjectDetais', backref='project_details', lazy='dynamic')
+
     def __init__(self, name, description, date_start, date_end):
         self.name = name
         self.description = description
         self.date_start = date_start
         self.date_end = date_end
+
+
+class ProjectDetais(db.Model):
+    __tablename__ = 'project_detailss'
+    __table_args__ = {"schema": "dashboard"}
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    project_id = db.Column(db.Integer, db.ForeignKey(Project.id))
+    search_type = db.Column(db.String(15))
+    search_text = db.Column(db.JSON)
+    active = db.Column(db.Boolean)

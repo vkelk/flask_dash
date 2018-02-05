@@ -11,11 +11,12 @@
     <table class="table table-stripe">
         <thead>
         <tr>
-            <th class="border-top-0">Name</th>
-            <th class="border-top-0">Start Date</th>
-            <th class="border-top-0">End Date</th>
+            <th width="20%" class="border-top-0">Name</th>
+            <th width="15%" class="border-top-0">Start Date</th>
+            <th width="15%" class="border-top-0">End Date</th>
             <th class="border-top-0">Description</th>
-            <th class="border-top-0">Active</th>
+            <th width="15%" class="border-top-0">Edit / Delete</th>
+            <th width="10%" class="border-top-0">Active</th>
         </tr>
         </thead>
         <tbody>
@@ -25,7 +26,16 @@
                 <td> {{ project.date_start }} </td>
                 <td> {{ project.date_end }} </td>
                 <td> {{ project.description }} </td>
-                <td> {{ project.active }} </td>
+                <td><a href="{{ url_for('account.project_edit', id=project.id) }}"><i class="fa fa-pencil"></i>Edit</a>
+                    / <a href="{{ url_for('account.project_edit', id=project.id) }}"><i
+                            class="fa fa-trash"></i>Delete</a>
+                </td>
+                <td> {% if project.active %}
+                    {{ project.active }}
+                {% else %}
+                    <a href="{{ url_for('account.project_activate', id=project.id) }}">Activate</a>
+                {% endif %}
+                </td>
             </tr>
         {% endfor %}
         </tbody>

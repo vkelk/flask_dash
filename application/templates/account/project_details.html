@@ -10,10 +10,35 @@
           type="text/css">
 {% endblock %}
 
-
-
 {% block content %}
+    <div class="row">
+        <div class="col-sm-8 col-sm-offset-2 col-md-6 col-md-offset-3">
+            <div class="panel panel-flat">
+                <div class="panel-heading">
+                    <h5 class="panel-title">Project {{ project.name }}</h5>
+                </div>
+                <div class="panel-body">
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <p>Active: {% if project.active %}
+                                {{ project.active }}
+                            {% else %}
+                                <a href="{{ url_for('account.project_activate', id=project.id) }}">Activate</a>
+                            {% endif %}</p>
+                            <p>Date start: {{ project.date_start }}</p>
+                            <p>Date end: {{ project.date_end }}</p>
+                        </div>
+                        <div class="col-sm-6">
+                            <p>Descripton: {{ project.desription }}</p>
+                        </div>
+                    </div>
 
+
+                </div>
+            </div>
+        </div>
+    </div>
+    <div clas="row">FORMA</div>
 {% endblock %}
 
 {% block javascript %}

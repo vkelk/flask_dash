@@ -22,18 +22,18 @@
         <tbody>
         {% for project in projects %}
             <tr>
-                <td><a href="{{ url_for('account.project', id=project.id) }}">{{ project.name }}</a></td>
+                <td><a href="{{ url_for('project.project', uuid=project.uuid) }}">{{ project.name }}</a></td>
                 <td> {{ project.date_start }} </td>
                 <td> {{ project.date_end }} </td>
                 <td> {{ project.description }} </td>
-                <td><a href="{{ url_for('account.project_edit', id=project.id) }}"><i class="fa fa-pencil"></i>Edit</a>
-                    / <a href="{{ url_for('account.project_edit', id=project.id) }}"><i
+                <td><a href="{{ url_for('project.project_edit', uuid=project.uuid) }}"><i class="fa fa-pencil"></i>Edit</a>
+                    / <a href="{{ url_for('project.project_edit', uuid=project.uuid) }}"><i
                             class="fa fa-trash"></i>Delete</a>
                 </td>
                 <td> {% if project.active %}
                     {{ project.active }}
                 {% else %}
-                    <a href="{{ url_for('account.project_activate', id=project.id) }}">Activate</a>
+                    <a href="{{ url_for('project.project_activate', uuid=project.uuid) }}">Activate</a>
                 {% endif %}
                 </td>
             </tr>

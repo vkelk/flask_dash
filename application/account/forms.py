@@ -31,20 +31,4 @@ class PasswordForm(FlaskForm):
     password = PasswordField('Password', validators=[DataRequired()])
 
 
-class NewProjectForm(FlaskForm):
-    name = StringField("Project name", validators=[DataRequired()])
-    description = StringField("Project description", widget=TextArea())
-    date_start = DateField('Date start:', default=datetime(2013, 1, 1), validators=[DataRequired()])
-    date_end = DateField('Date end', default=datetime(2016, 12, 31), validators=[DataRequired()])
-    btn_enable = SubmitField("Enable project")
-    btn_disable = SubmitField("Disable project")
 
-
-class ProjectDetails(FlaskForm):
-    type = SelectField('Label', validators=[DataRequired()],
-                       choices=[('permno', 'PermNo'), ('tickers', 'Ticker'), ('hashtags', 'Hashtag'),
-                                ('cashtags', 'Cashtag'), ('mentions', 'Mentions'),
-                                ('user_names', 'User Names')])
-    text = StringField('Search codes', validators=[DataRequired()])
-    btn_enable = SubmitField("Enable Criteria")
-    btn_disable = SubmitField("Disable Criteria")

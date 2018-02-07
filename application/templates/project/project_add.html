@@ -16,7 +16,7 @@
 {% block content %}
     <div class="row">
         <div class="col-sm-6 col-sm-offset-3">
-            <form action="{{ url_for('account.project_add') }}" method="post" class="form-horizontal">
+            <form action="{{ url_for('project.project_add') }}" method="post" class="form-horizontal">
                 {{ form.csrf_token }}
                 <div class="panel panel-flat">
                     <div class="panel-heading">

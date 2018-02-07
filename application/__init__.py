@@ -50,6 +50,7 @@ def create_app(config=None):
 
     from application.main import main as main_blueprint
     from application.account import account as account_blueprint
+    from application.project import project as project_blueprint
     from application.fintweet import fintweet as fintweet_blueprint
     from application.fintweet.resources import api_fintweet
     # api.init_app(app)
@@ -57,6 +58,7 @@ def create_app(config=None):
 
     app.register_blueprint(main_blueprint)
     app.register_blueprint(account_blueprint, url_prefix='/account')
+    app.register_blueprint(project_blueprint, url_prefix='/project')
     app.register_blueprint(fintweet_blueprint, url_prefix='/fintweet')
 
     print(app.url_map)

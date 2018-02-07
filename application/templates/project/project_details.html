@@ -23,7 +23,7 @@
                             <p>Active: {% if project.active %}
                                 {{ project.active }}
                             {% else %}
-                                <a href="{{ url_for('account.project_activate', id=project.id) }}">Activate</a>
+                                <a href="{{ url_for('project.project_activate', id=project.id) }}">Activate</a>
                             {% endif %}</p>
                             <p>Date start: {{ project.date_start }}</p>
                             <p>Date end: {{ project.date_end }}</p>

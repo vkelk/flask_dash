@@ -7,7 +7,7 @@ from itsdangerous import URLSafeTimedSerializer
 
 from application import db, login_manager
 from application.account import account
-from application.account.models import Account, Project
+from application.account.models import Account
 from .forms import *
 from .helpers import *
 from ..config import Configuration
@@ -279,93 +279,3 @@ def user_email_change():
     return render_template('account/email_change.html', form=form)
 
 
-@account.route('/project_add', methods=['GET', 'POST'])
-@login_required
-def project_add():
-    form = NewProjectForm(request.form)
-    if request.method == 'POST' and form.validate_on_submit():
-        try:
-            new_project = Project(form.name.data, form.description.data, form.date_start.data, form.date_end.data)
-            new_project.account_id = current_user.get_id()
-            db.session.add(new_project)
-            db.session.commit()
-            message = Markup(
-                "<strong>Project created!</strong> Please continue...")
-            flash(message, 'success')
-            next_url = 'account.project/' + str(new_project.id)
-            return redirect(url_for('account.project', id=new_project.id))
-        except Exception as e:
-            db.session.rollback()
-            pprint(e)
-            message = Markup("<strong>Error!</strong> Unable to create new project.")
-            flash(message, 'danger')
-    if len(form.errors) > 0:
-        pprint(form.errors)
-    return render_template('account/project_add.html', form=form)
-
-
-@account.route('/project_edit/<int:id>', methods=['GET', 'POST'])
-@login_required
-def project_edit(id):
-    form = NewProjectForm(request.form)
-    if request.method == 'POST' and form.validate_on_submit():
-        try:
-            new_project = Project(form.name.data, form.description.data, form.date_start.data, form.date_end.data)
-            new_project.account_id = current_user.get_id()
-            db.session.add(new_project)
-            db.session.commit()
-            message = Markup(
-                "<strong>Project created!</strong> Please continue...")
-            flash(message, 'success')
-            next_url = 'account.project/' + str(new_project.id)
-            return redirect(url_for('account.project', id=new_project.id))
-        except Exception as e:
-            db.session.rollback()
-            pprint(e)
-            message = Markup("<strong>Error!</strong> Unable to create new project.")
-            flash(message, 'danger')
-    if len(form.errors) > 0:
-        pprint(form.errors)
-    return render_template('account/project_details.html', form=form)
-
-
-@account.route('/project_activate/<int:id>', methods=['GET'])
-@login_required
-def project_activate(id):
-    try:
-        projects = Project.query.filter(Project.account_id == current_user.get_id()).all()
-        for project in projects:
-            if project.id == id:
-                project.active = True
-                db.session.add(project)
-                db.session.commit()
-                session['active_project'] = id
-                session['active_project_name'] = project.name
-            else:
-                project.active = False
-                db.session.add(project)
-                db.session.commit()
-        message = Markup(
-            "<strong>Project activated!</strong>")
-        flash(message, 'success')
-        return redirect(url_for('account.project', id=id))
-    except Exception as e:
-        db.session.rollback()
-        pprint(e)
-        message = Markup("<strong>Error!</strong> Unable to activate project.")
-        flash(message, 'danger')
-    return redirect(url_for('account.projects'))
-
-
-@account.route('/projects')
-@login_required
-def projects():
-    projects = Project.query.filter(Project.account_id == current_user.get_id()).order_by(Project.id).all()
-    return render_template('account/projects.html', projects=projects)
-
-
-@account.route('/project/<int:id>')
-@login_required
-def project(id):
-    project = Project.query.filter(Project.id == id).first()
-    return render_template('account/project_details.html', project=project)

@@ -104,16 +104,16 @@
                     <a href="{{ url_for('main.home') }}"><i class="icon-display4"></i> Home</a>
                 </li>
                 <li class="dropdown {% if request.path in [
-                                        url_for('account.projects')] %}
+                                        url_for('project.projects')] %}
                                         active{% endif %}">
-                    <a class="dropdown-toggle" data-toggle="dropdown" href="{{ url_for('account.projects') }}">
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="{{ url_for('project.projects') }}">
                         Projects <span class="caret"></span></a>
                     <ul class="dropdown-menu">
-                        <li class="{% if request.path == url_for('account.project_add') %}active{% endif %}">
-                            <a href="{{ url_for('account.project_add') }}"><i class="icon-file-plus2"></i> New
+                        <li class="{% if request.path == url_for('project.project_add') %}active{% endif %}">
+                            <a href="{{ url_for('project.project_add') }}"><i class="icon-file-plus2"></i> New
                                 Project</a></li>
-                        <li class="{% if request.path == url_for('account.projects') %}active{% endif %}">
-                            <a href="{{ url_for('account.projects') }}">List Projects </a></li>
+                        <li class="{% if request.path == url_for('project.projects') %}active{% endif %}">
+                            <a href="{{ url_for('project.projects') }}">List Projects </a></li>
                     </ul>
                 </li>
                 <li class="dropdown {% if request.path in [

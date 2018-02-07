@@ -2,6 +2,7 @@ import os.path
 import csv
 import datetime
 import json
+from pprint import pprint
 from multiprocessing.dummy import Process, Lock, Queue
 from multiprocessing.dummy import Pool as ThreadPool
 import re
@@ -499,7 +500,7 @@ if __name__ == '__main__':
     wb = load_workbook(fname)
     ws = wb.active
     i = 2
-    while (True):
+    while True:
         if not ws.cell(row=i, column=1).value:
             break
         permno = str(ws.cell(row=i, column=1).value).lower().strip(' ')

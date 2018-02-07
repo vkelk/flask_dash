@@ -326,14 +326,17 @@ def cont(page, r, query_string):
     r = re.sub('</span><span class="invisible">', '', r)
     try:
         tweets = PyQuery(r)('div.js-stream-tweet')
+        # print(tweets.html())
     except:
         print('no div.js-stream-tweet')
         return None
     for tweetHTML in tweets:
+        # pprint(tweetHTML)
 
         tweet = Twit()
         # tweet.c = user_tweet_count
         tweetPQ = PyQuery(tweetHTML)
+        # pprint(tweetPQ)
         tweet.time_zone = ''  # time_zone
         res = re.findall('twitter-cashtag pretty-link js-nav" dir="ltr"><s>\$</s><b>(?:<strong>)?(.+?)</',
                          str(tweetPQ), re.M)
@@ -521,17 +524,20 @@ def get_user_profile(usernameTweet, page, tweet):
             if j['init_data']['profile_user']:
                 # print(json.dumps(j['init_data']['profile_user'], indent=4))
                 # exit()
+                .120
                 tweet.likes = j['init_data']['profile_user']['favourites_count']
                 tweet.user_tweet_count = j['init_data']['profile_user']['statuses_count']
                 tweet.user_listed_count = j['init_data']['profile_user']['listed_count']
                 tweet.user_description = j['init_data']['profile_user']['description']
                 tweet.user_timezone = j['init_data']['profile_user']['time_zone']
+                tweet.utc_offset = j['init_data']['profile_user']['utc_offset']
                 tweet.user_following_count = j['init_data']['profile_user']['friends_count']
                 tweet.user_followers_count = j['init_data']['profile_user']['followers_count']
                 tweet.user_created = j['init_data']['profile_user']['created_at']
                 tweet.is_verified = j['init_data']['profile_user']['verified']
                 tweet.website = j['init_data']['profile_user']['url']
                 tweet.username = j['init_data']['profile_user']['name']
+                tweet.utc_offset = j['init_data']['profile_user']['utc_offset']
                 if j['init_data']['profile_user'].get('location', False):
                     tweet.user_location = j['init_data']['profile_user']['location']
                 else:
@@ -646,6 +652,15 @@ def scra(query, i, proxy, lock, session):
         data['DateJoined'] = dateparser.parse(t.user_created)
         data['Tweet'] = t.text
 
+        if t.utc_offset:
+            if t.utc_offset / 3600 >= 0:
+                data['TimeZoneUTC'] = 'UTC+' + str(int(t.utc_offset / 3600))
+            else:
+                data['TimeZoneUTC'] = 'UTC' + str(int(t.utc_offset / 3600))
+        else:
+            data['TimeZoneUTC'] = None
+
+
         tokens = preprocess(t.text)
         cashtags = [term for term in tokens if term.startswith('$') and len(term) > 1]
         hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
@@ -690,7 +705,7 @@ def scra(query, i, proxy, lock, session):
                         user_name=data['UserName'][:120],
                         location=data['user_location'][:255] if data['user_location'] else None,
                         date_joined=data['DateJoined'],
-                        timezone=t.user_timezone[:10] if t.user_timezone else None,
+                        timezone=data['TimeZoneUTC'],
                         website=data['Website'][:255] if data['Website'] else None,
                         user_intro=t.user_description[:255] if t.user_description else None,
                         verified=data['is_verified'])

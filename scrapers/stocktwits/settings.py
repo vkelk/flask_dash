@@ -1,6 +1,6 @@
 stocktwits_login = 'xyz@gmail.com'
 stocktwits_password = '123456'
-ISUSERPROFILE = False
+ISUSERPROFILE = True
 ISWATCHLIST = False
 ISREPLY = False
 

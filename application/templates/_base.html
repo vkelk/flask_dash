@@ -54,7 +54,7 @@
         {% if current_user.is_authenticated %}
             <ul class="nav navbar-nav navbar-right">
                 {% if session['active_project_name'] %}
-                    <p class="navbar-text">Working project: <span
+                    <p class="navbar-text">Active project: <span
                             class="label bg-success-400">{{ session['active_project_name'] }}</span></p>
                 {% endif %}
                 <li class="dropdown dropdown-user">
@@ -104,16 +104,16 @@
                     <a href="{{ url_for('main.home') }}"><i class="icon-display4"></i> Home</a>
                 </li>
                 <li class="dropdown {% if request.path in [
-                                        url_for('project.projects')] %}
+                                        url_for('project.list')] %}
                                         active{% endif %}">
-                    <a class="dropdown-toggle" data-toggle="dropdown" href="{{ url_for('project.projects') }}">
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="{{ url_for('project.list') }}">
                         Projects <span class="caret"></span></a>
                     <ul class="dropdown-menu">
                         <li class="{% if request.path == url_for('project.project_add') %}active{% endif %}">
                             <a href="{{ url_for('project.project_add') }}"><i class="icon-file-plus2"></i> New
                                 Project</a></li>
-                        <li class="{% if request.path == url_for('project.projects') %}active{% endif %}">
-                            <a href="{{ url_for('project.projects') }}">List Projects </a></li>
+                        <li class="{% if request.path == url_for('project.list') %}active{% endif %}">
+                            <a href="{{ url_for('project.list') }}">List Projects </a></li>
                     </ul>
                 </li>
                 <li class="dropdown {% if request.path in [

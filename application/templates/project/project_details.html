@@ -12,7 +12,7 @@
 
 {% block content %}
     <div class="row">
-        <div class="col-sm-8 col-sm-offset-2 col-md-6 col-md-offset-3">
+        <div class="col-sm-8 col-sm-offset-2">
             <div class="panel panel-flat">
                 <div class="panel-heading">
                     <h5 class="panel-title">Project {{ project.name }}</h5>
@@ -23,7 +23,7 @@
                             <p>Active: {% if project.active %}
                                 {{ project.active }}
                             {% else %}
-                                <a href="{{ url_for('project.project_activate', id=project.id) }}">Activate</a>
+                                <a href="{{ url_for('project.project_activate', uuid=project.uuid) }}">Activate</a>
                             {% endif %}</p>
                             <p>Date start: {{ project.date_start }}</p>
                             <p>Date end: {{ project.date_end }}</p>
@@ -34,6 +34,24 @@
                     </div>
 
 
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-sm-6">
+            <div class="panel panel-flat">
+                <div class="panel-heading">
+                    <h5 class="panel-title">Events in project {{ project.name }}</h5>
+                </div>
+                <div class="panel-body">
+                    {% if events %}
+                        {% for event in events %}
+                            <p>{{ event.dataset }}</p>
+                        {% endfor %}
+                    {% else %}
+                        <p>No events found</p>
+                    {% endif %}
                 </div>
             </div>
         </div>

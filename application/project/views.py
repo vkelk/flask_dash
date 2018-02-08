@@ -22,8 +22,7 @@ def project_add():
             message = Markup(
                 "<strong>Project created!</strong> Please continue...")
             flash(message, 'success')
-            next_url = 'project.project/' + str(new_project.uuid)
-            return redirect(url_for('project.project', id=new_project.uuid))
+            return redirect(url_for('project.project', uuid=new_project.uuid))
         except Exception as e:
             db.session.rollback()
             pprint(e)
@@ -47,16 +46,17 @@ def project_edit(uuid):
             message = Markup(
                 "<strong>Project created!</strong> Please continue...")
             flash(message, 'success')
-            next_url = 'project.project/' + str(new_project.uuid)
             return redirect(url_for('account.project', uuid=new_project.uuid))
         except Exception as e:
             db.session.rollback()
             pprint(e)
             message = Markup("<strong>Error!</strong> Unable to create new project.")
             flash(message, 'danger')
+    else:
+        project = Project.query.filter(Project.uuid == uuid).first()
     if len(form.errors) > 0:
         pprint(form.errors)
-    return render_template('project/project_details.html', form=form)
+    return render_template('project/project_details.html', project=project, form=form)
 
 
 @project.route('/project_activate/<uuid>', methods=['GET'])
@@ -84,18 +84,19 @@ def project_activate(uuid):
         pprint(e)
         message = Markup("<strong>Error!</strong> Unable to activate project.")
         flash(message, 'danger')
-    return redirect(url_for('project.projects'))
+    return redirect(url_for('project.list'))
 
 
-@project.route('/projects')
+@project.route('/list')
 @login_required
-def projects():
+def list():
     projects = Project.query.filter(Project.account_id == current_user.get_id()).order_by(Project.uuid).all()
     return render_template('project/projects.html', projects=projects)
 
 
-@project.route('/project/<uuid>')
+@project.route('/<uuid>')
 @login_required
 def project(uuid):
     project = Project.query.filter(Project.uuid == uuid).first()
-    return render_template('project/project_details.html', project=project)
+    events = Event.query.filter(Event.project_id == project.uuid).all()
+    return render_template('project/project_details.html', project=project, events=events)

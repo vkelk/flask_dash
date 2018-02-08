@@ -1,11 +1,12 @@
 import json
 from datetime import datetime, timedelta
 from pprint import pprint
-from flask import render_template, request, Markup, flash, redirect, url_for, abort, session
+from flask import render_template, request, Markup, flash, redirect, url_for, abort, session, jsonify
 from flask_login import login_user, current_user, login_required, logout_user
 from application import db, login_manager
 from application.project import project
 from application.project.models import *
+from application.fintweet.models import *
 from application.project.forms import *
 
 
@@ -92,6 +93,40 @@ def project_activate(uuid):
 def list():
     projects = Project.query.filter(Project.account_id == current_user.get_id()).order_by(Project.uuid).all()
     return render_template('project/projects.html', projects=projects)
+
+
+@project.route('/event_list')
+@login_required
+def event_list():
+    project_uuid = session['active_project']
+    events = Event.query.filter(Event.project_id == project_uuid).all()
+    return jsonify(events)
+
+
+@project.route('/event_new')
+@login_required
+def event_new():
+    def get_from_radio(code_type, codes):
+        code_list = codes.split(',')
+        if code_type == 'permno':
+            query = DealNosFT.query.filter(DealNosFT.permno.in_(code_list)).all()
+            return [item.cashtag for item in query]
+        elif code_type == 'cashtag':
+            return code_list
+        elif code_type == 'ticker':
+            for i, item in enumerate(code_list):
+                code_list[i] = '$' + item.strip()
+            return code_list
+
+    project_uuid = session['active_project']
+    project = Project.query.filter(Project.uuid == project_uuid).first()
+    datasets = Dataset.query.all()
+    form = EventForm(request.form)
+    if request.method == 'POST':
+        pass
+    if len(form.errors) > 0:
+        pprint(form.errors)
+    return render_template('project/event_new.html', form=form, project=project)
 
 
 @project.route('/<uuid>')

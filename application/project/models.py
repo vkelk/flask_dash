@@ -1,8 +1,6 @@
 import json, uuid
 from datetime import datetime
-from application import db, bcrypt, login_manager
-from flask_login import AnonymousUserMixin, UserMixin
-from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
+from application import db
 from application.account.models import Account
 
 
@@ -60,3 +58,13 @@ class Event(db.Model):
         self.event_dates = json.dumps(dates, ensure_ascii=False)
         self.event_stats = json.dumps(stats, ensure_ascii=False)
         self.created = datetime.now()
+
+
+class Dataset(db.Model):
+    __tablename__ = 'datasets'
+    __table_args__ = {"schema": "dashboard"}
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    dataset_db = db.Column(db.String(15))
+    dataset_name = db.Column(db.String(30))
+    created = db.DateTime()

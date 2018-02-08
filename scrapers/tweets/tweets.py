@@ -649,7 +649,7 @@ def scra(query, i, proxy, lock, session):
         data['IsMention'] = ' '.join(t.mentions_name)
         data['Location'] = t.location_name
         # data['Location ID'] = t.location_id
-        data['DateJoined'] = dateparser.parse(t.user_created)
+        data['DateJoined'] = dateparser.parse(t.user_created) if t.user_created else None
         data['Tweet'] = t.text
 
         if t.utc_offset:

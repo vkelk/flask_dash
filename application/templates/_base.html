@@ -47,6 +47,7 @@
         <p class="navbar-text"><span class="label bg-success-400">Online</span></p>
     </div>
 
+    <!-- Main navbar -->
     <div class="navbar-collapse collapse" id="navbar-mobile">
         <ul class="nav navbar-nav">
 
@@ -116,6 +117,81 @@
                             <a href="{{ url_for('project.list') }}">List Projects </a></li>
                     </ul>
                 </li>
+                <li class="dropdown mega-menu mega-menu-wide">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false"><i
+                            class="icon-puzzle4 position-left"></i> Datasets <span class="caret"></span></a>
+                    <div class="dropdown-menu dropdown-content">
+                        <div class="dropdown-content-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <span class="menu-heading underlined">Fintweet</span>
+                                    <div class="dd-wrapper" id="dd-wrapper-0">
+                                        <div id="dd-header-0" class="dd-header"><h6>Back to parent</h6></div>
+                                        <ul class="menu-list has-children dd-menu" tabindex="0"
+                                            style="overflow: hidden; outline: none;">
+                                            <li><a href="#">Overview</a></li>
+                                            <li class="dd-parent">
+                                                <a href="#" class="dd-parent-a"><i class="icon-insert-template"></i>
+                                                    Tweets<span class="dd-icon"></span></a>
+                                                <ul rel="2" style="margin-right: 0px; margin-top: 0px;">
+                                                    <li><a href="#">Item 1</a></li>
+                                                    <li><a href="#">Item 2</a></li>
+                                                </ul>
+                                            </li>
+                                            <li class="dd-parent">
+                                                <a href="#" class="dd-parent-a"><i class="icon-insert-template"></i>
+                                                    Users<span class="dd-icon"></span></a>
+                                                <ul rel="2" style="margin-right: 0px; margin-top: 0px;">
+                                                    <li><a href="#">Item 1</a></li>
+                                                    <li><a href="#">Item 2</a></li>
+                                                </ul>
+                                            </li>
+                                            <li class="dd-parent last">
+                                                <a href="#" class="dd-parent-a"><i class="icon-insert-template"></i>
+                                                    Event study<span class="dd-icon"></span></a>
+                                                <ul rel="2" style="margin-right: 0px; margin-top: 0px;">
+                                                    <li><a href="#">List event studies</a></li>
+                                                    <li><a href="{{ url_for('project.event_new') }} ">New event
+                                                        study</a></li>
+                                                    <li class="last"><a href="#">New event study from file</a></li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <span class="menu-heading underlined">Stocktweets</span>
+                                    <div class="dd-wrapper" id="dd-wrapper-0">
+                                        <div id="dd-header-0" class="dd-header"><h6>Back to parent</h6></div>
+                                        <ul class="menu-list has-children dd-menu" tabindex="0"
+                                            style="overflow: hidden; outline: none;">
+                                            <li><a href="#">Overview</a></li>
+                                            <li class="dd-parent">
+                                                <a href="#" class="dd-parent-a"><i class="icon-insert-template"></i>
+                                                    Tweets<span class="dd-icon"></span></a>
+                                                <ul rel="2" style="margin-right: 0px; margin-top: 0px;">
+                                                    <li><a href="#">Item 1</a></li>
+                                                    <li><a href="#">Item 2</a></li>
+
+                                                </ul>
+                                            </li>
+                                            <li class="dd-parent last">
+                                                <a href="#" class="dd-parent-a"><i class="icon-insert-template"></i>
+                                                    Event study<span class="dd-icon"></span></a>
+                                                <ul rel="2" style="margin-right: 0px; margin-top: 0px;">
+                                                    <li><a href="#">List event studies</a></li>
+                                                    <li><a href="#">New event study</a></li>
+                                                    <li class="last"><a href="#">New event study from file</a></li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </li>
                 <li class="dropdown {% if request.path in [
                                         url_for('fintweet.index'),
                                         url_for('fintweet.tweets'),
@@ -146,7 +222,7 @@
 <!-- /second navbar -->
 
 {#<div class="container-fluid">#}
-    <!-- Page header -->
+<!-- Page header -->
 <div class="page-header page-header-default">
     <!-- Page header content -->
     <div class="page-header-content">
@@ -169,31 +245,31 @@
 
     </div>
     <!-- /page header content -->
-        <div class="col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4">
-            {% for category, message in get_flashed_messages(with_categories=true) %}
-                <div class="alert alert-dismissable alert-{{ category }}">
-                    <button type="button" class="close" data-dismiss="alert">&times;</button>
-                    {{ message }}
-                </div>
-            {% endfor %}
-        </div>
-
+    <div class="col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4">
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+            <div class="alert alert-dismissable alert-{{ category }}">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                {{ message }}
+            </div>
+        {% endfor %}
     </div>
-    <!-- /page header -->
+
+</div>
+<!-- /page header -->
 
 
-    <!-- Page container -->
-    <div class="page-container">
-        {% block content %}{% endblock %}
-    </div>
-    <!-- /page container -->
+<!-- Page container -->
+<div class="page-container">
+    {% block content %}{% endblock %}
+</div>
+<!-- /page container -->
 
 
-    <!-- Footer -->
-    <div class="footer text-muted">
-        &copy; 2018.
-    </div>
-    <!-- /footer -->
+<!-- Footer -->
+<div class="footer text-muted">
+    &copy; 2018.
+</div>
+<!-- /footer -->
 {#</div>#}
 
 {% block javascript %}

@@ -1,7 +1,8 @@
 from datetime import datetime
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed
-from wtforms import StringField, DateField, SubmitField, SelectField, HiddenField, IntegerField, RadioField
+from wtforms import StringField, DateField, SubmitField, SelectField, HiddenField, IntegerField, RadioField, FieldList, \
+    FormField
 from wtforms.validators import DataRequired, Length, EqualTo, Email
 from wtforms.widgets import TextArea
 
@@ -26,25 +27,19 @@ class ProjectDetails(FlaskForm):
 
 
 class EventForm(FlaskForm):
-    project_id = HiddenField('Project Id', validators=[DataRequired()])
-    dataset = SelectField("Dataset", validators=[DataRequired()],
-                          choices=[('fintweet', 'Fintweet')])
     pre_event = IntegerField('Pre event days', default=-1)
     post_event = IntegerField('Post event days', default=2)
     event_date = DateField('Event date')
-
-    code_type_radio = RadioField('Label', validators=[DataRequired()],
-                                 choices=[('permno', 'PermNo'), ('ticker', 'Ticker'), ('hashtag', 'Hashtag'),
+    code_type_radio = SelectField('Select code type', validators=[DataRequired()],
+                                  choices=[('permno', 'PermNo'), ('ticker', 'Ticker'), ('hashtag', 'Hashtag'),
                                           ('cashtag', 'Cashtag'), ('mentions', 'Mentions'),
                                           ('user_names', 'User Names')])
-    company_codes = StringField('Company codes')
-    codes_file = FileField('Upload file')
-    cashtags_options = SelectField('Select cashtag(s)', choices=[("", "---")])
-    codes_list = HiddenField()
+    code_text = StringField('Tag text')
 
-    event_window = IntegerField('Event window')
 
-    # buttons
-    btn_get_cashtags = SubmitField("Get cashtags")
-    btn_get_event_data = SubmitField("Get event data")
-    btn_download_csv = SubmitField("Download to CSV")
+class EventStudyForm(FlaskForm):
+    project_id = HiddenField('Project Id', validators=[DataRequired()])
+    dataset = SelectField("Dataset", validators=[DataRequired()],
+                          choices=[('fintweet', 'Fintweet')])
+
+    events = FieldList(FormField(EventForm), min_entries=1)

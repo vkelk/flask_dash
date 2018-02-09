@@ -106,24 +106,13 @@ def event_list():
 @project.route('/event_new')
 @login_required
 def event_new():
-    def get_from_radio(code_type, codes):
-        code_list = codes.split(',')
-        if code_type == 'permno':
-            query = DealNosFT.query.filter(DealNosFT.permno.in_(code_list)).all()
-            return [item.cashtag for item in query]
-        elif code_type == 'cashtag':
-            return code_list
-        elif code_type == 'ticker':
-            for i, item in enumerate(code_list):
-                code_list[i] = '$' + item.strip()
-            return code_list
-
     project_uuid = session['active_project']
     project = Project.query.filter(Project.uuid == project_uuid).first()
     datasets = Dataset.query.all()
-    form = EventForm(request.form)
-    if request.method == 'POST':
-        pass
+    form = EventStudyForm(request.form)
+    if request.method == 'POST' and form.validate_on_submit():
+        events = []
+
     if len(form.errors) > 0:
         pprint(form.errors)
     return render_template('project/event_new.html', form=form, project=project)

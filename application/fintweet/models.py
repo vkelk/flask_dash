@@ -14,10 +14,7 @@ class DealNosFT(db.Model):
     dealno = db.Column(db.BigInteger, primary_key=True)
 
 
-class User(UserMixin, db.Model):
-    # __bind_key__ = 'fintweet'
-    # __table__ = db.Model.metadata.tables['user']
-
+class User(db.Model):
     __tablename__ = 'user'
     __table_args__ = {"schema": "fintweet"}
 
@@ -76,10 +73,7 @@ class UserCount(db.Model):
         return self.user_id
 
 
-class Tweet(UserMixin, db.Model):
-    # __bind_key__ = 'fintweet'
-    # __table__ = db.Model.metadata.tables['tweet']
-
+class Tweet(db.Model):
     __tablename__ = 'tweet'
     __table_args__ = {"schema": "fintweet"}
 
@@ -107,13 +101,16 @@ class Tweet(UserMixin, db.Model):
     # retweets = relationship('Retweet')
     # emoticon = Column(TEXT)
 
-
     def __repr__(self):
         return self.tweet_id
 
-    # @property
-    # def user_name(self):
-    #     return User.query.with_entities(User.user_name).filter(User.user_id == self.user_id).first_or_404()
+    @property
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+    @property
+    def user_name(self):
+        return User.query.with_entities(User.user_name).filter(User.user_id == self.user_id).first_or_404()
 
 
 # class Retweet(db.Model):
@@ -147,7 +144,7 @@ class TweetCashtag(db.Model):
 
     # user_id = Column(BIGINT)
 
-    tweet = db.relationship('Tweet', backref="cashtags")
+    tweets = db.relationship('Tweet', backref="cashtags")
 
     # user = db.relationship('User', backref='user', lazy='dynamic',
     #                        primaryjoin="TweetCashtag.tweet_id==Tweet.tweetr_id", foreign_keys='User.user_id')
@@ -169,7 +166,7 @@ class TweetCount(db.Model):
     retweet = db.Column(db.Integer)
     favorite = db.Column(db.Integer)
 
-    tweet = db.relationship('Tweet', backref="counts")
+    tweets = db.relationship('Tweet', backref="counts")
 
     def __repr__(self):
         return self.tweet_id
@@ -186,7 +183,7 @@ class TweetHashtag(db.Model):
     tweet_id = db.Column(db.BigInteger, db.ForeignKey(Tweet.tweet_id))
     hashtags = db.Column(db.String(120))
 
-    tweet = db.relationship('Tweet', backref="hashtags")
+    tweets = db.relationship('Tweet', backref="hashtags")
 
     def __repr__(self):
         return self.id

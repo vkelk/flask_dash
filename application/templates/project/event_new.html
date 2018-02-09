@@ -22,80 +22,42 @@
     <div class="row">
         <form action="{{ url_for('project.event_new') }}" method="post" role="form">
             {{ form.csrf_token }}
-            <div class="col-sm-6">
+            <div class="col-sm-12">
                 <div class="panel panel-default">
-                    <div class="panel-heading">Topic</div>
+                    <div class="panel-heading"><h5>Active project: <strong>{{ project.name }}</strong></h5></div>
                     <div class="panel-body">
-                        <div class="form-inline">
-                            <p>Inhereted from project settings</p>
-                            <p>{{ project.date_start }} - {{ project.date_end }}</p>
-                        </div>
-                        <div class="form-inline">
-                            <p>Please apply your company codes.</p>
-                            <div>
-                                {% for subfield in form.code_type_radio %}
+                        <h6>Date range is inhereted from project settings:
+                            {{ project.date_start }} - {{ project.date_end }}</h6>
+                        <div class="table-responsive">
+                            <table class="table table-striped" width="100%">
+                                <thead>
+                                <tr>
+                                    <td>Code type</td>
+                                    <td>Tag text</td>
+                                    <td>Event date</td>
+                                    <td style="max-width: 120px;">Pre event days</td>
+                                    <td style="max-width: 120px;">Post event days</td>
+                                    <td></td>
+                                </tr>
+                                </thead>
+                                {% for event in form.events %}
                                     <tr>
-                                        <td>{{ subfield }}</td>
-                                        <td>{{ subfield.label }}</td>
+                                        <td>{{ render_field(event.code_type_radio, class="form-control") }}</td>
+                                        <td>{{ render_field(event.code_text, class="form-control") }}</td>
+                                        <td>{{ render_field(event.event_date, class="form-control") }}</td>
+                                        <td style="max-width: 120px;">{{ render_field(event.pre_event, class="form-control input-sm") }}</td>
+                                        <td style="max-width: 120px;">{{ render_field(event.post_event, class="form-control input-sm") }}</td>
+                                        <td></td>
                                     </tr>
                                 {% endfor %}
-                            </div>
+                            </table>
                         </div>
-                        <div>
-                            {{ render_field(form.company_codes, class="form-control", type="text", placeholder="Company Codes") }}
-                            <p><i>Please enter Company codes seperated by commas. <br>Example: FB, IBM, MSFT, AAPL</i>
-                            </p>
-                        </div>
-                        {#                        <div class="form-inline">#}
-                        {#                            <p><b>Step 2a:</b> Upload a file</p>#}
-                        {#                            <div class="form-group">#}
-                        {#                        {{ form.codes_file.label }}{{ form.codes_file }}#}
-                        {#                                {{ render_field(form.codes_file, class="form-control") }}#}
-                        {#                            </div>#}
-                        {#                        </div>#}
+
                     </div>
                     <div class="panel-footer">
-                        {{ render_field(form.btn_get_cashtags, class="btn btn-success") }}
+
                     </div>
                 </div>
-            </div>
-            <div class="col-sm-6">
-                <div class="panel panel-default">
-                    <div class="panel-heading">Event study parameters</div>
-                    <div class="panel-body">
-                        {{ form.codes_list }}
-                        <div class="row">
-                            <div class="col-sm-6">
-                                <label for="cashtags_options">Select cashtag(s)</label>
-                                {{ render_field(form.cashtags_options, class="form-control") }}
-                            </div>
-                            <div class="col-sm-6">
-                                {{ form.event_date.label }}
-                                {{ render_field(form.event_date, class="form-control", type="date" ) }}
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-sm-6">
-                                {{ form.pre_event.label }}
-                                {{ render_field(form.pre_event, class="form-control form-group-sm") }}
-
-                            </div>
-                            <div class="col-sm-6">
-                                {{ form.post_event.label }}
-                                {{ render_field(form.post_event, class="form-control form-group-sm") }}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="panel-footer">
-                        {% if form.btn_get_event_data %}
-                            {{ render_field(form.btn_get_event_data, class="btn btn-success") }}
-                        {% endif %}
-                        {% if form.btn_download_csv %}
-                            {{ render_field(form.btn_download_csv, class="btn btn-success pull-right") }}
-                        {% endif %}
-                    </div>
-                </div>
-
             </div>
         </form>
 

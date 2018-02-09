@@ -22,14 +22,19 @@
     <div class="row">
         <form action="{{ url_for('project.event_new') }}" method="post" role="form">
             {{ form.csrf_token }}
-            <div class="col-sm-12">
+            <div class="col-md-8 col-md-offset-2">
                 <div class="panel panel-default">
                     <div class="panel-heading"><h5>Active project: <strong>{{ project.name }}</strong></h5></div>
                     <div class="panel-body">
                         <h6>Date range is inhereted from project settings:
                             {{ project.date_start }} - {{ project.date_end }}</h6>
+                        <div class="form-inline">
+                            {{ render_field(form.dataset.label) }}
+                            {{ render_field(form.dataset, class="form-control") }}
+                        </div>
+
                         <div class="table-responsive">
-                            <table class="table table-striped" width="100%">
+                            <table class="table table-striped table-condensed" width="100%" style="padding: 8px 10px;">
                                 <thead>
                                 <tr>
                                     <td>Code type</td>
@@ -37,17 +42,16 @@
                                     <td>Event date</td>
                                     <td style="max-width: 120px;">Pre event days</td>
                                     <td style="max-width: 120px;">Post event days</td>
-                                    <td></td>
                                 </tr>
                                 </thead>
                                 {% for event in form.events %}
+                                    {{ event.csrf_token }}
                                     <tr>
                                         <td>{{ render_field(event.code_type_radio, class="form-control") }}</td>
                                         <td>{{ render_field(event.code_text, class="form-control") }}</td>
                                         <td>{{ render_field(event.event_date, class="form-control") }}</td>
                                         <td style="max-width: 120px;">{{ render_field(event.pre_event, class="form-control input-sm") }}</td>
                                         <td style="max-width: 120px;">{{ render_field(event.post_event, class="form-control input-sm") }}</td>
-                                        <td></td>
                                     </tr>
                                 {% endfor %}
                             </table>
@@ -55,7 +59,7 @@
 
                     </div>
                     <div class="panel-footer">
-
+                        {{ render_field(form.add_event, class="form-control") }}
                     </div>
                 </div>
             </div>

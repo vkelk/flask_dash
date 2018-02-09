@@ -38,8 +38,9 @@ class EventForm(FlaskForm):
 
 
 class EventStudyForm(FlaskForm):
-    project_id = HiddenField('Project Id', validators=[DataRequired()])
-    dataset = SelectField("Dataset", validators=[DataRequired()],
+    # project_id = HiddenField('Project Id', validators=[DataRequired()])
+    dataset = SelectField("Select dataset", validators=[DataRequired()],
                           choices=[('fintweet', 'Fintweet')])
 
     events = FieldList(FormField(EventForm), min_entries=1)
+    add_event = SubmitField('Add event')

@@ -103,7 +103,7 @@ def event_list():
     return jsonify(events)
 
 
-@project.route('/event_new')
+@project.route('/event_new', methods=['GET', 'POST'])
 @login_required
 def event_new():
     project_uuid = session['active_project']
@@ -112,6 +112,9 @@ def event_new():
     form = EventStudyForm(request.form)
     if request.method == 'POST' and form.validate_on_submit():
         events = []
+        if form.add_event.data:
+            new_event_item = form.events.append_entry()
+            return render_template('project/event_new.html', form=form, project=project)
 
     if len(form.errors) > 0:
         pprint(form.errors)

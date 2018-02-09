@@ -11,22 +11,29 @@
     <link href="https://fonts.googleapis.com/css?family=Roboto:400,300,100,500,700,900" rel="stylesheet"
           type="text/css">
     <link href="{{ url_for('static', filename='css/icons/icomoon/styles.css') }}" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
     <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet" type="text/css">
     <link href="{{ url_for('static', filename='css/core.min.css') }}" rel="stylesheet" type="text/css">
     <link href="{{ url_for('static', filename='css/components.min.css') }}" rel="stylesheet" type="text/css">
     <link href="{{ url_for('static', filename='css/colors.min.css') }}" rel="stylesheet" type="text/css">
+
     {% block css %} {% endblock %}
     <!-- /global stylesheets -->
 
     <!-- Core JS files -->
+    <script type="text/javascript" src="{{ url_for('static', filename='js/plugins/loaders/pace.min.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/core/libraries/jquery.min.js') }}"></script>
     <script type="text/javascript"
+            src="{{ url_for('static', filename='js/core/libraries/jquery_ui/full.min.js') }}"></script>
+    <script type="text/javascript"
             src="{{ url_for('static', filename='js/core/libraries/bootstrap.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/plugins/loaders/blockui.min.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/plugins/ui/nicescroll.min.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/plugins/ui/drilldown.js') }}"></script>
     <!-- /core JS files -->
 
     <!-- Theme JS files -->
+
     <script type="text/javascript" src="{{ url_for('static', filename='js/core/app.min.js') }}"></script>
     <script type="text/javascript"
             src="{{ url_for('static', filename='js/pages/layout_navbar_secondary_fixed.js') }}"></script>

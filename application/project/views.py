@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from pprint import pprint
 from flask import render_template, request, Markup, flash, redirect, url_for, abort, session, jsonify
 from flask_login import login_user, current_user, login_required, logout_user
+from werkzeug.utils import secure_filename, CombinedMultiDict
 from application import db, login_manager
 from application.project import project
 from application.project.models import *
@@ -111,9 +112,31 @@ def event_new():
     datasets = Dataset.query.all()
     form = EventStudyForm(request.form)
     if request.method == 'POST' and form.validate_on_submit():
-        events = []
         if form.add_event.data:
-            new_event_item = form.events.append_entry()
+            form.events.append_entry()
+            return render_template('project/event_new.html', form=form, project=project)
+        if form.create_study.data:
+            pprint(form.events.data)
+            return render_template('project/event_new.html', form=form, project=project)
+
+    if len(form.errors) > 0:
+        pprint(form.errors)
+    return render_template('project/event_new.html', form=form, project=project)
+
+
+@project.route('/events_upload', methods=['GET', 'POST'])
+@login_required
+def events_upload():
+    project_uuid = session['active_project']
+    project = Project.query.filter(Project.uuid == project_uuid).first()
+    datasets = Dataset.query.all()
+    form = EventStudyFileForm(CombinedMultiDict((request.files, request.form)))
+    if request.method == 'POST' and form.validate_on_submit():
+        if form.add_event.data:
+            form.events.append_entry()
+            return render_template('project/event_new.html', form=form, project=project)
+        if form.create_study.data:
+            pprint(form.events.data)
             return render_template('project/event_new.html', form=form, project=project)
 
     if len(form.errors) > 0:

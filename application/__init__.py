@@ -53,8 +53,11 @@ def create_app(config=None):
     from application.project import project as project_blueprint
     from application.fintweet import fintweet as fintweet_blueprint
     from application.fintweet.resources import api_fintweet
+    from application.main.resources import api_manager
+
     # api.init_app(app)
-    api_fintweet.init_app(app)
+    # api_fintweet.init_app(app)
+    api_manager.init_app(app)
 
     app.register_blueprint(main_blueprint)
     app.register_blueprint(account_blueprint, url_prefix='/account')

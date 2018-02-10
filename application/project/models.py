@@ -70,6 +70,8 @@ class Event(db.Model):
     days_grace = db.Column(db.Integer)
     created = db.Column(db.DateTime)
 
+    stats = db.relationship('EventStats', backref='event_stats', lazy='dynamic')
+
     def __init__(self, project_id, dataset):
         # self.uuid = str(uuid.uuid1())
         self.project_id = project_id

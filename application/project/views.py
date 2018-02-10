@@ -103,7 +103,7 @@ def list():
 def event_list():
     project_uuid = session['active_project']
     events = Event.query.filter(Event.project_id == project_uuid).all()
-    return jsonify(events)
+    return render_template('project/events.html', events=events)
 
 
 @project.route('/event_new', methods=['GET', 'POST'])
@@ -179,33 +179,35 @@ def events_upload():
                         event.event_pre_end = estimation_window['pre_end']
                         event.event_post_start = estimation_window['post_start']
                         event.event_post_end = estimation_window['post_end']
+                        event.days_pre = form.days_pre_event.data
+                        event.days_post = form.days_post_event.data
+                        event.days_estimation = form.days_estimation.data
+                        event.days_grace = form.days_grace.data
                         db.session.add(event)
                         db.session.commit()
 
                     df_full = pd.DataFrame.from_records(result_list, index='date')
+                    df_full.fillna(0)
                     df_pre_est = df_full.loc[: estimation_window['pre_end'].date()]
+                    df_pre_est.fillna(0)
                     df_event = df_full.loc[event_window['start'].date():event_window['end'].date()]
+                    df_event.fillna(0)
                     df_post_est = df_full.loc[event_window['end'].date():]
+                    df_post_est.fillna(0)
 
                     event_stats = EventStats.query.filter(EventStats.uuid == event_uuid).first()
                     if not event_stats:
                         event_stats = EventStats(event.uuid)
 
                     event_stats.event_total = int(df_event['count'].sum())
-                    event_stats.event_median = df_event['count'].median() if not isinstance(df_event['count'].median(),
-                                                                                            str) else 0
-                    event_stats.event_mean = df_event['count'].mean() if not isinstance(df_event['count'].mean(),
-                                                                                        str) else 0
+                    event_stats.event_median = df_event['count'].median() if event_stats.event_total > 0 else 0
+                    event_stats.event_mean = df_event['count'].mean() if event_stats.event_total > 0 else 0
                     event_stats.pre_total = int(df_pre_est['count'].sum())
-                    event_stats.pre_median = df_pre_est['count'].median() if not isinstance(
-                        df_pre_est['count'].median(), str) else 0
-                    event_stats.pre_mean = df_pre_est['count'].mean() if not isinstance(df_pre_est['count'].mean(),
-                                                                                        str) else 0
+                    event_stats.pre_median = df_pre_est['count'].median() if event_stats.pre_total > 0 else 0
+                    event_stats.pre_mean = df_pre_est['count'].mean() if event_stats.pre_total > 0 else 0
                     event_stats.post_total = int(df_post_est['count'].sum())
-                    event_stats.post_median = df_post_est['count'].median() if not isinstance(
-                        df_post_est['count'].median(), str) else 0
-                    event_stats.post_mean = df_post_est['count'].mean() if not isinstance(df_post_est['count'].mean(),
-                                                                                          str) else 0
+                    event_stats.post_median = df_post_est['count'].median() if event_stats.post_total > 0 else 0
+                    event_stats.post_mean = df_post_est['count'].mean() if event_stats.post_total > 0 else 0
 
                     db.session.add(event_stats)
                     db.session.commit()

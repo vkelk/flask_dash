@@ -1,4 +1,4 @@
-import json, os
+import hashlib, json, os
 from datetime import datetime, timedelta
 import pandas as pd
 from pprint import pprint
@@ -10,7 +10,7 @@ from application.project import project
 from application.project.models import *
 from application.fintweet.models import *
 from application.project.forms import *
-from application.project.helpers import slugify, dataframe_from_file
+from application.project.helpers import *
 
 
 @project.route('/project_add', methods=['GET', 'POST'])
@@ -129,17 +129,6 @@ def event_new():
 @project.route('/events_upload', methods=['GET', 'POST'])
 @login_required
 def events_upload():
-    def get_data_from_query(c_tag, estimation):
-        q = db.session \
-            .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
-            .join(TweetCashtag) \
-            .filter(TweetCashtag.cashtags == c_tag) \
-            .filter(Tweet.date >= estimation['pre_start']) \
-            .filter(Tweet.date <= estimation['post_end']) \
-            .group_by(Tweet.date).order_by(Tweet.date)
-        # print(q)
-        return [r._asdict() for r in q.all()]
-
     project_uuid = session['active_project']
     project = Project.query.filter(Project.uuid == project_uuid).first()
     datasets = Dataset.query.all()
@@ -175,25 +164,33 @@ def events_upload():
                                      'post_end': date_estwin_post_end}
                 result_list = get_data_from_query(row['cashtag'], estimation_window)
                 if len(result_list) > 0:
-                    event = Event(project_uuid, form.dataset.data)
-                    event.type = 'cashtag'
-                    event.text = row['cashtag']
-                    event.event_date = event_window['date']
-                    event.event_start = event_window['start']
-                    event.event_end = event_window['end']
-                    event.event_pre_start = estimation_window['pre_start']
-                    event.event_pre_end = estimation_window['pre_end']
-                    event.event_post_start = estimation_window['post_start']
-                    event.event_post_end = estimation_window['post_end']
-                    db.session.add(event)
-                    db.session.commit()
+                    check_string = project_uuid + 'cashtag' + row['cashtag'] + str(event_window['date'])
+                    event_uuid = hashlib.md5(check_string.encode('utf-8')).hexdigest()
+                    event = Event.query.filter(Event.uuid == event_uuid).first()
+                    if not event:
+                        event = Event(project_uuid, form.dataset.data)
+                        event.type = 'cashtag'
+                        event.text = row['cashtag']
+                        event.event_date = event_window['date']
+                        event.uuid = hashlib.md5(check_string.encode('utf-8')).hexdigest()
+                        event.event_start = event_window['start']
+                        event.event_end = event_window['end']
+                        event.event_pre_start = estimation_window['pre_start']
+                        event.event_pre_end = estimation_window['pre_end']
+                        event.event_post_start = estimation_window['post_start']
+                        event.event_post_end = estimation_window['post_end']
+                        db.session.add(event)
+                        db.session.commit()
 
                     df_full = pd.DataFrame.from_records(result_list, index='date')
                     df_pre_est = df_full.loc[: estimation_window['pre_end'].date()]
                     df_event = df_full.loc[event_window['start'].date():event_window['end'].date()]
                     df_post_est = df_full.loc[event_window['end'].date():]
 
-                    event_stats = EventStats(event.uuid)
+                    event_stats = EventStats.query.filter(EventStats.uuid == event_uuid).first()
+                    if not event_stats:
+                        event_stats = EventStats(event.uuid)
+
                     event_stats.event_total = int(df_event['count'].sum())
                     event_stats.event_median = df_event['count'].median() if not isinstance(df_event['count'].median(),
                                                                                             str) else 0
@@ -222,6 +219,9 @@ def events_upload():
                     df_in.loc[index, "total post event"] = df_post_est['count'].sum()
                     df_in.loc[index, "median post event"] = df_post_est['count'].median()
                     df_in.loc[index, "mean post event"] = df_post_est['count'].mean()
+
+                    insert_event_tweets(event)
+
             df_in.to_excel(os.path.join(Configuration.UPLOAD_FOLDER, 'output.xlsx'), index=False)
             # df_in.to_stata(os.path.join(Configuration.UPLOAD_FOLDER, 'output.dta'), index=False)
             form.file_csv.data = 'upload/output' + file_input

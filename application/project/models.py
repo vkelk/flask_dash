@@ -71,7 +71,7 @@ class Event(db.Model):
     created = db.Column(db.DateTime)
 
     def __init__(self, project_id, dataset):
-        self.uuid = str(uuid.uuid1())
+        # self.uuid = str(uuid.uuid1())
         self.project_id = project_id
         self.dataset = dataset
         self.created = datetime.now()
@@ -108,6 +108,6 @@ class EventTweets(db.Model):
     tweet_id = db.Column(db.BigInteger)
 
     def __init__(self, uuid, event_period, tweet_id):
-        self.uuid = uuid
+        self.event_uuid = uuid
         self.event_period = event_period
         self.tweet_id = tweet_id

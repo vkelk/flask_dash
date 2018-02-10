@@ -1,0 +1,79 @@
+{% extends "_base.html" %}
+{% block title %}Dashboard | Event Tweets{% endblock %}
+{% block content_title %}Dashboard | Event Tweets{% endblock %}
+{% block css %}
+    <!-- Custom Fonts -->
+    <link href="{{ url_for('static', filename='font-awesome/css/font-awesome.min.css') }}" rel="stylesheet"
+          type="text/css">
+    <link rel="stylesheet" href="//cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css"/>
+{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <div class="row">
+                    <div class="col-sm-6">
+                        <h6>{{ event.text }}</h6>
+                    </div>
+                    <div class="col-sm-3 col-sm-offset-3">
+                        <label>Select period</label>
+                        <select id="filter_period">
+                            <option value="on_event">During event</option>
+                            <option value="pre_event">Pre event</option>
+                            <option value="post_event">Post event</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="col-sm-12">
+                    <table id="dt_tweets" class="table display compact" cellspacing="0" width="100%"></table>
+                </div>
+            </div>
+            <div class="panel-footer">
+
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block javascript %}
+    <script type="text/javascript" src="//cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
+    <script>
+
+        function loadTweets(jsonData) {
+            var tblTweets = $("#dt_tweets").DataTable({
+                "data": jsonData,
+                "columns": [
+                    {title: "Tweet_id", data: "tweet_id"},
+                    {title: "Tweet text", data: "text"},
+                ],
+                "order": [[0, "desc"]],
+                "searching": false,
+                "info": false,
+                "lengthChange": false,
+                destroy: true
+            });
+        };
+
+        $(document).ready(function () {
+            var url = "/project/ajax_event_tweets/" + "{{ event.uuid }}" + "/on_event";
+
+            $.getJSON(url, function (jsonData) {
+                loadTweets(jsonData);
+            });
+
+            $("#filter_period").on('change', function () {
+                var url = "/project/ajax_event_tweets/" + "{{ event.uuid }}" + "/" + this.value;
+                $.getJSON(url, function (jsonData) {
+                    loadTweets(jsonData);
+                });
+            })
+
+
+        });
+
+    </script>
+{% endblock %}

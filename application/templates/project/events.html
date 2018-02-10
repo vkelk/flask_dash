@@ -13,7 +13,7 @@
         <div class="panel panel-default">
             <div class="panel-heading">Events for current active project</div>
             <div class="panel-body">
-                <table id="tbl_events" class="display" cellspacing="0" width="100%">
+                <table id="tbl_events" class="display compact" cellspacing="0" width="100%">
                     <thead>
                     <tr>
                         {#            <th >dataset</th>#}
@@ -53,13 +53,24 @@
                 </table>
             </div>
             <div class="panel-footer">
-                Click on row to show event stats
+                <div class="col-sm-12">Click on row to show event stats</div>
+
             </div>
         </div>
     </div>
     <div id="event_stats" class="row" style="display: none;">
         <div class="panel panel-default">
-            <div class="panel-heading"></div>
+            <div class="panel-heading">
+                <div class="row">
+                    <div class="col-sm-6">
+                        <h6>Event statistics for <span id="event_head"></span></h6>
+                    </div>
+                    <div class="col-sm-3 col-sm-offset-3">
+                        <a id="tweets_href" href="#" target="_blank">View Event tweets</a>
+                    </div>
+                </div>
+
+            </div>
             <div class="panel-body">
                 <div class="row">
                     <div class="col-sm-4">
@@ -128,7 +139,17 @@
             $('#tbl_events tbody').on('click', 'tr', function () {
                 var event_data = tblEvents.row(this).data();
                 var event_uuid = event_data[0];
+                var event_text = event_data[2];
+                var href = "event_tweets/" + event_uuid
                 $("#event_stats").show();
+                $("#tweets_href").attr("href", href);
+                $("#event_head").html(event_text);
+                if ($(this).hasClass('selected')) {
+                    $(this).removeClass('selected');
+                } else {
+                    tblEvents.$('tr.selected').removeClass('selected');
+                    $(this).addClass('selected');
+                }
                 getEventStats(event_uuid);
             });
         });

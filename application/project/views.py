@@ -101,16 +101,26 @@ def list():
 @project.route('/event_list')
 @login_required
 def event_list():
-    project_uuid = session['active_project']
-    events = Event.query.filter(Event.project_id == project_uuid).all()
+    project = Project.query.filter(Project.account_id == current_user.get_id()).filter(Project.active == True).first()
+    if project:
+        session['active_project'] = project.uuid
+    events = Event.query.filter(Event.project_id == project.uuid).all()
     return render_template('project/events.html', events=events)
+
+
+@project.route('/event_tweets/<uuid>')
+@login_required
+def event_tweets(uuid):
+    event = Event.query.filter(Event.uuid == uuid).first()
+    return render_template('project/event_tweets.html', event=event)
 
 
 @project.route('/event_new', methods=['GET', 'POST'])
 @login_required
 def event_new():
-    project_uuid = session['active_project']
-    project = Project.query.filter(Project.uuid == project_uuid).first()
+    project = Project.query.filter(Project.account_id == current_user.get_id()).filter(Project.active == True).first()
+    if project:
+        session['active_project'] = project.uuid
     datasets = Dataset.query.all()
     form = EventStudyForm(request.form)
     if request.method == 'POST' and form.validate_on_submit():
@@ -129,8 +139,9 @@ def event_new():
 @project.route('/events_upload', methods=['GET', 'POST'])
 @login_required
 def events_upload():
-    project_uuid = session['active_project']
-    project = Project.query.filter(Project.uuid == project_uuid).first()
+    project = Project.query.filter(Project.account_id == current_user.get_id()).filter(Project.active == True).first()
+    if project:
+        session['active_project'] = project.uuid
     datasets = Dataset.query.all()
     form = EventStudyFileForm(CombinedMultiDict((request.files, request.form)))
     if request.method == 'POST' and form.validate_on_submit():
@@ -164,11 +175,11 @@ def events_upload():
                                      'post_end': date_estwin_post_end}
                 result_list = get_data_from_query(row['cashtag'], estimation_window)
                 if len(result_list) > 0:
-                    check_string = project_uuid + 'cashtag' + row['cashtag'] + str(event_window['date'])
+                    check_string = project.uuid + 'cashtag' + row['cashtag'] + str(event_window['date'])
                     event_uuid = hashlib.md5(check_string.encode('utf-8')).hexdigest()
                     event = Event.query.filter(Event.uuid == event_uuid).first()
                     if not event:
-                        event = Event(project_uuid, form.dataset.data)
+                        event = Event(project.uuid, form.dataset.data)
                         event.type = 'cashtag'
                         event.text = row['cashtag']
                         event.event_date = event_window['date']
@@ -233,6 +244,15 @@ def events_upload():
     if len(form.errors) > 0:
         pprint(form.errors)
     return render_template('project/events_upload.html', form=form, project=project)
+
+
+@project.route('/ajax_event_tweets/<uuid>/<period>')
+def ajax_event_tweets(uuid, period):
+    q = db.session.query(EventTweets.tweet_id, Tweet.text) \
+        .select_from(EventTweets).join(Tweet, Tweet.tweet_id == EventTweets.tweet_id) \
+        .filter(EventTweets.event_uuid == uuid).filter(EventTweets.event_period == period) \
+        .order_by(Tweet.tweet_id).all()
+    return jsonify(q)
 
 
 @project.route('/<uuid>')

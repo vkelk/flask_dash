@@ -1,5 +1,6 @@
-import json
+import json, os
 from datetime import datetime, timedelta
+import pandas as pd
 from pprint import pprint
 from flask import render_template, request, Markup, flash, redirect, url_for, abort, session, jsonify
 from flask_login import login_user, current_user, login_required, logout_user
@@ -9,6 +10,7 @@ from application.project import project
 from application.project.models import *
 from application.fintweet.models import *
 from application.project.forms import *
+from application.project.helpers import slugify, dataframe_from_file
 
 
 @project.route('/project_add', methods=['GET', 'POST'])
@@ -127,21 +129,108 @@ def event_new():
 @project.route('/events_upload', methods=['GET', 'POST'])
 @login_required
 def events_upload():
+    def get_data_from_query(c_tag, estimation):
+        q = db.session \
+            .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
+            .join(TweetCashtag) \
+            .filter(TweetCashtag.cashtags == c_tag) \
+            .filter(Tweet.date >= estimation['pre_start']) \
+            .filter(Tweet.date <= estimation['post_end']) \
+            .group_by(Tweet.date).order_by(Tweet.date)
+        # print(q)
+        return [r._asdict() for r in q.all()]
+
     project_uuid = session['active_project']
     project = Project.query.filter(Project.uuid == project_uuid).first()
     datasets = Dataset.query.all()
     form = EventStudyFileForm(CombinedMultiDict((request.files, request.form)))
     if request.method == 'POST' and form.validate_on_submit():
-        if form.add_event.data:
-            form.events.append_entry()
-            return render_template('project/event_new.html', form=form, project=project)
         if form.create_study.data:
-            pprint(form.events.data)
-            return render_template('project/event_new.html', form=form, project=project)
+            file_input = secure_filename(str(uuid.uuid4()) + os.path.splitext(form.file_input.data.filename)[-1])
+            form.file_input.data.save(os.path.join(Configuration.UPLOAD_FOLDER, file_input))
+            form.file_name.data = file_input
+            df_in = dataframe_from_file(os.path.join(Configuration.UPLOAD_FOLDER, form.file_name.data))
+            if df_in.empty:
+                return None
+            for index, row in df_in.iterrows():
+                date_on_event = row['event_date'].to_pydatetime()
+                days_pre_event = abs(form.days_pre_event.data)
+                event_window = {'date': date_on_event,
+                                'start': date_on_event - timedelta(days=days_pre_event),
+                                'end': date_on_event + timedelta(days=form.days_post_event.data)}
+                date_estwin_pre_end = event_window['start'] - timedelta(days=(form.days_grace.data + 1))
+                date_estwin_pre_start = date_estwin_pre_end - timedelta(days=form.days_estimation.data)
+                date_estwin_pre_start = min(date_estwin_pre_start.date(), project.date_start)
+                if form.select_deal_resolution.data == 'false':
+                    date_estwin_post_start = event_window['end'] + timedelta(days=1)
+                    date_estwin_post_end = date_estwin_post_start + timedelta(days=form.days_estimation.data)
+                else:
+                    date_estwin_post_start = event_window['end'] + timedelta(days=1)
+                    date_estwin_post_end = date_estwin_post_start + timedelta(days=row['deal_resolution'])
+                    date_estwin_post_end = max(date_estwin_post_end.date(), project.date_end)
+
+                estimation_window = {'pre_end': date_estwin_pre_end,
+                                     'pre_start': date_estwin_pre_start,
+                                     'post_start': date_estwin_post_start,
+                                     'post_end': date_estwin_post_end}
+                result_list = get_data_from_query(row['cashtag'], estimation_window)
+                if len(result_list) > 0:
+                    event = Event(project_uuid, form.dataset.data)
+                    event.type = 'cashtag'
+                    event.text = row['cashtag']
+                    event.event_date = event_window['date']
+                    event.event_start = event_window['start']
+                    event.event_end = event_window['end']
+                    event.event_pre_start = estimation_window['pre_start']
+                    event.event_pre_end = estimation_window['pre_end']
+                    event.event_post_start = estimation_window['post_start']
+                    event.event_post_end = estimation_window['post_end']
+                    db.session.add(event)
+                    db.session.commit()
+
+                    df_full = pd.DataFrame.from_records(result_list, index='date')
+                    df_pre_est = df_full.loc[: estimation_window['pre_end'].date()]
+                    df_event = df_full.loc[event_window['start'].date():event_window['end'].date()]
+                    df_post_est = df_full.loc[event_window['end'].date():]
+
+                    event_stats = EventStats(event.uuid)
+                    event_stats.event_total = int(df_event['count'].sum())
+                    event_stats.event_median = df_event['count'].median() if not isinstance(df_event['count'].median(),
+                                                                                            str) else 0
+                    event_stats.event_mean = df_event['count'].mean() if not isinstance(df_event['count'].mean(),
+                                                                                        str) else 0
+                    event_stats.pre_total = int(df_pre_est['count'].sum())
+                    event_stats.pre_median = df_pre_est['count'].median() if not isinstance(
+                        df_pre_est['count'].median(), str) else 0
+                    event_stats.pre_mean = df_pre_est['count'].mean() if not isinstance(df_pre_est['count'].mean(),
+                                                                                        str) else 0
+                    event_stats.post_total = int(df_post_est['count'].sum())
+                    event_stats.post_median = df_post_est['count'].median() if not isinstance(
+                        df_post_est['count'].median(), str) else 0
+                    event_stats.post_mean = df_post_est['count'].mean() if not isinstance(df_post_est['count'].mean(),
+                                                                                          str) else 0
+
+                    db.session.add(event_stats)
+                    db.session.commit()
+
+                    df_in.loc[index, "total pre event"] = df_pre_est['count'].sum()
+                    df_in.loc[index, "median pre event"] = df_pre_est['count'].median()
+                    df_in.loc[index, "mean pre event"] = df_pre_est['count'].mean()
+                    df_in.loc[index, "total during event"] = df_event['count'].sum()
+                    df_in.loc[index, "median during event"] = df_event['count'].median()
+                    df_in.loc[index, "mean during event"] = df_event['count'].mean()
+                    df_in.loc[index, "total post event"] = df_post_est['count'].sum()
+                    df_in.loc[index, "median post event"] = df_post_est['count'].median()
+                    df_in.loc[index, "mean post event"] = df_post_est['count'].mean()
+            df_in.to_excel(os.path.join(Configuration.UPLOAD_FOLDER, 'output.xlsx'), index=False)
+            # df_in.to_stata(os.path.join(Configuration.UPLOAD_FOLDER, 'output.dta'), index=False)
+            form.file_csv.data = 'upload/output' + file_input
+            return render_template('project/events_upload.html', form=form, project=project,
+                                   df_in=df_in.to_html(classes='table table-striped'))
 
     if len(form.errors) > 0:
         pprint(form.errors)
-    return render_template('project/event_new.html', form=form, project=project)
+    return render_template('project/events_upload.html', form=form, project=project)
 
 
 @project.route('/<uuid>')

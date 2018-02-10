@@ -51,13 +51,15 @@ class EventStudyForm(FlaskForm):
 
 
 class EventStudyFileForm(FlaskForm):
+    dataset = SelectField("Select dataset", validators=[DataRequired()],
+                          choices=[('fintweet', 'Fintweet')])
     days_pre_event = IntegerField('Pre event days', default=-1, validators=[DataRequired()])
     days_post_event = IntegerField('Post event days', default=2,
                                    validators=[DataRequired(), NumberRange(min=0, message='Must be non-negative')])
     days_estimation = IntegerField('Estimation days', default=120,
                                    validators=[DataRequired(), NumberRange(min=0, message='Must be non-negative')])
-    days_grace_period = IntegerField('Grace period days', default=0,
-                                     validators=[NumberRange(min=0, message='Must be non-negative')])
+    days_grace = IntegerField('Grace period days', default=0,
+                              validators=[NumberRange(min=0, message='Must be non-negative')])
 
     select_deal_resolution = RadioField('Include deal resolution', default='false',
                                         choices=[('false', 'No'), ('true', 'Yes')],
@@ -68,6 +70,4 @@ class EventStudyFileForm(FlaskForm):
     file_name = HiddenField()
     file_csv = HiddenField()
 
-    btn_file_upload = SubmitField("Upload file")
-    btn_calculate = SubmitField("Calculate data")
-    btn_download_csv = SubmitField("Download as Excel")
+    create_study = SubmitField('Process study')

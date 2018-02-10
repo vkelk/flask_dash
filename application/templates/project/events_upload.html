@@ -34,7 +34,8 @@
         });
     </script>
     <div class="row">
-        <form action="{{ url_for('project.event_new') }}" method="post" role="form" id="main_form">
+        <form action="{{ url_for('project.events_upload') }}" method="post" role="form" id="main_form"
+              enctype="multipart/form-data">
             {{ form.csrf_token }}
             <div class="col-md-8 col-md-offset-2">
                 <div class="panel panel-default">
@@ -50,47 +51,40 @@
                             </div>
                         </div>
                         <div class="row">
-                            <div class="table-responsive">
-                                <table id="tbl_events" class="table table-striped table-condensed" width="100%">
-                                    <thead>
+                            <div class="col-sm-2">
+                                {{ render_field(form.days_pre_event.label) }}
+                                {{ render_field(form.days_pre_event, class="form-control input-sm") }}
+                            </div>
+                            <div class="col-sm-2">
+                                {{ render_field(form.days_post_event.label) }}
+                                {{ render_field(form.days_post_event, class="form-control input-sm") }}
+                            </div>
+                            <div class="col-sm-2">
+                                {{ render_field(form.days_estimation.label) }}
+                                {{ render_field(form.days_estimation, class="form-control input-sm") }}
+                            </div>
+                            <div class="col-sm-2">
+                                {{ render_field(form.days_grace.label) }}
+                                {{ render_field(form.days_grace, class="form-control  input-sm") }}
+                            </div>
+                            <div class="col-sm-4">
+                                {{ form.select_deal_resolution.label }}
+                                {% for subfield in form.select_deal_resolution %}
                                     <tr>
-                                        <td style="max-width: 100px;">Code type</td>
-                                        <td>Tag text</td>
-                                        <td style="max-width: 130px;">Event date</td>
-                                        <td style="max-width: 80px;">Pre event days</td>
-                                        <td style="max-width: 80px;">Post event days</td>
-                                        <td style="max-width: 80px;">Estimation windows</td>
-                                        <td style="max-width: 80px;">Grace period</td>
+                                        <td>{{ subfield }}</td>
+                                        <td>{{ subfield.label }}</td>
                                     </tr>
-                                    </thead>
-                                    {% for event in form.events %}
-                                        {{ event.csrf_token }}
-                                        <tr>
-                                            <td style="max-width: 100px;">{{ render_field(event.code_type_radio, class="form-control") }}</td>
-                                            <td>{{ render_field(event.code_text, class="form-control") }}</td>
-                                            <td style="max-width: 130px;">
-                                                <div class="input-group">
-                                                    <span class="input-group-addon"><i class="icon-calendar"></i></span>
-                                                    {{ render_field(event.event_date, type="text",
-                                            class="form-control datepicker", placeholder="Pick a date…") }}
-                                                </div>
-                                            </td>
-                                            <td style="max-width: 80px;">{{ render_field(event.pre_event, class="form-control input-sm") }}</td>
-                                            <td style="max-width: 80px;">{{ render_field(event.post_event, class="form-control input-sm") }}</td>
-                                            <td style="max-width: 80px;">{{ render_field(event.days_estimation, class="form-control input-sm") }}</td>
-                                            <td style="max-width: 80px;">{{ render_field(event.days_grace, class="form-control input-sm") }}</td>
-                                        </tr>
-                                    {% endfor %}
-                                </table>
+                                {% endfor %}
                             </div>
                         </div>
-
-
                     </div>
                     <div class="panel-footer">
-                        <div class="col-sm-4">{{ render_field(form.add_event, class="form-control btn btn-info") }}</div>
-                        <div class="col-sm-4 col-sm-offset-4">{{ render_field(form.create_study, class="form-control btn btn-primary") }}</div>
-
+                        <div class="col-sm-6">
+                            {{ render_field(form.file_input, class="form-control") }}
+                        </div>
+                        <div class="col-sm-2 col-sm-offset-4">
+                            {{ render_field(form.create_study, class="btn btn-success") }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -98,16 +92,23 @@
 
     </div>
     <div class="row">
-        <div class="col-sm-6">
-            {% for table in tables %}
-                <h5>{{ titles[loop.index] }}</h5>
-                {{ table | safe }}
-            {% endfor %}
-        </div>
-        <div class="col-sm-6">
-            {% if stats %}
-                <h5>STATS</h5>
-                {{ stats | safe }}
+        <div class="col-sm-12">
+            {% if df_in %}
+                {{ form.file_csv }}
+                <div class="panel-group">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <a data-toggle="collapse" href="#df_in_collapse">Input data (click here to collapse)</a>
+                        </div>
+                        <div id="df_in_collapse" class="panel-collapse collapse in">
+                            <div class="panel-body">{{ df_in | safe }}</div>
+                        </div>
+                        <div class="panel-footer">
+
+                        </div>
+                    </div>
+                </div>
+
             {% endif %}
         </div>
     </div>

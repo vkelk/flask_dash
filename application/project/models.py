@@ -37,6 +37,16 @@ class ProjectDetais(db.Model):
     active = db.Column(db.Boolean)
 
 
+class Dataset(db.Model):
+    __tablename__ = 'datasets'
+    __table_args__ = {"schema": "dashboard"}
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    dataset_db = db.Column(db.String(15))
+    dataset_name = db.Column(db.String(30))
+    created = db.DateTime()
+
+
 class Event(db.Model):
     __tablename__ = 'events'
     __table_args__ = {"schema": "dashboard"}
@@ -47,33 +57,24 @@ class Event(db.Model):
     dataset = db.Column(db.String(30))
     type = db.Column(db.String(15))
     text = db.Column(db.String(30))
+    event_date = db.Column(db.Date)
+    event_start = db.Column(db.Date)
+    event_end = db.Column(db.Date)
+    event_pre_start = db.Column(db.Date)
+    event_pre_end = db.Column(db.Date)
+    event_post_start = db.Column(db.Date)
+    event_post_end = db.Column(db.Date)
     days_pre = db.Column(db.Integer)
     days_post = db.Column(db.Integer)
     days_estimation = db.Column(db.Integer)
     days_grace = db.Column(db.Integer)
     created = db.Column(db.DateTime)
 
-    def __init__(self, project_id, dataset, code_type, text, days_pre, days_post, days_estimation, days_grace):
+    def __init__(self, project_id, dataset):
         self.uuid = str(uuid.uuid1())
         self.project_id = project_id
         self.dataset = dataset
-        self.type = code_type
-        self.text = text
-        self.days_pre = days_pre
-        self.days_post = days_post
-        self.days_estimation = days_estimation
-        self.days_grace = days_grace
         self.created = datetime.now()
-
-
-class Dataset(db.Model):
-    __tablename__ = 'datasets'
-    __table_args__ = {"schema": "dashboard"}
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    dataset_db = db.Column(db.String(15))
-    dataset_name = db.Column(db.String(30))
-    created = db.DateTime()
 
 
 class EventStats(db.Model):
@@ -92,18 +93,8 @@ class EventStats(db.Model):
     post_mean = db.Column(db.Integer)
     created = db.Column(db.DateTime)
 
-    def __init__(self, uuid, event_total, event_median, event_mean, pre_total, pre_median, pre_mean, post_total,
-                 post_median, post_mean):
+    def __init__(self, uuid):
         self.uuid = uuid
-        self.event_total = event_total
-        self.event_median = event_median
-        self.event_mean = event_mean
-        self.pre_total = pre_total
-        self.pre_median = pre_median
-        self.pre_mean = pre_mean
-        self.post_total = post_total
-        self.post_median = post_median
-        self.post_mean = post_mean
         self.created = datetime.now()
 
 

@@ -6,6 +6,7 @@
     <link href="{{ url_for('static', filename='font-awesome/css/font-awesome.min.css') }}" rel="stylesheet"
           type="text/css">
     <link rel="stylesheet" href="//cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css"/>
+    <link rel="stylesheet" href="//cdn.datatables.net/buttons/1.5.1/css/buttons.dataTables.min.css"/>
 {% endblock %}
 
 {% block content %}
@@ -41,6 +42,13 @@
 
 {% block javascript %}
     <script type="text/javascript" src="//cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" src="//cdn.datatables.net/buttons/1.5.1/js/dataTables.buttons.min.js"></script>
+    <script type="text/javascript" src="//cdn.datatables.net/buttons/1.5.1/js/buttons.flash.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.32/pdfmake.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.32/vfs_fonts.js"></script>
+    <script type="text/javascript" src="//cdn.datatables.net/buttons/1.5.1/js/buttons.html5.min.js"></script>
+    <script type="text/javascript" src="//cdn.datatables.net/buttons/1.5.1/js/buttons.print.min.js"></script>
     <script>
 
         function loadTweets(jsonData) {
@@ -49,24 +57,31 @@
                 "columns": [
                     {title: "Tweet_id", data: "tweet_id"},
                     {title: "Tweet text", data: "text"},
+                    {
+                        title: "API Link ", data: "tweet_id",
+                        render: function (d) {
+                            return '<a href="../../fintweet/api/tweet/' + d + '" target="_blank">Link</a>';
+                        }
+                    },
                 ],
-                "order": [[0, "desc"]],
-                "searching": false,
-                "info": false,
-                "lengthChange": false,
+                "order": [[0, "asc"]],
+                dom: 'Bfrtip',
+                buttons: [
+                    'copy', 'csv', 'excel', 'pdf', 'print'
+                ],
                 destroy: true
             });
         };
 
         $(document).ready(function () {
-            var url = "/project/ajax_event_tweets/" + "{{ event.uuid }}" + "/on_event";
+            var url = "../ajax_event_tweets/" + "{{ event.uuid }}" + "/on_event";
 
             $.getJSON(url, function (jsonData) {
                 loadTweets(jsonData);
             });
 
             $("#filter_period").on('change', function () {
-                var url = "/project/ajax_event_tweets/" + "{{ event.uuid }}" + "/" + this.value;
+                var url = "../ajax_event_tweets/" + "{{ event.uuid }}" + "/" + this.value;
                 $.getJSON(url, function (jsonData) {
                     loadTweets(jsonData);
                 });

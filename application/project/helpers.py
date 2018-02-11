@@ -62,6 +62,7 @@ def insert_event_tweets(event):
             event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \
                 .filter(EventTweets.tweet_id == t.tweet_id).first()
             if not event_tweet:
+                # print(t.tweet_id)
                 event_tweet = EventTweets(event.uuid, ev_per, t.tweet_id)
                 db.session.add(event_tweet)
                 db.session.commit()

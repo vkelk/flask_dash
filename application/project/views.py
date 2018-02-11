@@ -248,10 +248,11 @@ def events_upload():
 
 @project.route('/ajax_event_tweets/<uuid>/<period>')
 def ajax_event_tweets(uuid, period):
-    q = db.session.query(EventTweets.tweet_id, Tweet.text) \
+    q = db.session.query(func.to_char(EventTweets.tweet_id, 'FM999999999999999999').label('tweet_id'), Tweet.text) \
         .select_from(EventTweets).join(Tweet, Tweet.tweet_id == EventTweets.tweet_id) \
         .filter(EventTweets.event_uuid == uuid).filter(EventTweets.event_period == period) \
         .order_by(Tweet.tweet_id).all()
+    pprint(q)
     return jsonify(q)
 
 

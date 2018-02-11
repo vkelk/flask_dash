@@ -2,7 +2,7 @@ import hashlib, json, os
 from datetime import datetime, timedelta
 import pandas as pd
 from pprint import pprint
-from flask import render_template, request, Markup, flash, redirect, url_for, abort, session, jsonify
+from flask import render_template, request, Markup, flash, redirect, url_for, abort, session, jsonify, send_file
 from flask_login import login_user, current_user, login_required, logout_user
 from werkzeug.utils import secure_filename, CombinedMultiDict
 from application import db, login_manager
@@ -235,9 +235,11 @@ def events_upload():
 
                     insert_event_tweets(event)
 
-            df_in.to_excel(os.path.join(Configuration.UPLOAD_FOLDER, 'output.xlsx'), index=False)
+            file_output = 'output_' + file_input
+            df_in.to_excel(os.path.join(Configuration.UPLOAD_FOLDER, file_output), index=False)
             # df_in.to_stata(os.path.join(Configuration.UPLOAD_FOLDER, 'output.dta'), index=False)
-            form.file_csv.data = 'upload/output' + file_input
+            # form.output_file.data = 'upload/output' + file_input
+            form.output_file.data = file_output
             return render_template('project/events_upload.html', form=form, project=project,
                                    df_in=df_in.to_html(classes='table table-striped'))
 
@@ -254,6 +256,14 @@ def ajax_event_tweets(uuid, period):
         .order_by(Tweet.tweet_id).all()
     pprint(q)
     return jsonify(q)
+
+
+@project.route('/getfile/<filename>')  # this is a job for GET, not POST
+def getfile(filename):
+    return send_file('uploads/' + filename,
+                     mimetype='text/csv',
+                     attachment_filename=filename,
+                     as_attachment=True)
 
 
 @project.route('/<uuid>')

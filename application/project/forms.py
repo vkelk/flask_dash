@@ -68,6 +68,6 @@ class EventStudyFileForm(FlaskForm):
     file_input = FileField(
         validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text data files only!')])
     file_name = HiddenField()
-    file_csv = HiddenField()
+    output_file = HiddenField()
 
     create_study = SubmitField('Process study')

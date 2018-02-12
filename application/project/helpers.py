@@ -17,12 +17,16 @@ def dataframe_from_file(filename):
         df["total pre event"] = ""
         df["median pre event"] = ""
         df["mean pre event"] = ""
+        df["std pre event"] = ""
         df["total during event"] = ""
         df["median during event"] = ""
         df["mean during event"] = ""
+        df["std during event"] = ""
         df["total post event"] = ""
         df["median post event"] = ""
         df["mean post event"] = ""
+        df["std post event"] = ""
+        df["pct change"] = ""
         return df
     # TODO: Create import from CSV
     return None

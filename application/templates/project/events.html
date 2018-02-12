@@ -11,7 +11,21 @@
 {% block content %}
     <div class="row">
         <div class="panel panel-default">
-            <div class="panel-heading">Events for current active project</div>
+            <div class="panel-heading">
+                <div class="row">
+                    <div class="col-sm-6">
+                        Events for current active project
+                    </div>
+                    <div class="col-sm-3 col-sm-offset-3">
+                        {% if project.file_output %}
+                            <a href="{{ url_for('project.getfile', filename=project.file_output | safe) }}"
+                               target="_blank">
+                                <button class="btn btn-primary">Download file</button>
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
             <div class="panel-body">
                 <table id="tbl_events" class="display compact" cellspacing="0" width="100%">
                     <thead>
@@ -75,21 +89,25 @@
                 <div class="row">
                     <div class="col-sm-4">
                         <h5 style="text-align: center;">Pre Event</h5>
-                        <div class="col-sm-4">Total <br><span id="pre_total"></span></div>
-                        <div class="col-sm-4">Mean <br><span id="pre_mean"></span></div>
-                        <div class="col-sm-4">Median <br><span id="pre_median"></span></div>
+                        <div class="col-sm-3">Total <br><span id="pre_total"></span></div>
+                        <div class="col-sm-3">Mean <br><span id="pre_mean"></span></div>
+                        <div class="col-sm-3">Median <br><span id="pre_median"></span></div>
+                        <div class="col-sm-3">Std Dev <br><span id="pre_std"></span></div>
                     </div>
                     <div class="col-sm-4">
                         <h5 style="text-align: center;">Druing Event</h5>
-                        <div class="col-sm-4">Total <br><span id="event_total"></span></div>
-                        <div class="col-sm-4">Mean <br><span id="event_mean"></span></div>
-                        <div class="col-sm-4">Median <br><span id="event_median"></span></div>
+                        <div class="col-sm-3">Total <br><span id="event_total"></span></div>
+                        <div class="col-sm-3">Mean <br><span id="event_mean"></span></div>
+                        <div class="col-sm-3">Median <br><span id="event_median"></span></div>
+                        <div class="col-sm-3">Std Dev <br><span id="event_std"></span></div>
                     </div>
                     <div class="col-sm-4">
                         <h5 style="text-align: center;">Post Event</h5>
-                        <div class="col-sm-4">Total <br><span id="post_total"></span></div>
-                        <div class="col-sm-4">Mean <br><span id="post_mean"></span></div>
-                        <div class="col-sm-4">Median <br><span id="post_median"></span></div>
+                        <div class="col-sm-2">Total <br><span id="post_total"></span></div>
+                        <div class="col-sm-2">Mean <br><span id="post_mean"></span></div>
+                        <div class="col-sm-2">Median <br><span id="post_median"></span></div>
+                        <div class="col-sm-2">Std Dev <br><span id="post_std"></span></div>
+                        <div class="col-sm-4">Pct Change <br><span id="pct_change"></span></div>
                     </div>
                 </div>
 
@@ -110,18 +128,26 @@
                 $("#pre_mean").html(pre_mean);
                 var pre_median = data.objects[0].pre_median;
                 $("#pre_median").html(pre_median);
+                var pre_std = data.objects[0].pre_std;
+                $("#pre_std").html(pre_std);
                 var event_total = data.objects[0].event_total;
                 $("#event_total").html(event_total);
                 var event_mean = data.objects[0].event_mean;
                 $("#event_mean").html(event_mean);
                 var event_median = data.objects[0].event_median;
                 $("#event_median").html(event_median);
+                var event_std = data.objects[0].event_std;
+                $("#event_std").html(event_std);
                 var post_total = data.objects[0].post_total;
                 $("#post_total").html(post_total);
                 var post_mean = data.objects[0].post_mean;
                 $("#post_mean").html(post_mean);
                 var post_median = data.objects[0].post_median;
                 $("#post_median").html(post_median);
+                var post_std = data.objects[0].post_std;
+                $("#post_std").html(post_std);
+                var pct_change = data.objects[0].pct_change;
+                $("#pct_change").html(pct_change);
             });
         };
 

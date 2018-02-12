@@ -15,6 +15,7 @@ class Project(db.Model):
     date_start = db.Column(db.Date)
     date_end = db.Column(db.Date)
     active = db.Column(db.Boolean)
+    file_output = db.Column(db.String)
 
     details = db.relationship('ProjectDetais', backref='project_details', lazy='dynamic')
 
@@ -85,15 +86,19 @@ class EventStats(db.Model):
 
     uuid = db.Column(db.String(36), db.ForeignKey(Event.uuid), primary_key=True)
     event_total = db.Column(db.Integer)
-    event_median = db.Column(db.Integer)
-    event_mean = db.Column(db.Integer)
+    event_median = db.Column(db.Float)
+    event_mean = db.Column(db.Float)
     pre_total = db.Column(db.Integer)
-    pre_median = db.Column(db.Integer)
-    pre_mean = db.Column(db.Integer)
+    pre_median = db.Column(db.Float)
+    pre_mean = db.Column(db.Float)
     post_total = db.Column(db.Integer)
-    post_median = db.Column(db.Integer)
-    post_mean = db.Column(db.Integer)
+    post_median = db.Column(db.Float)
+    post_mean = db.Column(db.Float)
     created = db.Column(db.DateTime)
+    pre_std = db.Column(db.Float)
+    event_std = db.Column(db.Float)
+    post_std = db.Column(db.Float)
+    pct_change = db.Column(db.Float)
 
     def __init__(self, uuid):
         self.uuid = uuid

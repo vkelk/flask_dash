@@ -8,6 +8,7 @@
     <!-- Custom Fonts -->
     <link href="{{ url_for('static', filename='font-awesome/css/font-awesome.min.css') }}" rel="stylesheet"
           type="text/css">
+    <link rel="stylesheet" href="//cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css"/>
 {% endblock %}
 
 {% block content %}
@@ -32,38 +33,167 @@
                             <p>Descripton: {{ project.desription }}</p>
                         </div>
                     </div>
-
-
                 </div>
             </div>
         </div>
     </div>
     <div class="row">
-        <div class="col-sm-6">
-            <div class="panel panel-flat">
-                <div class="panel-heading">
-                    <h5 class="panel-title">Events in project {{ project.name }}</h5>
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <div class="row">
+                    <div class="col-sm-6">
+                        Events for current active project
+                    </div>
+                    <div class="col-sm-3 col-sm-offset-3">
+                        {% if project.file_output %}
+                            <a href="{{ url_for('project.getfile', filename=project.file_output | safe) }}"
+                               target="_blank">
+                                <button class="btn btn-primary">Download file</button>
+                            </a>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="panel-body">
-                    {% if events %}
-                        {% for event in events %}
-                            <p>{{ event.dataset }}</p>
-                        {% endfor %}
-                    {% else %}
-                        <p>No events found</p>
-                    {% endif %}
-                </div>
+            </div>
+            <div class="panel-body">
+                <table id="tbl_events" class="display compact" cellspacing="0" width="100%">
+                    <thead>
+                    <tr>
+                        {#            <th >dataset</th>#}
+                        <th>uuid</th>
+                        <th>type</th>
+                        <th>text</th>
+                        <th>event date</th>
+                        <th>event period</th>
+                        <th>pre estimation window</th>
+                        <th>post estimation window</th>
+                        <th style="max-width: 80px;">days pre-event</th>
+                        <th style="max-width: 80px;">days post-event</th>
+                        <th style="max-width: 80px;">days est. window</th>
+                        <th style="max-width: 80px;">days grace period</th>
+                        {#                        <th>event created</th>#}
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for event in events %}
+                        <tr>
+                            {#                <th>{{ event.dataset }}</th>#}
+                            <th>{{ event.uuid }}</th>
+                            <th>{{ event.type }}</th>
+                            <th>{{ event.text }}</th>
+                            <th>{{ event.event_date }}</th>
+                            <th>{{ event.event_start }} / {{ event.event_end }}</th>
+                            <th>{{ event.event_pre_start }} / {{ event.event_pre_end }}</th>
+                            <th>{{ event.event_post_start }} / {{ event.event_post_end }}</th>
+                            <th style="max-width: 80px;">{{ event.days_pre }}</th>
+                            <th style="max-width: 80px;">{{ event.days_post }}</th>
+                            <th style="max-width: 80px;">{{ event.days_estimation }}</th>
+                            <th style="max-width: 80px;">{{ event.days_grace }}</th>
+                            {#                            <th>{{ event.created }}</th>#}
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="panel-footer">
+                <div class="col-sm-12">Click on row to show event stats</div>
+
             </div>
         </div>
     </div>
-    <div clas="row">FORMA</div>
+    <div id="event_stats" class="row" style="display: none;">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <div class="row">
+                    <div class="col-sm-6">
+                        <h6>Event statistics for <span id="event_head"></span></h6>
+                    </div>
+                    <div class="col-sm-3 col-sm-offset-3">
+                        <a id="tweets_href" href="#" target="_blank">View Event tweets</a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="panel-body">
+                <div class="row">
+                    <div class="col-sm-4">
+                        <h5 style="text-align: center;">Pre Event</h5>
+                        <div class="col-sm-4">Total <br><span id="pre_total"></span></div>
+                        <div class="col-sm-4">Mean <br><span id="pre_mean"></span></div>
+                        <div class="col-sm-4">Median <br><span id="pre_median"></span></div>
+                    </div>
+                    <div class="col-sm-4">
+                        <h5 style="text-align: center;">Druing Event</h5>
+                        <div class="col-sm-4">Total <br><span id="event_total"></span></div>
+                        <div class="col-sm-4">Mean <br><span id="event_mean"></span></div>
+                        <div class="col-sm-4">Median <br><span id="event_median"></span></div>
+                    </div>
+                    <div class="col-sm-4">
+                        <h5 style="text-align: center;">Post Event</h5>
+                        <div class="col-sm-4">Total <br><span id="post_total"></span></div>
+                        <div class="col-sm-4">Mean <br><span id="post_mean"></span></div>
+                        <div class="col-sm-4">Median <br><span id="post_median"></span></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block javascript %}
-
+    <script type="text/javascript" src="//cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
     <script>
-        $(document).ready(function () {
+        function getEventStats(event_uuid) {
+            var url = "api/event/" + event_uuid + "/stats";
+            $.getJSON(url, function (data) {
+                var pre_total = data.objects[0].pre_total;
+                $("#pre_total").html(pre_total);
+                var pre_mean = data.objects[0].pre_mean;
+                $("#pre_mean").html(pre_mean);
+                var pre_median = data.objects[0].pre_median;
+                $("#pre_median").html(pre_median);
+                var event_total = data.objects[0].event_total;
+                $("#event_total").html(event_total);
+                var event_mean = data.objects[0].event_mean;
+                $("#event_mean").html(event_mean);
+                var event_median = data.objects[0].event_median;
+                $("#event_median").html(event_median);
+                var post_total = data.objects[0].post_total;
+                $("#post_total").html(post_total);
+                var post_mean = data.objects[0].post_mean;
+                $("#post_mean").html(post_mean);
+                var post_median = data.objects[0].post_median;
+                $("#post_median").html(post_median);
+            });
+        };
 
+        $(document).ready(function () {
+            tblEvents = $('#tbl_events').DataTable({
+                "columnDefs": [
+                    {
+                        "targets": [0],
+                        "visible": false,
+                        "searchable": false
+                    }
+                ]
+            });
+
+            $('#tbl_events tbody').on('click', 'tr', function () {
+                var event_data = tblEvents.row(this).data();
+                var event_uuid = event_data[0];
+                var event_text = event_data[2];
+                var href = "event_tweets/" + event_uuid
+                $("#event_stats").show();
+                $("#tweets_href").attr("href", href);
+                $("#event_head").html(event_text);
+                if ($(this).hasClass('selected')) {
+                    $(this).removeClass('selected');
+                } else {
+                    tblEvents.$('tr.selected').removeClass('selected');
+                    $(this).addClass('selected');
+                }
+                getEventStats(event_uuid);
+            });
         });
 
     </script>

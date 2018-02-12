@@ -94,7 +94,11 @@ def project_activate(uuid):
 @project.route('/list')
 @login_required
 def list():
-    projects = Project.query.filter(Project.account_id == current_user.get_id()).order_by(Project.uuid).all()
+    # projects = Project.query.filter(Project.account_id == current_user.get_id()).order_by(Project.uuid).all()
+    projects = db.session.query(Project.uuid, Project.name, Project.description, Project.date_start, Project.date_end,
+                                Project.active, func.count(Event.project_id).label('events_count')).select_from(Project) \
+        .outerjoin(Event, Event.project_id == Project.uuid).filter(Project.account_id == current_user.get_id()) \
+        .group_by(Project.uuid).group_by(Event.project_id).order_by(Project.uuid).all()
     return render_template('project/projects.html', projects=projects)
 
 
@@ -105,7 +109,7 @@ def event_list():
     if project:
         session['active_project'] = project.uuid
     events = Event.query.filter(Event.project_id == project.uuid).all()
-    return render_template('project/events.html', events=events)
+    return render_template('project/events.html', events=events, project=project)
 
 
 @project.route('/event_tweets/<uuid>')
@@ -213,33 +217,45 @@ def events_upload():
                     event_stats.event_total = int(df_event['count'].sum())
                     event_stats.event_median = df_event['count'].median() if event_stats.event_total > 0 else 0
                     event_stats.event_mean = df_event['count'].mean() if event_stats.event_total > 0 else 0
+                    event_stats.event_std = df_event['count'].std() if event_stats.event_total > 1 else 0
                     event_stats.pre_total = int(df_pre_est['count'].sum())
                     event_stats.pre_median = df_pre_est['count'].median() if event_stats.pre_total > 0 else 0
                     event_stats.pre_mean = df_pre_est['count'].mean() if event_stats.pre_total > 0 else 0
+                    event_stats.pre_std = df_pre_est['count'].std() if event_stats.pre_total > 1 else 0
                     event_stats.post_total = int(df_post_est['count'].sum())
                     event_stats.post_median = df_post_est['count'].median() if event_stats.post_total > 0 else 0
                     event_stats.post_mean = df_post_est['count'].mean() if event_stats.post_total > 0 else 0
+                    event_stats.post_std = df_post_est['count'].std() if event_stats.post_total > 1 else 0
+                    event_stats.pct_change = (
+                                                         event_stats.post_total - event_stats.pre_total) / event_stats.pre_total if event_stats.pre_total > 0 else 0
 
                     db.session.add(event_stats)
                     db.session.commit()
 
-                    df_in.loc[index, "total pre event"] = df_pre_est['count'].sum()
-                    df_in.loc[index, "median pre event"] = df_pre_est['count'].median()
-                    df_in.loc[index, "mean pre event"] = df_pre_est['count'].mean()
-                    df_in.loc[index, "total during event"] = df_event['count'].sum()
-                    df_in.loc[index, "median during event"] = df_event['count'].median()
-                    df_in.loc[index, "mean during event"] = df_event['count'].mean()
-                    df_in.loc[index, "total post event"] = df_post_est['count'].sum()
-                    df_in.loc[index, "median post event"] = df_post_est['count'].median()
-                    df_in.loc[index, "mean post event"] = df_post_est['count'].mean()
+                    df_in.loc[index, "total pre event"] = event_stats.pre_total
+                    df_in.loc[index, "median pre event"] = event_stats.pre_median
+                    df_in.loc[index, "mean pre event"] = event_stats.pre_mean
+                    df_in.loc[index, "std pre event"] = event_stats.pre_std
+                    df_in.loc[index, "total during event"] = event_stats.event_total
+                    df_in.loc[index, "median during event"] = event_stats.event_median
+                    df_in.loc[index, "mean during event"] = event_stats.event_mean
+                    df_in.loc[index, "std during event"] = event_stats.event_std
+                    df_in.loc[index, "total post event"] = event_stats.post_total
+                    df_in.loc[index, "median post event"] = event_stats.post_median
+                    df_in.loc[index, "mean post event"] = event_stats.post_mean
+                    df_in.loc[index, "std post event"] = event_stats.post_std
+                    df_in.loc[index, "pct change"] = event_stats.pct_change
 
                     insert_event_tweets(event)
 
             file_output = 'output_' + file_input
+            project.file_output = file_output
             df_in.to_excel(os.path.join(Configuration.UPLOAD_FOLDER, file_output), index=False)
             # df_in.to_stata(os.path.join(Configuration.UPLOAD_FOLDER, 'output.dta'), index=False)
             # form.output_file.data = 'upload/output' + file_input
             form.output_file.data = file_output
+            db.session.add(project)
+            db.session.commit()
             return render_template('project/events_upload.html', form=form, project=project,
                                    df_in=df_in.to_html(classes='table table-striped'))
 
@@ -260,6 +276,8 @@ def ajax_event_tweets(uuid, period):
 
 @project.route('/getfile/<filename>')  # this is a job for GET, not POST
 def getfile(filename):
+    if not filename:
+        return None
     return send_file('uploads/' + filename,
                      mimetype='text/csv',
                      attachment_filename=filename,

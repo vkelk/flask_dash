@@ -18,14 +18,23 @@ def dataframe_from_file(filename):
         df["median pre event"] = ""
         df["mean pre event"] = ""
         df["std pre event"] = ""
+        df["bullish pre event"] = ""
+        df["bearish pre event"] = ""
+        df["sentiment pre event"] = ""
         df["total during event"] = ""
         df["median during event"] = ""
         df["mean during event"] = ""
         df["std during event"] = ""
+        df["bullish during event"] = ""
+        df["bearish during event"] = ""
+        df["sentiment during event"] = ""
         df["total post event"] = ""
         df["median post event"] = ""
         df["mean post event"] = ""
         df["std post event"] = ""
+        df["bullish post event"] = ""
+        df["bearish post event"] = ""
+        df["sentiment post event"] = ""
         df["pct change"] = ""
         return df
     # TODO: Create import from CSV
@@ -58,16 +67,29 @@ def get_tweets_from_event_period(c_tag, period_start, period_end):
 
 def insert_event_tweets(event):
     pre_tweets = get_tweets_from_event_period(event.text, event.event_pre_start, event.event_pre_end)
+    for t in pre_tweets:
+        event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \
+            .filter(EventTweets.tweet_id == t.tweet_id).first()
+        if not event_tweet:
+            event_tweet = EventTweets(event.uuid, "pre_event", t.tweet_id)
+            db.session.add(event_tweet)
+            db.session.commit()
+    pre_tweets = None
     onevent_tweets = get_tweets_from_event_period(event.text, event.event_start, event.event_end)
+    for t in onevent_tweets:
+        event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \
+            .filter(EventTweets.tweet_id == t.tweet_id).first()
+        if not event_tweet:
+            event_tweet = EventTweets(event.uuid, "on_event", t.tweet_id)
+            db.session.add(event_tweet)
+            db.session.commit()
+    onevent_tweets = None
     post_tweets = get_tweets_from_event_period(event.text, event.event_post_start, event.event_post_end)
-    # objects = []
-    for ev_per, tweets in {"pre_event": pre_tweets, "on_event": onevent_tweets, "post_event": post_tweets}.items():
-        for t in tweets:
-            event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \
-                .filter(EventTweets.tweet_id == t.tweet_id).first()
-            if not event_tweet:
-                # print(t.tweet_id)
-                event_tweet = EventTweets(event.uuid, ev_per, t.tweet_id)
-                db.session.add(event_tweet)
-                db.session.commit()
+    for t in post_tweets:
+        event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \
+            .filter(EventTweets.tweet_id == t.tweet_id).first()
+        if not event_tweet:
+            event_tweet = EventTweets(event.uuid, "on_event", t.tweet_id)
+            db.session.add(event_tweet)
+            db.session.commit()
     return None

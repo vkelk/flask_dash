@@ -99,6 +99,15 @@ class EventStats(db.Model):
     event_std = db.Column(db.Float)
     post_std = db.Column(db.Float)
     pct_change = db.Column(db.Float)
+    pre_bullish = db.Column(db.Integer)
+    event_bullish = db.Column(db.Integer)
+    post_bullish = db.Column(db.Integer)
+    pre_bearish = db.Column(db.Integer)
+    event_bearish = db.Column(db.Integer)
+    post_bearish = db.Column(db.Integer)
+    pre_sentiment = db.Column(db.Float)
+    event_sentiment = db.Column(db.Float)
+    post_sentiment = db.Column(db.Float)
 
     def __init__(self, uuid):
         self.uuid = uuid

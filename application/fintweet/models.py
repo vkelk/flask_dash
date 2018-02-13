@@ -220,9 +220,12 @@ class TweetUrl(db.Model):
     def __repr__(self):
         return self.id
 
-# apimanager.create_api(Tweet, methods=['GET'])
-# api.add_resource(Tweet, "/tweet")
-# api.init_app(current_app)
-# with current_app.app_context():
-# reflection to get table meta
-# pass
+
+class TweetSentiment(db.Model):
+    __tablename__ = 'tweet_sentiment'
+    __table_args__ = {"schema": "fintweet"}
+
+    tweet_id = db.Column(db.BigInteger, db.ForeignKey(Tweet.tweet_id), primary_key=True)
+    sentiment = db.Column(db.String(255))
+
+    tweets = db.relationship('Tweet', backref="sentiment")

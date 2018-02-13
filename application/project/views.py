@@ -209,6 +209,7 @@ def events_upload():
                     df_event.fillna(0)
                     df_post_est = df_full.loc[event_window['end'].date():]
                     df_post_est.fillna(0)
+                    df_full.truncate()
 
                     event_stats = EventStats.query.filter(EventStats.uuid == event_uuid).first()
                     if not event_stats:
@@ -218,14 +219,17 @@ def events_upload():
                     event_stats.event_median = df_event['count'].median() if event_stats.event_total > 0 else 0
                     event_stats.event_mean = df_event['count'].mean() if event_stats.event_total > 0 else 0
                     event_stats.event_std = df_event['count'].std() if event_stats.event_total > 1 else 0
+                    df_event = None
                     event_stats.pre_total = int(df_pre_est['count'].sum())
                     event_stats.pre_median = df_pre_est['count'].median() if event_stats.pre_total > 0 else 0
                     event_stats.pre_mean = df_pre_est['count'].mean() if event_stats.pre_total > 0 else 0
                     event_stats.pre_std = df_pre_est['count'].std() if event_stats.pre_total > 1 else 0
+                    df_pre_est = None
                     event_stats.post_total = int(df_post_est['count'].sum())
                     event_stats.post_median = df_post_est['count'].median() if event_stats.post_total > 0 else 0
                     event_stats.post_mean = df_post_est['count'].mean() if event_stats.post_total > 0 else 0
                     event_stats.post_std = df_post_est['count'].std() if event_stats.post_total > 1 else 0
+                    df_post_est = None
                     event_stats.pct_change = (
                                                          event_stats.post_total - event_stats.pre_total) / event_stats.pre_total if event_stats.pre_total > 0 else 0
 
@@ -246,7 +250,7 @@ def events_upload():
                     df_in.loc[index, "std post event"] = event_stats.post_std
                     df_in.loc[index, "pct change"] = event_stats.pct_change
 
-                    insert_event_tweets(event)
+                    # insert_event_tweets(event)
 
             file_output = 'output_' + file_input
             project.file_output = file_output

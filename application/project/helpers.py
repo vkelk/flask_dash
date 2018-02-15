@@ -14,28 +14,34 @@ def dataframe_from_file(filename):
     if ext in ['.xls', '.xlsx']:
         df = pd.read_excel(filename)
         df.columns = [slugify(col) for col in df.columns]
-        df["total pre event"] = ""
-        df["median pre event"] = ""
         df["mean pre event"] = ""
-        df["std pre event"] = ""
+        df["median pre event"] = ""
+        df["total pre event"] = ""
         df["bullish pre event"] = ""
         df["bearish pre event"] = ""
-        df["sentiment pre event"] = ""
-        df["total during event"] = ""
-        df["median during event"] = ""
+        df["positive pre event"] = ""
+        df["negative pre event"] = ""
+        # df["sentiment pre event"] = ""
+        # df["std pre event"] = ""
         df["mean during event"] = ""
-        df["std during event"] = ""
+        df["median during event"] = ""
+        df["total during event"] = ""
         df["bullish during event"] = ""
         df["bearish during event"] = ""
-        df["sentiment during event"] = ""
-        df["total post event"] = ""
-        df["median post event"] = ""
+        df["positive during event"] = ""
+        df["negative during event"] = ""
+        # df["sentiment during event"] = ""
+        # df["std during event"] = ""
         df["mean post event"] = ""
-        df["std post event"] = ""
+        df["median post event"] = ""
+        df["total post event"] = ""
         df["bullish post event"] = ""
         df["bearish post event"] = ""
-        df["sentiment post event"] = ""
-        df["pct change"] = ""
+        df["positive post event"] = ""
+        df["negative post event"] = ""
+        # df["sentiment post event"] = ""
+        # df["std post event"] = ""
+        # df["pct change"] = ""
         return df
     # TODO: Create import from CSV
     return None
@@ -78,6 +84,30 @@ def insert_event_tweets(event):
             db.session.add(event_tweet)
             db.session.commit()
 
+    for t in db.session.query(Tweet.tweet_id).join(TweetCashtag) \
+            .filter(TweetCashtag.cashtags == event.text) \
+            .filter(Tweet.date >= event.event_start) \
+            .filter(Tweet.date <= event.event_end) \
+            .order_by(Tweet.date).yield_per(100):
+        event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \
+            .filter(EventTweets.tweet_id == t.tweet_id).first()
+        if not event_tweet:
+            event_tweet = EventTweets(event.uuid, "on_event", t.tweet_id)
+            db.session.add(event_tweet)
+            db.session.commit()
+
+    for t in db.session.query(Tweet.tweet_id).join(TweetCashtag) \
+            .filter(TweetCashtag.cashtags == event.text) \
+            .filter(Tweet.date >= event.event_post_start) \
+            .filter(Tweet.date <= event.event_post_end) \
+            .order_by(Tweet.date).yield_per(100):
+        event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \
+            .filter(EventTweets.tweet_id == t.tweet_id).first()
+        if not event_tweet:
+            event_tweet = EventTweets(event.uuid, "post_event", t.tweet_id)
+            db.session.add(event_tweet)
+            db.session.commit()
+
     # pre_tweets = get_tweets_from_event_period(event.text, event.event_pre_start, event.event_pre_end)
     # for t in pre_tweets:
     #     event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \
@@ -87,21 +117,13 @@ def insert_event_tweets(event):
     #         db.session.add(event_tweet)
     #         db.session.commit()
     # pre_tweets = None
-    onevent_tweets = get_tweets_from_event_period(event.text, event.event_start, event.event_end)
-    for t in onevent_tweets:
-        event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \
-            .filter(EventTweets.tweet_id == t.tweet_id).first()
-        if not event_tweet:
-            event_tweet = EventTweets(event.uuid, "on_event", t.tweet_id)
-            db.session.add(event_tweet)
-            db.session.commit()
-    onevent_tweets = None
-    post_tweets = get_tweets_from_event_period(event.text, event.event_post_start, event.event_post_end)
-    for t in post_tweets:
-        event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \
-            .filter(EventTweets.tweet_id == t.tweet_id).first()
-        if not event_tweet:
-            event_tweet = EventTweets(event.uuid, "on_event", t.tweet_id)
-            db.session.add(event_tweet)
-            db.session.commit()
+
     return None
+
+
+def count_sentiment(event):
+    '''
+    select sum(case when s.sentiment = 'Bullish' then 1 else 0 end) as bulls, sum(case when s.sentiment = 'Bearish' then 1 else 0 end) as bears from fintweet.tweet_cashtags c join fintweet.tweet t on t.tweet_id = c.tweet_id join fintweet.tweet_sentiment s on c.tweet_id = s.tweet_id where c.cashtags='$SAIC' and t.date >='2015-03-01' and t.date <='2015-03-04'  limit 1;
+    :param event:
+    :return:
+    '''

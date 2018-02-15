@@ -218,20 +218,20 @@ def events_upload():
                     event_stats.event_total = int(df_event['count'].sum())
                     event_stats.event_median = df_event['count'].median() if event_stats.event_total > 0 else 0
                     event_stats.event_mean = df_event['count'].mean() if event_stats.event_total > 0 else 0
-                    event_stats.event_std = df_event['count'].std() if event_stats.event_total > 1 else 0
+                    # event_stats.event_std = df_event['count'].std() if event_stats.event_total > 1 else 0
                     df_event = None
                     event_stats.pre_total = int(df_pre_est['count'].sum())
                     event_stats.pre_median = df_pre_est['count'].median() if event_stats.pre_total > 0 else 0
                     event_stats.pre_mean = df_pre_est['count'].mean() if event_stats.pre_total > 0 else 0
-                    event_stats.pre_std = df_pre_est['count'].std() if event_stats.pre_total > 1 else 0
+                    # event_stats.pre_std = df_pre_est['count'].std() if event_stats.pre_total > 1 else 0
                     df_pre_est = None
                     event_stats.post_total = int(df_post_est['count'].sum())
                     event_stats.post_median = df_post_est['count'].median() if event_stats.post_total > 0 else 0
                     event_stats.post_mean = df_post_est['count'].mean() if event_stats.post_total > 0 else 0
-                    event_stats.post_std = df_post_est['count'].std() if event_stats.post_total > 1 else 0
+                    # event_stats.post_std = df_post_est['count'].std() if event_stats.post_total > 1 else 0
                     df_post_est = None
-                    event_stats.pct_change = (
-                                                         event_stats.post_total - event_stats.pre_total) / event_stats.pre_total if event_stats.pre_total > 0 else 0
+                    # event_stats.pct_change = (
+                    #                                      event_stats.post_total - event_stats.pre_total) / event_stats.pre_total if event_stats.pre_total > 0 else 0
 
                     db.session.add(event_stats)
                     db.session.commit()
@@ -239,22 +239,23 @@ def events_upload():
                     df_in.loc[index, "total pre event"] = event_stats.pre_total
                     df_in.loc[index, "median pre event"] = event_stats.pre_median
                     df_in.loc[index, "mean pre event"] = event_stats.pre_mean
-                    df_in.loc[index, "std pre event"] = event_stats.pre_std
+                    # df_in.loc[index, "std pre event"] = event_stats.pre_std
                     df_in.loc[index, "total during event"] = event_stats.event_total
                     df_in.loc[index, "median during event"] = event_stats.event_median
                     df_in.loc[index, "mean during event"] = event_stats.event_mean
-                    df_in.loc[index, "std during event"] = event_stats.event_std
+                    # df_in.loc[index, "std during event"] = event_stats.event_std
                     df_in.loc[index, "total post event"] = event_stats.post_total
                     df_in.loc[index, "median post event"] = event_stats.post_median
                     df_in.loc[index, "mean post event"] = event_stats.post_mean
-                    df_in.loc[index, "std post event"] = event_stats.post_std
-                    df_in.loc[index, "pct change"] = event_stats.pct_change
+                    # df_in.loc[index, "std post event"] = event_stats.post_std
+                    # df_in.loc[index, "pct change"] = event_stats.pct_change
 
                     # insert_event_tweets(event)
 
             file_output = 'output_' + file_input
             project.file_output = file_output
             df_in.to_excel(os.path.join(Configuration.UPLOAD_FOLDER, file_output), index=False)
+            df_in.to_sql()
             # df_in.to_stata(os.path.join(Configuration.UPLOAD_FOLDER, 'output.dta'), index=False)
             # form.output_file.data = 'upload/output' + file_input
             form.output_file.data = file_output

@@ -108,6 +108,12 @@ class EventStats(db.Model):
     pre_sentiment = db.Column(db.Float)
     event_sentiment = db.Column(db.Float)
     post_sentiment = db.Column(db.Float)
+    pre_positive = db.Column(db.Integer)
+    pre_negative = db.Column(db.Integer)
+    event_positive = db.Column(db.Integer)
+    event_negative = db.Column(db.Integer)
+    post_positive = db.Column(db.Integer)
+    post_negative = db.Column(db.Integer)
 
     def __init__(self, uuid):
         self.uuid = uuid

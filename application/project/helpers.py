@@ -121,9 +121,22 @@ def insert_event_tweets(event):
     return None
 
 
-def count_sentiment(event):
+def count_sentiment(cashtag, start, end):
     '''
-    select sum(case when s.sentiment = 'Bullish' then 1 else 0 end) as bulls, sum(case when s.sentiment = 'Bearish' then 1 else 0 end) as bears from fintweet.tweet_cashtags c join fintweet.tweet t on t.tweet_id = c.tweet_id join fintweet.tweet_sentiment s on c.tweet_id = s.tweet_id where c.cashtags='$SAIC' and t.date >='2015-03-01' and t.date <='2015-03-04'  limit 1;
+    select sum(case when s.sentiment = 'Bullish' then 1 else 0 end) as bulls,
+        sum(case when s.sentiment = 'Bearish' then 1 else 0 end) as bears
+        from fintweet.tweet_cashtags c
+        join fintweet.tweet t on t.tweet_id = c.tweet_id
+        join fintweet.tweet_sentiment s on c.tweet_id = s.tweet_id
+        where c.cashtags='$SAIC' and t.date >='2015-03-01' and t.date <='2015-03-04'  limit 1;
     :param event:
     :return:
     '''
+    filters = {"cashtag": cashtag, "start": start, "end": end}
+    q = "select sum(case when s.sentiment = 'Bullish' then 1 else 0 end) as bullish, sum(case when s.sentiment = 'Bearish' then 1 else 0 end) as bearish, " \
+        "sum (case when s.tone = 'positive' then 1 else 0 end) as positive, sum (case when s.tone = 'negative' then 1 else 0 end) as negative " \
+        "from fintweet.tweet_cashtags c join fintweet.tweet t on t.tweet_id = c.tweet_id join fintweet.tweet_sentiment s on c.tweet_id = s.tweet_id " \
+        "where c.cashtags='{cashtag}' and t.date >='{start}' and t.date <='{end}'".format(**filters)
+    result = db.session.execute(q).fetchone()
+    # print(result.keys(), result)
+    return result

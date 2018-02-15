@@ -164,14 +164,14 @@ def events_upload():
                                 'end': date_on_event + timedelta(days=form.days_post_event.data)}
                 date_estwin_pre_end = event_window['start'] - timedelta(days=(form.days_grace.data + 1))
                 date_estwin_pre_start = date_estwin_pre_end - timedelta(days=form.days_estimation.data)
-                date_estwin_pre_start = min(date_estwin_pre_start.date(), project.date_start)
+                date_estwin_pre_start = max(date_estwin_pre_start.date(), project.date_start)
                 if form.select_deal_resolution.data == 'false':
                     date_estwin_post_start = event_window['end'] + timedelta(days=1)
                     date_estwin_post_end = date_estwin_post_start + timedelta(days=form.days_estimation.data)
                 else:
                     date_estwin_post_start = event_window['end'] + timedelta(days=1)
                     date_estwin_post_end = date_estwin_post_start + timedelta(days=row['deal_resolution'])
-                    date_estwin_post_end = max(date_estwin_post_end.date(), project.date_end)
+                    date_estwin_post_end = min(date_estwin_post_end.date(), project.date_end)
 
                 estimation_window = {'pre_end': date_estwin_pre_end,
                                      'pre_start': date_estwin_pre_start,
@@ -219,16 +219,31 @@ def events_upload():
                     event_stats.event_median = df_event['count'].median() if event_stats.event_total > 0 else 0
                     event_stats.event_mean = df_event['count'].mean() if event_stats.event_total > 0 else 0
                     # event_stats.event_std = df_event['count'].std() if event_stats.event_total > 1 else 0
+                    event_sent = count_sentiment(event.text, event.event_start, event.event_end)
+                    event_stats.event_bullish = event_sent['bullish']
+                    event_stats.event_bearish = event_sent['bearish']
+                    event_stats.event_positive = event_sent['positive']
+                    event_stats.event_negative = event_sent['negative']
                     df_event = None
                     event_stats.pre_total = int(df_pre_est['count'].sum())
                     event_stats.pre_median = df_pre_est['count'].median() if event_stats.pre_total > 0 else 0
                     event_stats.pre_mean = df_pre_est['count'].mean() if event_stats.pre_total > 0 else 0
                     # event_stats.pre_std = df_pre_est['count'].std() if event_stats.pre_total > 1 else 0
+                    event_sent = count_sentiment(event.text, event.event_pre_start, event.event_pre_end)
+                    event_stats.pre_bullish = event_sent['bullish']
+                    event_stats.pre_bearish = event_sent['bearish']
+                    event_stats.pre_positive = event_sent['positive']
+                    event_stats.pre_negative = event_sent['negative']
                     df_pre_est = None
                     event_stats.post_total = int(df_post_est['count'].sum())
                     event_stats.post_median = df_post_est['count'].median() if event_stats.post_total > 0 else 0
                     event_stats.post_mean = df_post_est['count'].mean() if event_stats.post_total > 0 else 0
                     # event_stats.post_std = df_post_est['count'].std() if event_stats.post_total > 1 else 0
+                    event_sent = count_sentiment(event.text, event.event_post_start, event.event_post_end)
+                    event_stats.post_bullish = event_sent['bullish']
+                    event_stats.post_bearish = event_sent['bearish']
+                    event_stats.post_positive = event_sent['positive']
+                    event_stats.post_negative = event_sent['negative']
                     df_post_est = None
                     # event_stats.pct_change = (
                     #                                      event_stats.post_total - event_stats.pre_total) / event_stats.pre_total if event_stats.pre_total > 0 else 0
@@ -239,14 +254,26 @@ def events_upload():
                     df_in.loc[index, "total pre event"] = event_stats.pre_total
                     df_in.loc[index, "median pre event"] = event_stats.pre_median
                     df_in.loc[index, "mean pre event"] = event_stats.pre_mean
+                    df_in.loc[index, "bullish pre event"] = event_stats.pre_bullish
+                    df_in.loc[index, "bearish pre event"] = event_stats.pre_bearish
+                    df_in.loc[index, "positive pre event"] = event_stats.pre_positive
+                    df_in.loc[index, "negative pre event"] = event_stats.pre_negative
                     # df_in.loc[index, "std pre event"] = event_stats.pre_std
                     df_in.loc[index, "total during event"] = event_stats.event_total
                     df_in.loc[index, "median during event"] = event_stats.event_median
                     df_in.loc[index, "mean during event"] = event_stats.event_mean
+                    df_in.loc[index, "bullish during event"] = event_stats.event_bullish
+                    df_in.loc[index, "bearish during event"] = event_stats.event_bearish
+                    df_in.loc[index, "positive during event"] = event_stats.event_positive
+                    df_in.loc[index, "negative during event"] = event_stats.event_negative
                     # df_in.loc[index, "std during event"] = event_stats.event_std
                     df_in.loc[index, "total post event"] = event_stats.post_total
                     df_in.loc[index, "median post event"] = event_stats.post_median
                     df_in.loc[index, "mean post event"] = event_stats.post_mean
+                    df_in.loc[index, "bullish post event"] = event_stats.post_bullish
+                    df_in.loc[index, "bearish post event"] = event_stats.post_bearish
+                    df_in.loc[index, "positive post event"] = event_stats.post_positive
+                    df_in.loc[index, "negative post event"] = event_stats.post_negative
                     # df_in.loc[index, "std post event"] = event_stats.post_std
                     # df_in.loc[index, "pct change"] = event_stats.pct_change
 
@@ -255,7 +282,7 @@ def events_upload():
             file_output = 'output_' + file_input
             project.file_output = file_output
             df_in.to_excel(os.path.join(Configuration.UPLOAD_FOLDER, file_output), index=False)
-            df_in.to_sql()
+            # df_in.to_sql('table', db.engine)
             # df_in.to_stata(os.path.join(Configuration.UPLOAD_FOLDER, 'output.dta'), index=False)
             # form.output_file.data = 'upload/output' + file_input
             form.output_file.data = file_output

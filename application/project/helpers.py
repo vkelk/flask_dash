@@ -66,15 +66,27 @@ def get_tweets_from_event_period(c_tag, period_start, period_end):
 
 
 def insert_event_tweets(event):
-    pre_tweets = get_tweets_from_event_period(event.text, event.event_pre_start, event.event_pre_end)
-    for t in pre_tweets:
+    for t in db.session.query(Tweet.tweet_id).join(TweetCashtag) \
+            .filter(TweetCashtag.cashtags == event.text) \
+            .filter(Tweet.date >= event.event_pre_start) \
+            .filter(Tweet.date <= event.event_pre_end) \
+            .order_by(Tweet.date).yield_per(100):
         event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \
             .filter(EventTweets.tweet_id == t.tweet_id).first()
         if not event_tweet:
             event_tweet = EventTweets(event.uuid, "pre_event", t.tweet_id)
             db.session.add(event_tweet)
             db.session.commit()
-    pre_tweets = None
+
+    # pre_tweets = get_tweets_from_event_period(event.text, event.event_pre_start, event.event_pre_end)
+    # for t in pre_tweets:
+    #     event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \
+    #         .filter(EventTweets.tweet_id == t.tweet_id).first()
+    #     if not event_tweet:
+    #         event_tweet = EventTweets(event.uuid, "pre_event", t.tweet_id)
+    #         db.session.add(event_tweet)
+    #         db.session.commit()
+    # pre_tweets = None
     onevent_tweets = get_tweets_from_event_period(event.text, event.event_start, event.event_end)
     for t in onevent_tweets:
         event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \

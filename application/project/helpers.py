@@ -42,6 +42,15 @@ def dataframe_from_file(filename):
         # df["sentiment post event"] = ""
         # df["std post event"] = ""
         # df["pct change"] = ""
+        df["users pre event"] = ""
+        df["users during event"] = ""
+        df["users post event"] = ""
+        df["bullish users pre event"] = ""
+        df["bearish users pre event"] = ""
+        df["bullish users during event"] = ""
+        df["bearish users during event"] = ""
+        df["bullish users post event"] = ""
+        df["bearish users post event"] = ""
         return df
     # TODO: Create import from CSV
     return None
@@ -137,6 +146,35 @@ def count_sentiment(cashtag, start, end):
         "sum (case when s.tone = 'positive' then 1 else 0 end) as positive, sum (case when s.tone = 'negative' then 1 else 0 end) as negative " \
         "from fintweet.tweet_cashtags c join fintweet.tweet t on t.tweet_id = c.tweet_id join fintweet.tweet_sentiment s on c.tweet_id = s.tweet_id " \
         "where c.cashtags='{cashtag}' and t.date >='{start}' and t.date <='{end}'".format(**filters)
+    result = db.session.execute(q).fetchone()
+    # print(result.keys(), result)
+    return result
+
+
+def count_users_sentimet(cashtag, start, end):
+    '''
+    SELECT COUNT(distinct t.user_id) filter (where t.date >='2014-10-31' and t.date <='2015-02-28') as users_pre,
+    COUNT(distinct t.user_id) filter (where t.date >='2015-03-01' and t.date <='2015-03-04') as users_during,
+    COUNT(distinct t.user_id) filter (where t.date >='2015-03-05' and t.date <='2015-07-03') as users_post,
+    COUNT(distinct t.user_id) filter (where t.date >='2014-10-31' and t.date <='2015-02-28' and s.sentiment = 'Bullish') as users_pre_bullish,
+    COUNT(distinct t.user_id) filter (where t.date >='2015-03-01' and t.date <='2015-03-04' and s.sentiment = 'Bullish') as users_during_bullish,
+    COUNT(distinct t.user_id) filter (where t.date >='2015-03-05' and t.date <='2015-07-03' and s.sentiment = 'Bullish') as users_post_bullish,
+    COUNT(distinct t.user_id) filter (where t.date >='2014-10-31' and t.date <='2015-02-28' and s.sentiment = 'Bearish') as users_pre_bearish,
+    COUNT(distinct t.user_id) filter (where t.date >='2015-03-01' and t.date <='2015-03-04' and s.sentiment = 'Bearish') as users_during_bearsh,
+    COUNT(distinct t.user_id) filter (where t.date >='2015-03-05' and t.date <='2015-07-03' and s.sentiment = 'Bearish') as users_post_bearish
+    FROM fintweet.tweet_cashtags c join fintweet.tweet t on t.tweet_id = c.tweet_id join fintweet.tweet_sentiment s on c.tweet_id = s.tweet_id
+    WHERE c.cashtags='$SAIC';
+    :param event:
+    :return:
+    '''
+    filters = {"cashtag": cashtag, "start": start, "end": end}
+    q = "SELECT COUNT(distinct t.user_id) as users, " \
+        "COUNT(distinct t.user_id) filter (WHERE s.sentiment = 'Bullish') as bullish, " \
+        "COUNT(distinct t.user_id) filter (WHERE s.sentiment = 'Bearish') as bearish " \
+        "FROM fintweet.tweet_cashtags c " \
+        "JOIN fintweet.tweet t ON t.tweet_id = c.tweet_id " \
+        "JOIN fintweet.tweet_sentiment s ON c.tweet_id = s.tweet_id " \
+        "WHERE c.cashtags='{cashtag}' AND t.date >='{start}' AND t.date <='{end}'".format(**filters)
     result = db.session.execute(q).fetchone()
     # print(result.keys(), result)
     return result

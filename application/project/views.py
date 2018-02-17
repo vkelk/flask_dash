@@ -207,7 +207,7 @@ def events_upload():
                     df_pre_est.fillna(0)
                     df_event = df_full.loc[event_window['start'].date():event_window['end'].date()]
                     df_event.fillna(0)
-                    df_post_est = df_full.loc[event_window['end'].date():]
+                    df_post_est = df_full.loc[event.event_post_start:]
                     df_post_est.fillna(0)
                     df_full.truncate()
 
@@ -219,32 +219,47 @@ def events_upload():
                     event_stats.event_median = df_event['count'].median() if event_stats.event_total > 0 else 0
                     event_stats.event_mean = df_event['count'].mean() if event_stats.event_total > 0 else 0
                     # event_stats.event_std = df_event['count'].std() if event_stats.event_total > 1 else 0
+                    df_event = None
                     event_sent = count_sentiment(event.text, event.event_start, event.event_end)
                     event_stats.event_bullish = event_sent['bullish']
                     event_stats.event_bearish = event_sent['bearish']
                     event_stats.event_positive = event_sent['positive']
                     event_stats.event_negative = event_sent['negative']
-                    df_event = None
+                    event_users = count_users_sentimet(event.text, event.event_start, event.event_end)
+                    event_stats.users_event = event_users['users']
+                    event_stats.users_event_bullish = event_users['bullish']
+                    event_stats.users_event_bearish = event_users['bearish']
+
                     event_stats.pre_total = int(df_pre_est['count'].sum())
                     event_stats.pre_median = df_pre_est['count'].median() if event_stats.pre_total > 0 else 0
                     event_stats.pre_mean = df_pre_est['count'].mean() if event_stats.pre_total > 0 else 0
                     # event_stats.pre_std = df_pre_est['count'].std() if event_stats.pre_total > 1 else 0
+                    df_pre_est = None
                     event_sent = count_sentiment(event.text, event.event_pre_start, event.event_pre_end)
                     event_stats.pre_bullish = event_sent['bullish']
                     event_stats.pre_bearish = event_sent['bearish']
                     event_stats.pre_positive = event_sent['positive']
                     event_stats.pre_negative = event_sent['negative']
-                    df_pre_est = None
+                    event_users = count_users_sentimet(event.text, event.event_pre_start, event.event_pre_end)
+                    event_stats.users_pre = event_users['users']
+                    event_stats.users_pre_bullish = event_users['bullish']
+                    event_stats.users_pre_bearish = event_users['bearish']
+
                     event_stats.post_total = int(df_post_est['count'].sum())
                     event_stats.post_median = df_post_est['count'].median() if event_stats.post_total > 0 else 0
                     event_stats.post_mean = df_post_est['count'].mean() if event_stats.post_total > 0 else 0
                     # event_stats.post_std = df_post_est['count'].std() if event_stats.post_total > 1 else 0
+                    df_post_est = None
                     event_sent = count_sentiment(event.text, event.event_post_start, event.event_post_end)
                     event_stats.post_bullish = event_sent['bullish']
                     event_stats.post_bearish = event_sent['bearish']
                     event_stats.post_positive = event_sent['positive']
                     event_stats.post_negative = event_sent['negative']
-                    df_post_est = None
+                    event_users = count_users_sentimet(event.text, event.event_post_start, event.event_post_end)
+                    event_stats.users_post = event_users['users']
+                    event_stats.users_post_bullish = event_users['bullish']
+                    event_stats.users_post_bearish = event_users['bearish']
+
                     # event_stats.pct_change = (
                     #                                      event_stats.post_total - event_stats.pre_total) / event_stats.pre_total if event_stats.pre_total > 0 else 0
 
@@ -276,6 +291,16 @@ def events_upload():
                     df_in.loc[index, "negative post event"] = event_stats.post_negative
                     # df_in.loc[index, "std post event"] = event_stats.post_std
                     # df_in.loc[index, "pct change"] = event_stats.pct_change
+                    df_in.loc[index, "users pre event"] = event_stats.users_pre
+                    df_in.loc[index, "users during event"] = event_stats.users_event
+                    df_in.loc[index, "users post event"] = event_stats.users_post
+                    df_in.loc[index, "bullish users pre event"] = event_stats.users_pre_bullish
+                    df_in.loc[index, "bearish users pre event"] = event_stats.users_pre_bearish
+                    df_in.loc[index, "bullish users during event"] = event_stats.users_event_bullish
+                    df_in.loc[index, "bearish users during event"] = event_stats.users_event_bearish
+                    df_in.loc[index, "bullish users post event"] = event_stats.users_post_bullish
+                    df_in.loc[index, "bearish users post event"] = event_stats.users_post_bearish
+
 
                     # insert_event_tweets(event)
 

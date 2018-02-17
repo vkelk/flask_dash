@@ -114,6 +114,15 @@ class EventStats(db.Model):
     event_negative = db.Column(db.Integer)
     post_positive = db.Column(db.Integer)
     post_negative = db.Column(db.Integer)
+    users_pre = db.Column(db.Integer)
+    users_event = db.Column(db.Integer)
+    users_post = db.Column(db.Integer)
+    users_pre_bullish = db.Column(db.Integer)
+    users_pre_bearish = db.Column(db.Integer)
+    users_event_bullish = db.Column(db.Integer)
+    users_event_bearish = db.Column(db.Integer)
+    users_post_bullish = db.Column(db.Integer)
+    users_post_bearish = db.Column(db.Integer)
 
     def __init__(self, uuid):
         self.uuid = uuid

@@ -119,6 +119,13 @@ def event_tweets(uuid):
     return render_template('project/event_tweets.html', event=event)
 
 
+@project.route('/event_users/<uuid>')
+@login_required
+def event_users(uuid):
+    event = Event.query.filter(Event.uuid == uuid).first()
+    return render_template('project/event_users.html', event=event)
+
+
 @project.route('/event_new', methods=['GET', 'POST'])
 @login_required
 def event_new():
@@ -301,7 +308,6 @@ def events_upload():
                     df_in.loc[index, "bullish users post event"] = event_stats.users_post_bullish
                     df_in.loc[index, "bearish users post event"] = event_stats.users_post_bearish
 
-
                     # insert_event_tweets(event)
 
             file_output = 'output_' + file_input
@@ -323,12 +329,50 @@ def events_upload():
 
 @project.route('/ajax_event_tweets/<uuid>/<period>')
 def ajax_event_tweets(uuid, period):
-    q = db.session.query(func.to_char(EventTweets.tweet_id, 'FM999999999999999999').label('tweet_id'), Tweet.text) \
-        .select_from(EventTweets).join(Tweet, Tweet.tweet_id == EventTweets.tweet_id) \
-        .filter(EventTweets.event_uuid == uuid).filter(EventTweets.event_period == period) \
-        .order_by(Tweet.tweet_id).all()
-    pprint(q)
-    return jsonify(q)
+    event = Event.query.filter(Event.uuid == uuid).first()
+    if period == 'on_event':
+        date_start = event.event_start
+        date_end = event.event_end
+    elif period == 'pre_event':
+        date_start = event.event_pre_start
+        date_end = event.event_pre_end
+    elif period == 'post_event':
+        date_start = event.event_post_start
+        date_end = event.event_post_end
+    q = db.session.query(func.to_char(TweetCashtag.tweet_id, 'FM999999999999999999').label('tweet_id'),
+                         Tweet.text, User.twitter_handle, TweetCount.retweet, TweetCount.reply, TweetCount.favorite) \
+        .select_from(TweetCashtag) \
+        .join(Tweet, Tweet.tweet_id == TweetCashtag.tweet_id) \
+        .join(Event, Event.text == TweetCashtag.cashtags) \
+        .join(User, User.user_id == Tweet.user_id) \
+        .join(TweetCount, TweetCount.tweet_id == TweetCashtag.tweet_id) \
+        .filter(Event.uuid == uuid).filter(Tweet.date >= date_start, Tweet.date <= date_end) \
+        .order_by(Tweet.tweet_id)
+    return jsonify(q.all())
+
+
+@project.route('/ajax_event_users/<uuid>/<period>')
+def ajax_event_users(uuid, period):
+    event = Event.query.filter(Event.uuid == uuid).first()
+    if period == 'on_event':
+        date_start = event.event_start
+        date_end = event.event_end
+    elif period == 'pre_event':
+        date_start = event.event_pre_start
+        date_end = event.event_pre_end
+    elif period == 'post_event':
+        date_start = event.event_post_start
+        date_end = event.event_post_end
+    q = db.session.query(func.to_char(Tweet.user_id, 'FM999999999999999999').label('user_id'), User.twitter_handle,
+                         UserCount.follower, UserCount.following, UserCount.tweets, UserCount.likes) \
+        .select_from(TweetCashtag) \
+        .join(Tweet, Tweet.tweet_id == TweetCashtag.tweet_id) \
+        .join(Event, Event.text == TweetCashtag.cashtags) \
+        .join(User, User.user_id == Tweet.user_id) \
+        .join(UserCount, UserCount.user_id == Tweet.user_id) \
+        .filter(Event.uuid == uuid).filter(Tweet.date >= date_start, Tweet.date <= date_end) \
+        .distinct()
+    return jsonify(q.all())
 
 
 @project.route('/getfile/<filename>')  # this is a job for GET, not POST

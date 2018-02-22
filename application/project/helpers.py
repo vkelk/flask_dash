@@ -117,30 +117,10 @@ def insert_event_tweets(event):
             db.session.add(event_tweet)
             db.session.commit()
 
-    # pre_tweets = get_tweets_from_event_period(event.text, event.event_pre_start, event.event_pre_end)
-    # for t in pre_tweets:
-    #     event_tweet = EventTweets.query.filter(EventTweets.event_uuid == event.uuid) \
-    #         .filter(EventTweets.tweet_id == t.tweet_id).first()
-    #     if not event_tweet:
-    #         event_tweet = EventTweets(event.uuid, "pre_event", t.tweet_id)
-    #         db.session.add(event_tweet)
-    #         db.session.commit()
-    # pre_tweets = None
-
     return None
 
 
 def count_sentiment(cashtag, start, end):
-    '''
-    select sum(case when s.sentiment = 'Bullish' then 1 else 0 end) as bulls,
-        sum(case when s.sentiment = 'Bearish' then 1 else 0 end) as bears
-        from fintweet.tweet_cashtags c
-        join fintweet.tweet t on t.tweet_id = c.tweet_id
-        join fintweet.tweet_sentiment s on c.tweet_id = s.tweet_id
-        where c.cashtags='$SAIC' and t.date >='2015-03-01' and t.date <='2015-03-04'  limit 1;
-    :param event:
-    :return:
-    '''
     filters = {"cashtag": cashtag, "start": start, "end": end}
     q = "select sum(case when s.sentiment = 'Bullish' then 1 else 0 end) as bullish, sum(case when s.sentiment = 'Bearish' then 1 else 0 end) as bearish, " \
         "sum (case when s.tone = 'positive' then 1 else 0 end) as positive, sum (case when s.tone = 'negative' then 1 else 0 end) as negative " \
@@ -152,21 +132,6 @@ def count_sentiment(cashtag, start, end):
 
 
 def count_users_sentimet(cashtag, start, end):
-    '''
-    SELECT COUNT(distinct t.user_id) filter (where t.date >='2014-10-31' and t.date <='2015-02-28') as users_pre,
-    COUNT(distinct t.user_id) filter (where t.date >='2015-03-01' and t.date <='2015-03-04') as users_during,
-    COUNT(distinct t.user_id) filter (where t.date >='2015-03-05' and t.date <='2015-07-03') as users_post,
-    COUNT(distinct t.user_id) filter (where t.date >='2014-10-31' and t.date <='2015-02-28' and s.sentiment = 'Bullish') as users_pre_bullish,
-    COUNT(distinct t.user_id) filter (where t.date >='2015-03-01' and t.date <='2015-03-04' and s.sentiment = 'Bullish') as users_during_bullish,
-    COUNT(distinct t.user_id) filter (where t.date >='2015-03-05' and t.date <='2015-07-03' and s.sentiment = 'Bullish') as users_post_bullish,
-    COUNT(distinct t.user_id) filter (where t.date >='2014-10-31' and t.date <='2015-02-28' and s.sentiment = 'Bearish') as users_pre_bearish,
-    COUNT(distinct t.user_id) filter (where t.date >='2015-03-01' and t.date <='2015-03-04' and s.sentiment = 'Bearish') as users_during_bearsh,
-    COUNT(distinct t.user_id) filter (where t.date >='2015-03-05' and t.date <='2015-07-03' and s.sentiment = 'Bearish') as users_post_bearish
-    FROM fintweet.tweet_cashtags c join fintweet.tweet t on t.tweet_id = c.tweet_id join fintweet.tweet_sentiment s on c.tweet_id = s.tweet_id
-    WHERE c.cashtags='$SAIC';
-    :param event:
-    :return:
-    '''
     filters = {"cashtag": cashtag, "start": start, "end": end}
     q = "SELECT COUNT(distinct t.user_id) as users, " \
         "COUNT(distinct t.user_id) filter (WHERE s.sentiment = 'Bullish') as bullish, " \

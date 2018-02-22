@@ -1,10 +1,13 @@
 import requests, re
+from pprint import pprint
 from threading import Thread
-from flask import current_app, url_for, render_template
+from flask import current_app, url_for, render_template, session
 from flask_mail import Message
+from flask_login import current_user
 from itsdangerous import URLSafeTimedSerializer
 
 from ..config import Configuration
+from application.project.models import Project
 
 
 # HELPERS
@@ -63,6 +66,13 @@ def send_password_reset_email(user_email):
 
     # send_email('Password Reset Requested', [user_email], html)
     send_mail(user_email, 'Password Reset Requested', html)
+
+
+def post_login():
+    project = Project.query.filter(Project.account_id == current_user.get_id()).filter(Project.active == True).first()
+    if project:
+        session['active_project'] = project.uuid
+        session['active_project_name'] = project.name
 
 
 class ServerSideTable(object):

@@ -1,6 +1,6 @@
 {% extends "_base.html" %}
-{% block title %}Dashboard | Event Tweets{% endblock %}
-{% block content_title %}Dashboard | Event Tweets{% endblock %}
+{% block title %}Dashboard | Event Users{% endblock %}
+{% block content_title %}Dashboard | Event Users{% endblock %}
 {% block css %}
     <!-- Custom Fonts -->
     <link href="{{ url_for('static', filename='font-awesome/css/font-awesome.min.css') }}" rel="stylesheet"
@@ -55,16 +55,16 @@
             var tblTweets = $("#dt_tweets").DataTable({
                 "data": jsonData,
                 "columns": [
-                    {title: "Tweet_id", data: "tweet_id"},
+                    {title: "User_id", data: "user_id"},
                     {title: "Username", data: "twitter_handle"},
-                    {title: "Tweet text", data: "text"},
-                    {title: "Retweets", data: "retweet"},
-                    {title: "Replys", data: "reply"},
-                    {title: "Favorites", data: "favorite"},
+                    {title: "Followers", data: "follower"},
+                    {title: "Following", data: "following"},
+                    {title: "Tweets", data: "tweets"},
+                    {title: "Likes", data: "likes"},
                     {
-                        title: "API Link ", data: "tweet_id",
+                        title: "API Link ", data: "user_id",
                         render: function (d) {
-                            return '<a href="../../fintweet/api/tweet/' + d + '" target="_blank">Link</a>';
+                            return '<a href="../../fintweet/api/user/' + d + '" target="_blank">Link</a>';
                         }
                     },
                 ],
@@ -78,14 +78,14 @@
         };
 
         $(document).ready(function () {
-            var url = "../ajax_event_tweets/" + "{{ event.uuid }}" + "/on_event";
+            var url = "../ajax_event_users/" + "{{ event.uuid }}" + "/on_event";
 
             $.getJSON(url, function (jsonData) {
                 loadTweets(jsonData);
             });
 
             $("#filter_period").on('change', function () {
-                var url = "../ajax_event_tweets/" + "{{ event.uuid }}" + "/" + this.value;
+                var url = "../ajax_event_users/" + "{{ event.uuid }}" + "/" + this.value;
                 $.getJSON(url, function (jsonData) {
                     loadTweets(jsonData);
                 });

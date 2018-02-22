@@ -62,6 +62,7 @@ def login():
                     db.session.add(user)
                     db.session.commit()
                     login_user(user)
+                    post_login()
                     message = Markup(
                         "<strong>Welcome back!</strong> You are now successfully logged in.")
                     flash(message, 'success')

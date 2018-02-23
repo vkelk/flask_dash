@@ -21,8 +21,8 @@ stocktwits = "mysql://{username}:{password}@{host}:3306/{database}".format(**my_
 pg_dsn = "postgresql+psycopg2://{username}@{host}:5432/{database}".format(**pg_config)
 
 Base = declarative_base()
-src = create_engine(stocktwits, pool_recycle=180, pool_size=20, max_overflow=0)
-dst = create_engine(pg_dsn, pool_recycle=180, pool_size=20, max_overflow=0)
+src = create_engine(stocktwits, pool_recycle=180, pool_size=100)
+dst = create_engine(pg_dsn, pool_recycle=180, pool_size=100)
 pg_meta = MetaData(bind=dst, schema="stocktwits")
 my_meta = MetaData(bind=src)
 
@@ -287,15 +287,14 @@ def transfer_ideas(row):
         dstssn.close()
 
 
-def transfer_tweet_counts(row):
+def transfer_idea_counts(row):
     try:
         dstssn = DstSession()
-        print("Inserting tweet count with tweet_id:", row.tweet_id)
-        item = PgTweetCounts(
-            tweet_id=row.tweet_id,
-            reply=row.reply,
-            retweet=row.retweet,
-            favorite=row.favorite
+        print("Inserting idea count with ideas_is:", row.ideas_is)
+        item = PgIdeasCounts(
+            ideas_is=row.ideas_is,
+            replies=row.replies,
+            likes=row.likes
         )
         dstssn.add(item)
         dstssn.commit()
@@ -303,15 +302,21 @@ def transfer_tweet_counts(row):
     except BaseException as e:
         print(str(e))
         raise
+    finally:
+        dstssn.close()
 
 
-def transfer_tweet_cashtags(row):
+def transfer_replys(row):
     try:
         dstssn = DstSession()
-        print("Inserting cashtags with tweet_id:", row.tweet_id)
-        item = PgTweetCashtags(
-            tweet_id=row.tweet_id,
-            cashtags=row.cashtags
+        print("Inserting replys with replay_id:", row.replay_id)
+        item = PgReply(
+            replay_id=row.replay_id,
+            ideas_id=row.ideas_id,
+            date=row.date,
+            time=row.time,
+            reply_userid=row.reply_userid,
+            text=row.text
         )
         dstssn.add(item)
         dstssn.commit()
@@ -319,56 +324,8 @@ def transfer_tweet_cashtags(row):
     except BaseException as e:
         print(str(e))
         raise
-
-
-def transfer_tweet_hashtags(row):
-    try:
-        dstssn = DstSession()
-        print("Inserting hashtags with tweet_id:", row.tweet_id)
-        item = PgTweetHashtags(
-            tweet_id=row.tweet_id,
-            hashtags=row.hashtags
-        )
-        dstssn.add(item)
-        dstssn.commit()
-
-    except BaseException as e:
-        print(str(e))
-        raise
-
-
-def transfer_tweet_mentions(row):
-    try:
-        dstssn = DstSession()
-        print("Inserting mentions with tweet_id:", row.tweet_id)
-        item = PgTweetMentions(
-            tweet_id=row.tweet_id,
-            mentions=row.mentions,
-            user_id=row.user_id
-        )
-        dstssn.add(item)
-        dstssn.commit()
-
-    except BaseException as e:
-        print(str(e))
-        raise
-
-
-def transfer_tweet_urls(row):
-    try:
-        dstssn = DstSession()
-        print("Inserting urls with tweet_id:", row.tweet_id)
-        item = PgTweetUrls(
-            tweet_id=row.tweet_id,
-            url=row.url,
-            link=row.link
-        )
-        dstssn.add(item)
-        dstssn.commit()
-
-    except BaseException as e:
-        print(str(e))
-        raise
+    finally:
+        dstssn.close()
 
 
 if __name__ == '__main__':
@@ -390,5 +347,17 @@ if __name__ == '__main__':
         pg_idea = dstssn.query(PgIdeas).filter_by(ideas_id=my_idea.ideas_id).first()
         if pg_idea is None:
             transfer_ideas(my_idea)
+
+    for my_idea_count in srcssn.query(MyIdeasCounts) \
+            .order_by(MyIdeasCounts.ideas_id.asc()).execution_options(stream_results=True).yield_per(20):
+        pg_idea_count = dstssn.query(PgIdeasCounts).filter_by(ideas_id=my_idea_count.ideas_id).first()
+        if pg_idea_count is None:
+            transfer_idea_counts(my_idea_count)
+
+    for my_reply in srcssn.query(MyReply) \
+            .order_by(MyReply.replay_id.asc()).execution_options(stream_results=True).yield_per(20):
+        pg_reply = dstssn.query(PgReply).filter_by(replay_id=my_reply.replay_id).first()
+        if pg_reply is None:
+            transfer_replys(my_reply)
 
     print("ALL DONE.")

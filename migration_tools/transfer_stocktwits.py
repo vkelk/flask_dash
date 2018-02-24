@@ -1,4 +1,5 @@
 import concurrent.futures as cf
+import MySQLdb
 import json, re
 from sqlalchemy import *
 from sqlalchemy.orm import sessionmaker, scoped_session

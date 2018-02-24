@@ -87,7 +87,7 @@ class PgIdeasUrls(Base):
 
 
 class PgReply(Base):
-    __table__ = Table('reply', my_meta, autoload=True)
+    __table__ = Table('reply', pg_meta, autoload=True)
 
 
 # Create a session to use the tables

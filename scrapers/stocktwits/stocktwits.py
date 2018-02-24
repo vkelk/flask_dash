@@ -11,11 +11,10 @@ import time
 from openpyxl import load_workbook
 from datetime import datetime
 import settings
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import *
+from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
 import warnings
-from sqlalchemy import event, exc
-from sqlalchemy import Column, INTEGER, BIGINT, VARCHAR, DATE, TIME, TEXT, ForeignKey, create_engine, text
 
 from sqlalchemy.orm import relationship
 import sqlalchemy.exc
@@ -25,10 +24,126 @@ os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['MKL_DYNAMIC'] = 'FALSE'
 
+PG_DBNAME = 'tweets'
+PG_USER = 'postgres'
+PG_PASSWORD = ''
+DB_HOST = 'localhost'
+pg_config = {'username': PG_USER, 'password': PG_PASSWORD, 'database': PG_DBNAME, 'host': DB_HOST}
+pg_dsn = "postgresql+psycopg2://{username}@{host}:5432/{database}".format(**pg_config)
+
+
+def add_engine_pidguard(engine):
+    @event.listens_for(engine, "connect")
+    def connect(dbapi_connection, connection_record):
+        connection_record.info['pid'] = os.getpid()
+
+    @event.listens_for(engine, "checkout")
+    def checkout(dbapi_connection, connection_record, connection_proxy):
+        pid = os.getpid()
+        if connection_record.info['pid'] != pid:
+            # substitute log.debug() or similar here as desired
+            warnings.warn(
+                "Parent process %(orig)s forked (%(newproc)s) with an open "
+                "database connection, "
+                "which is being discarded and recreated." %
+                {"newproc": pid, "orig": connection_record.info['pid']})
+            connection_record.connection = connection_proxy.connection = None
+            raise exc.DisconnectionError(
+                "Connection record belongs to pid %s, "
+                "attempting to check out in pid %s" %
+                (connection_record.info['pid'], pid)
+            )
+
+
+Base = declarative_base()
+murl = 'mysql+pymysql://{}:{}@{}:{}/?charset=utf8mb4&use_unicode=1'
+murl = "postgresql+psycopg2://{username}@{host}:5432/{database}".format(**pg_config)
+db_engine = create_engine(murl, pool_size=1)
+add_engine_pidguard(db_engine)
+pg_meta = MetaData(bind=db_engine, schema="stocktwits")
+
+
+class User(Base):
+    __table__ = Table('user', pg_meta, autoload=True)
+    ideas = relationship('Ideas')
+    counts = relationship('User_Count')
+    strategy = relationship('UserStrategy')
+
+
+class User_Count(Base):
+    __table__ = Table('user_count', pg_meta, autoload=True)
+
+
+class UserStrategy(Base):
+    __table__ = Table('user_strategy', pg_meta, autoload=True)
+
+
+class Ideas(Base):
+    __table__ = Table('ideas', pg_meta, autoload=True)
+    counts = relationship('Ideas_Count')
+    cash_s = relationship('IdeasCashtags')
+    hash_s = relationship('IdeasHashtags')
+    url_s = relationship('IdeasUrls')
+
+
+class Ideas_Count(Base):
+    __table__ = Table('ideas_count', pg_meta, autoload=True)
+
+
+class IdeasCashtags(Base):
+    __table__ = Table('idea_cashtags', pg_meta, autoload=True)
+
+
+class IdeasHashtags(Base):
+    __table__ = Table('idea_hashtags', pg_meta, autoload=True)
+
+
+class IdeasUrls(Base):
+    __table__ = Table('ideas_url', pg_meta, autoload=True)
+
+
+class Reply(Base):
+    __table__ = Table('reply', pg_meta, autoload=True)
+
 
 class LoadingError(Exception):
     pass
 
+
+emoticons_str = r"""
+    (?:
+        [:=;] # Eyes
+        [oO\-]? # Nose (optional)
+        [D\)\]\(\]/\\OpP] # Mouth
+    )"""
+
+regex_str = [
+    emoticons_str,
+    r'<[^>]+>',  # HTML tags
+    r'(?:@[\w_]+)',  # @-mentions
+    r"(?:\#+[\w_]+[\w\'_\-]*[\w_]+)",  # hash-tags
+    r"(?:\$+[a-zA-Z]+[\w\'_\-]*[\w_]+)",  # cash-tags
+    r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+',  # URLs
+
+    r'(?:(?:\d+,?)+(?:\.?\d+)?)',  # numbers
+    r"(?:[a-z][a-z'\-_]+[a-z])",  # words with - and '
+    r'(?:[\w_]+)',  # other words
+    r'(?:\S)'  # anything else
+]
+
+tokens_re = re.compile(r'(' + '|'.join(regex_str) + ')', re.VERBOSE | re.IGNORECASE)
+emoticon_re = re.compile(r'^' + emoticons_str + '$', re.VERBOSE | re.IGNORECASE)
+
+
+def tokenize(s):
+    return tokens_re.findall(s)
+
+
+def preprocess(s, lowercase=False):
+    tokens = tokenize(s)
+    if lowercase:
+        tokens = [token if emoticon_re.search(token) else token.lower() for token in tokens]
+    return tokens
 
 class Page(object):
     def __init__(self, proxy=None):
@@ -211,21 +326,36 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                 watch_list = None
             user = session.query(User).filter_by(user_id=t['user']['id']).first()
             if not user:
-                user = User(user_id=t['user']['id'], user_name=t['user']['name'], user_handle=t['user']['username'],
+                user = User(user_id=t['user']['id'],
+                            user_name=t['user']['name'],
+                            user_handle=t['user']['username'],
                             date_joined=t['user']['join_date'],
-                            website=t['user']['website_url'], source=None,
-                            user_strategy=json.dumps(t['user']['trading_strategy'])[:200],
-                            user_topmentioned=' '.join([f['symbol'] for f in t['user']['most_mentioned'][0]])[:150] if
-                            t[
-                                'user'].get('most_mentioned', False) else None,
+                            website=t['user']['website_url'],
+                            source=None,
+                            # user_strategy=json.dumps(t['user']['trading_strategy'])[:200],
+                            user_topmentioned=' '.join([f['symbol'] for f in t['user']['most_mentioned'][0]])[:255] if
+                            t['user'].get('most_mentioned', False) else None,
                             verified='YES' if t['user']['official'] else 'NO',
-                            location=t['user']['location'][:75] if t['user'].get('location', False) else None)
+                            location=t['user']['location'][:255] if t['user'].get('location', False) else None)
+
+                usr_st_dict = t['user']['trading_strategy']
+                assets_frequently_traded = json.dumps(usr_st_dict['assets_frequently_traded'])
+                user_strategy = UserStrategy(
+                    user_id=t['user']['id'],
+                    assets_frequently_traded=assets_frequently_traded,
+                    approach=usr_st_dict['approach'],
+                    holding_period=usr_st_dict['holding_period'],
+                    experience=usr_st_dict['experience']
+                )
+
                 user_count = User_Count(followers=t['user']['followers'], following=t['user']['following'],
                                         watchlist_count=t['user']['watchlist_stocks_count'],
                                         watchlist_stocks=watch_list,
                                         ideas=t['user']['ideas'])
                 user.counts.append(user_count)
+                user.strategy.append(user_strategy)
                 session.add(user_count)
+                session.add(user_strategy)
                 session.add(user)
                 try:
                     session.commit()
@@ -235,12 +365,15 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                         session.rollback()
                         # print('DUBLICATE USER', err)
 
-        idea = Ideas(ideas_id=t['id'], permno=permno, date=t1.date(), time=t1.time(),
+        idea = Ideas(ideas_id=t['id'],
+                     permno=permno,
+                     date=t1.date(),
+                     time=t1.time(),
                      replied='YES' if t.get('conversation', False) and int(t['conversation']['replies']) > 0 else 'NO',
                      text=t['body'],
                      sentiment=t['entities']['sentiment']['basic'] if t['entities']['sentiment'] else None,
-                     cashtags_other=' '.join([f['symbol'] for f in t['symbols'] if f['symbol'] != query.upper()])[
-                                    :150])
+                     # cashtags_other=' '.join([f['symbol'] for f in t['symbols'] if f['symbol'] != query.upper()])[:255]
+                     )
         if t.get('conversation', False) and settings.ISREPLY:
             count_repl = 0
             if int(t['conversation']['replies']) > 20:
@@ -264,8 +397,11 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                     reply = session.query(Reply).filter_by(reply_id=children['id']).first()
                     if not reply:
                         t1 = datetime.strptime(children['created_at'], '%Y-%m-%dT%H:%M:%SZ')
-                        reply = Reply(reply_id=children['id'], date=t1.date(), time=t1.time(),
-                                      reply_userid=children['user']['id'], text=children['body'])
+                        reply = Reply(reply_id=children['id'],
+                                      date=t1.date(),
+                                      time=t1.time(),
+                                      reply_userid=children['user']['id'],
+                                      text=children['body'])
                         session.add(reply)
                         try:
                             session.commit()
@@ -285,17 +421,45 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
 
         idea_count = Ideas_Count(replies=t['conversation']['replies'] if t.get('conversation', False) else None,
                                  likes=t['likes']['total'] if t.get('likes', False) else None)
-
-        if t.get('links', False):
-            link = 'https://stocktwits.com/' + t['user']['username'] + '/message/' + str(t['id'])
-            idea_url = Ideas_Url(link=link[:150],
-                                 url=' '.join([f['url'] for f in t['links']])[:150] if t.get('links', False) else None)
-            idea.urls.append(idea_url)
-            session.add(idea_url)
-
         idea.counts.append(idea_count)
-        user.ideas.append(idea)
 
+        tokens = preprocess(idea.text)
+        cashtags = [term for term in tokens if term.startswith('$') and len(term) > 1]
+        if len(cashtags) > 0:
+            for cashtag in cashtags:
+                ctag = IdeasCashtags(
+                    ideas_id=idea.ideas_id,
+                    cashtag=cashtag
+                )
+                idea.cash_s.append(ctag)
+                session.add(ctag)
+        hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
+        if len(hashtags) > 0:
+            for hashtag in hashtags:
+                htag = IdeasHashtags(
+                    ideas_id=idea.ideas_id,
+                    hashtag=hashtag
+                )
+                idea.hash_s.append(htag)
+                session.add(htag)
+        urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
+        if len(urls) > 0:
+            for u in urls:
+                utag = IdeasHashtags(
+                    ideas_id=idea.ideas_id,
+                    hashtag=u
+                )
+                idea.url_s.append(utag)
+                session.add(utag)
+
+        # if t.get('links', False):
+        #     link = 'https://stocktwits.com/' + t['user']['username'] + '/message/' + str(t['id'])
+        #     idea_url = Ideas_Url(link=link[:150],
+        #                          url=' '.join([f['url'] for f in t['links']])[:150] if t.get('links', False) else None)
+        #     idea.urls.append(idea_url)
+        #     session.add(idea_url)
+
+        user.ideas.append(idea)
         session.add(idea_count)
         session.add(idea)
         try:
@@ -347,11 +511,12 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
 def scrape(n, user_queue, proxy, lock, murl):
     db_engine = create_engine(murl, pool_size=1)
     add_engine_pidguard(db_engine)
-    db_engine.execute('USE `stocktwits`')
+    # db_engine.execute('USE `stocktwits`')
 
-    db_engine.execute('SET NAMES utf8mb4;')
-    db_engine.execute('SET CHARACTER SET utf8mb4;')
-    db_engine.execute('SET character_set_connection=utf8mb4;')
+    # db_engine.execute('SET NAMES utf8mb4;')
+    # db_engine.execute('SET CHARACTER SET utf8mb4;')
+    # db_engine.execute('SET character_set_connection=utf8mb4;')
+    pg_meta = MetaData(bind=db_engine, schema="stocktwits")
     Session = sessionmaker(bind=db_engine)
     session = Session()
 
@@ -374,121 +539,8 @@ def scrape(n, user_queue, proxy, lock, murl):
         time.sleep(1)
 
 
-def add_engine_pidguard(engine):
-    @event.listens_for(engine, "connect")
-    def connect(dbapi_connection, connection_record):
-        connection_record.info['pid'] = os.getpid()
-
-    @event.listens_for(engine, "checkout")
-    def checkout(dbapi_connection, connection_record, connection_proxy):
-        pid = os.getpid()
-        if connection_record.info['pid'] != pid:
-            # substitute log.debug() or similar here as desired
-            warnings.warn(
-                "Parent process %(orig)s forked (%(newproc)s) with an open "
-                "database connection, "
-                "which is being discarded and recreated." %
-                {"newproc": pid, "orig": connection_record.info['pid']})
-            connection_record.connection = connection_proxy.connection = None
-            raise exc.DisconnectionError(
-                "Connection record belongs to pid %s, "
-                "attempting to check out in pid %s" %
-                (connection_record.info['pid'], pid)
-            )
-
-
-Base = declarative_base()
-
-
-class Ideas(Base):
-    __tablename__ = 'ideas'
-    ideas_id = Column(BIGINT, primary_key=True)
-    user_id = Column(BIGINT, ForeignKey('user.user_id'))
-    permno = Column(INTEGER)
-    date = Column(DATE)
-    time = Column(TIME)
-    # shared = Column(VARCHAR(3))
-    replied = Column(VARCHAR(3))
-    # emoticon = Column(TEXT)
-    text = Column(TEXT)
-    # location = Column(VARCHAR(75))
-    sentiment = Column(VARCHAR(45))
-    cashtags_other = Column(VARCHAR(150))
-    counts = relationship('Ideas_Count')
-    urls = relationship('Ideas_Url')
-    replies = relationship('Reply')
-
-
-class Ideas_Count(Base):
-    __tablename__ = 'ideas_count'
-    id = Column(BIGINT, primary_key=True)
-    ideas_id = Column(BIGINT, ForeignKey('ideas.ideas_id'))
-    replies = Column(INTEGER)
-    # shares = Column(INTEGER)
-    likes = Column(INTEGER)
-    ideas = relationship('Ideas')
-
-
-class Ideas_Url(Base):
-    __tablename__ = 'ideas_url'
-    id = Column(BIGINT, primary_key=True)
-    ideas_id = Column(BIGINT, ForeignKey('ideas.ideas_id'))
-    url = Column(VARCHAR(150))
-    link = Column(VARCHAR(150))
-    ideas = relationship('Ideas')
-
-
-class Reply(Base):
-    __tablename__ = 'reply'
-    reply_id = Column(BIGINT, primary_key=True)
-    ideas_id = Column(BIGINT, ForeignKey('ideas.ideas_id'))
-    date = Column(DATE)
-    time = Column(TIME)
-    reply_userid = Column(BIGINT)
-    # emoticon = Column(TEXT)
-    text = Column(TEXT)
-    # location = Column(VARCHAR(75))
-
-
-class User(Base):
-    __tablename__ = 'user'
-    user_id = Column(BIGINT, primary_key=True)
-    user_handle = Column(VARCHAR(75))
-    user_name = Column(VARCHAR(75))
-    date_joined = Column(DATE)
-    website = Column(VARCHAR(150))
-    source = Column(VARCHAR(75))
-    user_strategy = Column(VARCHAR(200))
-    user_topmentioned = Column(VARCHAR(150))
-    location = Column(VARCHAR(75))
-    verified = Column(VARCHAR(3))
-    ideas = relationship('Ideas')
-    counts = relationship('User_Count')
-
-
-class User_Count(Base):
-    __tablename__ = 'user_count'
-    id = Column(BIGINT, primary_key=True)
-    user_id = Column(BIGINT, ForeignKey('user.user_id'))
-    followers = Column(INTEGER)
-    following = Column(INTEGER)
-    watchlist_count = Column(INTEGER)
-    watchlist_stocks = Column(VARCHAR(500))
-    ideas = Column(INTEGER)
-
-
 if __name__ == '__main__':
     # multiprocessing.set_start_method('forkserver')
-    murl = 'mysql+pymysql://{}:{}@{}:{}/?charset=utf8mb4&use_unicode=1'
-    murl = murl.format(settings.mysql_login, settings.mysql_password, settings.mysql_url, settings.mysql_port)
-    db_engine = create_engine(murl, pool_size=1)
-    add_engine_pidguard(db_engine)
-    db_engine.execute(
-        "CREATE DATABASE IF NOT EXISTS `stocktwits` DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_general_ci;")
-    db_engine.execute('USE `stocktwits`')
-    db_engine.execute(text("SET NAMES utf8mb4"))
-
-    Base.metadata.create_all(db_engine)
 
     Session = sessionmaker(bind=db_engine)
     session = Session()

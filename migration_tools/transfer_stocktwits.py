@@ -262,8 +262,8 @@ def transfer_ideas(row):
             time=row.time,
             replied=row.replied,
             text=row.text,
-            sentiment=row.sentiment,
-            cashtags_other=row.cashtags_other
+            sentiment=row.sentiment if row.sentiment else '',
+            cashtags_other=row.cashtags_other if row.cashtags_other else ''
         )
         dstssn.add(idea)
         dstssn.commit()

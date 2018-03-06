@@ -176,6 +176,7 @@ scrapers/stocktwits/symbol_list.xlsx
 scrapers/stocktwits/report.csv
 application/db_config.py
 .vscode/settings.json
+
 # IDE
 .vscode/
 .idea/

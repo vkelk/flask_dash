@@ -52,7 +52,8 @@ def create_app(config=None):
     from application.account import account as account_blueprint
     from application.project import project as project_blueprint
     from application.fintweet import fintweet as fintweet_blueprint
-    from application.fintweet.resources import api_fintweet
+    from application.stocktwits import stocktwit as stocktwit_blueprint
+    # from application.fintweet.resources import api_fintweet
     from application.main.resources import api_manager
 
     # api.init_app(app)
@@ -63,6 +64,7 @@ def create_app(config=None):
     app.register_blueprint(account_blueprint, url_prefix='/account')
     app.register_blueprint(project_blueprint, url_prefix='/project')
     app.register_blueprint(fintweet_blueprint, url_prefix='/fintweet')
+    app.register_blueprint(stocktwit_blueprint, url_prefix='/stocktwits')
 
     print(app.url_map)
     if not os.path.exists(Configuration.UPLOAD_FOLDER):

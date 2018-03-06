@@ -14,6 +14,7 @@ import settings
 from sqlalchemy import *
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
+import sqlalchemy.event as event
 import warnings
 
 from sqlalchemy.orm import relationship
@@ -144,6 +145,7 @@ def preprocess(s, lowercase=False):
     if lowercase:
         tokens = [token if emoticon_re.search(token) else token.lower() for token in tokens]
     return tokens
+
 
 class Page(object):
     def __init__(self, proxy=None):

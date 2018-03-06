@@ -1,6 +1,6 @@
 from flask_restless import APIManager, ProcessingException
 from flask_login import current_user, login_required
-from application.fintweet.models import *
+from .models import db, User, Tweet, TweetCashtag, TweetHashtag, TweetMention
 
 
 @login_required
@@ -15,13 +15,35 @@ preprocessors = {'GET_SINGLE': [check_auth],
 
 api_fintweet = APIManager(flask_sqlalchemy_db=db, allow_functions=True)
 
-api_fintweet.create_api(User, methods=['GET'],
-                        preprocessors=preprocessors, url_prefix='/fintweet/api', allow_functions=True)
-api_fintweet.create_api(Tweet, methods=['GET'],
-                        preprocessors=preprocessors, url_prefix='/fintweet/api', allow_functions=True)
-api_fintweet.create_api(TweetCashtag, methods=['GET'], collection_name='cashtag',
-                        preprocessors=preprocessors, url_prefix='/fintweet/api', allow_functions=True)
-api_fintweet.create_api(TweetHashtag, methods=['GET'], collection_name='hashtag',
-                        preprocessors=preprocessors, url_prefix='/fintweet/api', allow_functions=True)
-api_fintweet.create_api(TweetMention, methods=['GET'], collection_name='mention',
-                        preprocessors=preprocessors, url_prefix='/fintweet/api', allow_functions=True)
+api_fintweet.create_api(
+    User,
+    methods=['GET'],
+    preprocessors=preprocessors,
+    url_prefix='/fintweet/api',
+    allow_functions=True)
+api_fintweet.create_api(
+    Tweet, methods=['GET'],
+    preprocessors=preprocessors,
+    url_prefix='/fintweet/api',
+    allow_functions=True)
+api_fintweet.create_api(
+    TweetCashtag,
+    methods=['GET'],
+    collection_name='cashtag',
+    preprocessors=preprocessors,
+    url_prefix='/fintweet/api',
+    allow_functions=True)
+api_fintweet.create_api(
+    TweetHashtag,
+    methods=['GET'],
+    collection_name='hashtag',
+    preprocessors=preprocessors,
+    url_prefix='/fintweet/api',
+    allow_functions=True)
+api_fintweet.create_api(
+    TweetMention,
+    methods=['GET'],
+    collection_name='mention',
+    preprocessors=preprocessors,
+    url_prefix='/fintweet/api',
+    allow_functions=True)

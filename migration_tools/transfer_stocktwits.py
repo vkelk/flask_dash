@@ -1,6 +1,6 @@
 import concurrent.futures as cf
-import MySQLdb
 import json, re
+import MySQLdb
 from sqlalchemy import *
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
@@ -10,7 +10,7 @@ from datetime import datetime
 PG_DBNAME = ''
 PG_USER = ''
 PG_PASSWORD = ''
-MY_DBNAME = 'stocktwits'
+MY_DBNAME = ''
 MY_USER = ''
 MY_PASWORD = ''
 DB_HOST = ''
@@ -18,7 +18,7 @@ DB_HOST = ''
 my_config = {'username': MY_USER, 'password': MY_PASWORD, 'database': MY_DBNAME, 'host': DB_HOST}
 pg_config = {'username': PG_USER, 'password': PG_PASSWORD, 'database': PG_DBNAME, 'host': DB_HOST}
 
-stocktwits = "mysql://{username}:{password}@{host}:3306/{database}".format(**my_config)
+stocktwits = "mysql+pymysql://{username}:{password}@{host}:3306/{database}".format(**my_config)
 pg_dsn = "postgresql+psycopg2://{username}@{host}:5432/{database}".format(**pg_config)
 
 Base = declarative_base()
@@ -115,7 +115,7 @@ def transfer_user(row):
             location=row.location,
             verified=row.verified
         )
-        # pprint(new_user)
+        # pprint(new_user.user_handle)
         dstssn.add(new_user)
         dstssn.commit()
         if len(row.user_strategy) < 200:
@@ -200,7 +200,7 @@ def process_cashtag(ideas_id, cashtag):
         try:
             item = PgIdeasCashtags(
                 ideas_id=ideas_id,
-                cashtag=cashtag
+                cashtag=cashtag[:60]
             )
             subsession.add(item)
             subsession.commit()
@@ -219,7 +219,7 @@ def process_hashtag(ideas_id, hashtag):
         try:
             item = PgIdeasHashtags(
                 ideas_id=ideas_id,
-                hashtag=hashtag
+                hashtag=hashtag[:60]
             )
             subsession.add(item)
             subsession.commit()
@@ -238,7 +238,7 @@ def process_url(ideas_id, url):
         try:
             item = PgIdeasUrls(
                 ideas_id=ideas_id,
-                url=url
+                url=url[:255]
             )
             subsession.add(item)
             subsession.commit()
@@ -261,14 +261,14 @@ def transfer_ideas(row):
             date=row.date,
             time=row.time,
             replied=row.replied,
-            text=row.text,
+            text=row.text.replace('\x00', ''),
             sentiment=row.sentiment if row.sentiment else '',
             cashtags_other=row.cashtags_other if row.cashtags_other else ''
         )
         dstssn.add(idea)
         dstssn.commit()
         # pprint(idea.text)
-
+        # exit()
         tokens = preprocess(idea.text)
         cashtags = [term for term in tokens if term.startswith('$') and len(term) > 1]
         hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
@@ -291,9 +291,9 @@ def transfer_ideas(row):
 def transfer_idea_counts(row):
     try:
         dstssn = DstSession()
-        print("Inserting idea count with ideas_is:", row.ideas_is)
+        print("Inserting idea count with ideas_id:", row.ideas_id)
         item = PgIdeasCounts(
-            ideas_is=row.ideas_is,
+            ideas_id=row.ideas_id,
             replies=row.replies,
             likes=row.likes
         )
@@ -310,9 +310,9 @@ def transfer_idea_counts(row):
 def transfer_replys(row):
     try:
         dstssn = DstSession()
-        print("Inserting replys with replay_id:", row.replay_id)
+        print("Inserting replys with replay_id:", row.reply_id)
         item = PgReply(
-            replay_id=row.replay_id,
+            reply_id=row.reply_id,
             ideas_id=row.ideas_id,
             date=row.date,
             time=row.time,
@@ -331,34 +331,35 @@ def transfer_replys(row):
 
 if __name__ == '__main__':
     i = 0
-    # for my_user in srcssn.query(MyUsers).filter(MyUsers.user_id >= 508128)\
-    #         .order_by(MyUsers.user_id.asc()).execution_options(stream_results=True).yield_per(100):
-    #     pg_user = dstssn.query(PgUsers).filter_by(user_id=my_user.user_id).first()
-    #     if pg_user is None:
-    #         transfer_user(my_user)
-    #
-    # for my_ucount in srcssn.query(MyUsersCount).filter(MyUsersCount.user_id >= 508128)\
-    #         .order_by(MyUsersCount.user_id.asc()).execution_options(stream_results=True).yield_per(100):
-    #     pg_user_count = dstssn.query(PgUsersCount).filter_by(user_id=my_ucount.user_id).first()
-    #     if pg_user_count is None:
-    #         transfer_user_count(my_ucount)
+    for my_user in srcssn.query(MyUsers).filter(MyUsers.user_id >= 1) \
+            .order_by(MyUsers.user_id.asc()).execution_options(stream_results=True).yield_per(100):
+        pg_user = dstssn.query(PgUsers).filter_by(user_id=my_user.user_id).first()
+        if pg_user is None:
+            transfer_user(my_user)
 
-    for my_idea in srcssn.query(MyIdeas).filter(MyIdeas.ideas_id >= 6244221) \
-            .order_by(MyIdeas.ideas_id.asc()).execution_options(stream_results=True).yield_per(20):
+    for my_ucount in srcssn.query(MyUsersCount).filter(MyUsersCount.user_id >= 1) \
+            .order_by(MyUsersCount.user_id.asc()).execution_options(stream_results=True).yield_per(100):
+        pg_user_count = dstssn.query(PgUsersCount).filter_by(user_id=my_ucount.user_id).first()
+        if pg_user_count is None:
+            transfer_user_count(my_ucount)
+
+    for my_idea in srcssn.query(MyIdeas).filter(MyIdeas.ideas_id >= 112430517) \
+            .order_by(MyIdeas.ideas_id.asc()).yield_per(250000).enable_eagerloads(False):
         pg_idea = dstssn.query(PgIdeas).filter_by(ideas_id=my_idea.ideas_id).first()
         if pg_idea is None:
             transfer_ideas(my_idea)
 
-    for my_idea_count in srcssn.query(MyIdeasCounts) \
-            .order_by(MyIdeasCounts.ideas_id.asc()).execution_options(stream_results=True).yield_per(20):
+    for my_idea_count in srcssn.query(MyIdeasCounts).filter(MyIdeasCounts.ideas_id >= 109865759) \
+            .order_by(MyIdeasCounts.ideas_id.asc()).yield_per(400000).enable_eagerloads(False):
         pg_idea_count = dstssn.query(PgIdeasCounts).filter_by(ideas_id=my_idea_count.ideas_id).first()
-        if pg_idea_count is None:
+        pg_idea = dstssn.query(PgIdeas).filter_by(ideas_id=my_idea_count.ideas_id).first()
+        if pg_idea_count is None and pg_idea:
             transfer_idea_counts(my_idea_count)
 
     for my_reply in srcssn.query(MyReply) \
-            .order_by(MyReply.replay_id.asc()).execution_options(stream_results=True).yield_per(20):
-        pg_reply = dstssn.query(PgReply).filter_by(replay_id=my_reply.replay_id).first()
-        if pg_reply is None:
+            .order_by(MyReply.reply_id.asc()).yield_per(250000).enable_eagerloads(False):
+        pg_reply = dstssn.query(PgReply).filter_by(reply_id=my_reply.reply_id).first()
+        if pg_reply is None and my_reply.ideas_id:
             transfer_replys(my_reply)
 
     print("ALL DONE.")

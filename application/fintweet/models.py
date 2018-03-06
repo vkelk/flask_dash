@@ -1,13 +1,7 @@
-from flask import url_for, current_app
-from sqlalchemy import func
-from flask_login import AnonymousUserMixin, UserMixin
 from application import db
 
 
 class DealNosFT(db.Model):
-    # __bind_key__ = 'fintweet'
-    # __table__ = db.Model.metadata.tables['dealnos']
-
     __tablename__ = 'dealnos'
     __table_args__ = {"schema": "fintweet"}
 
@@ -29,8 +23,13 @@ class User(db.Model):
     verified = db.Column(db.String(10))
 
     # tweets = db.relationship('Tweet', lazy='dynamic')
-    counts = db.relationship('UserCount', backref='user_counts', lazy='dynamic')
-    mentions = db.relationship('TweetMention', primaryjoin="TweetMention.user_id==User.user_id", lazy='dynamic')
+    counts = db.relationship(
+        'UserCount', backref='user', lazy='dynamic', uselist=False)
+    mentions = db.relationship(
+        'TweetMention',
+        primaryjoin="TweetMention.user_id==User.user_id",
+        backref='user',
+        lazy='dynamic')
 
     def __repr__(self):
         return self.twitter_handle
@@ -51,9 +50,6 @@ class User(db.Model):
 
 
 class UserCount(db.Model):
-    # __bind_key__ = 'fintweet'
-    # __table__ = db.Model.metadata.tables['user_count']
-
     __tablename__ = 'user_count'
     __table_args__ = {"schema": "fintweet"}
 
@@ -89,7 +85,7 @@ class Tweet(db.Model):
     reply_to = db.Column(db.BigInteger)
     permalink = db.Column(db.String(255))
 
-    user = db.relationship('User')
+    users = db.relationship('User', uselist=False)
 
     # cashtags = db.relationship('TweetCashtag', lazy='dynamic')
     # counts = db.relationship('TweetCount', lazy='dynamic')
@@ -110,7 +106,8 @@ class Tweet(db.Model):
 
     @property
     def user_name(self):
-        return User.query.with_entities(User.user_name).filter(User.user_id == self.user_id).first_or_404()
+        return User.query.with_entities(User.user_name).filter(User.user_id == self.user_id) \
+            .first_or_404()
 
 
 # class Retweet(db.Model):
@@ -130,9 +127,6 @@ class Tweet(db.Model):
 
 
 class TweetCashtag(db.Model):
-    # __bind_key__ = 'fintweet'
-    # __table__ = db.Model.metadata.tables['tweet_cashtags']
-
     __tablename__ = 'tweet_cashtags'
     __table_args__ = {"schema": "fintweet"}
 
@@ -154,13 +148,9 @@ class TweetCashtag(db.Model):
 
 
 class TweetCount(db.Model):
-    # __bind_key__ = 'fintweet'
-    # __table__ = db.Model.metadata.tables['tweet_count']
-
     __tablename__ = 'tweet_count'
     __table_args__ = {"schema": "fintweet"}
 
-    # id = db.Column(db.BigInteger, primary_key=True)
     tweet_id = db.Column(db.BigInteger, db.ForeignKey(Tweet.tweet_id), primary_key=True)
     reply = db.Column(db.Integer)
     retweet = db.Column(db.Integer)
@@ -173,9 +163,6 @@ class TweetCount(db.Model):
 
 
 class TweetHashtag(db.Model):
-    # __bind_key__ = 'fintweet'
-    # __table__ = db.Model.metadata.tables['tweet_hashtags']
-
     __tablename__ = 'tweet_hashtags'
     __table_args__ = {"schema": "fintweet"}
 
@@ -190,9 +177,6 @@ class TweetHashtag(db.Model):
 
 
 class TweetMention(db.Model):
-    # __bind_key__ = 'fintweet'
-    # __table__ = db.Model.metadata.tables['tweet_mentions']
-
     __tablename__ = 'tweet_mentions'
     __table_args__ = {"schema": "fintweet"}
 
@@ -206,9 +190,6 @@ class TweetMention(db.Model):
 
 
 class TweetUrl(db.Model):
-    # __bind_key__ = 'fintweet'
-    # __table__ = db.Model.metadata.tables['tweet_url']
-
     __tablename__ = 'tweet_url'
     __table_args__ = {"schema": "fintweet"}
 

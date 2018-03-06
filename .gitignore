@@ -168,3 +168,9 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# IDE
+.vscode/
+.idea/
+
+# project specifics
+application/uploads

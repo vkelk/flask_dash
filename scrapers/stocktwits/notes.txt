@@ -1,0 +1,1 @@
+This is stocktwits code. The input file is symbol_list. You can have a look on the output which is saved in mysql stocktwits db. Please make sure that it generates cashtags in different column.

@@ -7,7 +7,7 @@ from flask_login import login_user, current_user, login_required, logout_user
 from werkzeug.utils import secure_filename, CombinedMultiDict
 from application import db, login_manager
 from application.project import project
-from application.project.models import *
+from .models import Project, ProjectDetais, Event, EventStats, EventTweets, Event
 from application.fintweet.models import *
 from application.project.forms import *
 from application.project.helpers import *
@@ -387,7 +387,7 @@ def getfile(filename):
 
 @project.route('/<uuid>')
 @login_required
-def project(uuid):
-    project = Project.query.filter(Project.uuid == uuid).first()
-    events = Event.query.filter(Event.project_id == project.uuid).all()
-    return render_template('project/project_details.html', project=project, events=events)
+def project_uuid(uuid):
+    project_obj = Project.query.filter(Project.uuid == uuid).first()
+    events = Event.query.filter(Event.project_id == project_obj.uuid).all()
+    return render_template('project/project_details.html', project=project_obj, events=events)

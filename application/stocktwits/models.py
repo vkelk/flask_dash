@@ -20,15 +20,15 @@ class User(Stocktwits):
     verified = db.Column(db.String(10))
 
     ideas = db.relationship('Ideas', lazy='dynamic')
-    counts = db.relationship(
-        'stocktwits.UserCount',
-        backref='user_count',
-        primaryjoin="stocktwits.UserCount.user_id==User.user_id",
-        lazy='dynamic')
-    strategy = db.relationship(
-        'stocktwits.UserStrategy',
-        primaryjoin="stocktwits.UserStrategy.user_id==User.user_id",
-        lazy='dynamic')
+    # counts = db.relationship(
+    #     'application.stocktwits.models.UserCount',
+    #     backref='user_count',
+    #     primaryjoin="UserCount.user_id==User.user_id",
+    #     lazy='dynamic')
+    # strategy = db.relationship(
+    #     'UserStrategy',
+    #     primaryjoin="UserStrategy.user_id==User.user_id",
+    #     lazy='dynamic')
 
     def __repr__(self):
         return self.user_handle
@@ -45,7 +45,8 @@ class UserCount(Stocktwits):
     watchlist_stocks = db.Column(db.String(500))
     ideas = db.Column(db.Integer)
 
-    user = db.relationship('stocktwits.User', backref='counts')
+    # user = db.relationship(
+    # 'application.stocktwits.models.User', backref='counts')
 
     def __repr__(self):
         return self.user_id
@@ -62,7 +63,7 @@ class UserStrategy(db.Model):
     holding_period = db.Column(db.String(255))
     experience = db.Column(db.String(255))
 
-    user = db.relationship('stocktwits.User', backref='strategy')
+    # user = db.relationship('application.stocktwits.models.User', backref='strategy')
 
     def __repr__(self):
         return self.user_id
@@ -82,12 +83,12 @@ class Ideas(db.Model):
     sentiment = db.Column(db.String(60))
     cashtags_other = db.Column(db.String(255))
 
-    user = db.relationship('stocktwits.User')
-    cashtags = db.relationship('stocktwits.IdeaCashtags')
-    hashtags = db.relationship('stocktwits.IdeaHashtags')
-    counts = db.relationship('stocktwits.IdeaCounts')
-    urls = db.relationship('stocktwits.IdeaUrls')
-    replys = db.relationship('stocktwits.Replys')
+    # user = db.relationship('application.stocktwits.models.User')
+    cashtags = db.relationship('IdeaCashtags')
+    hashtags = db.relationship('IdeaHashtags')
+    # counts = db.relationship('IdeaCounts')
+    urls = db.relationship('IdeaUrls')
+    replys = db.relationship('Replys')
 
     def __repr__(self):
         return self.ideas_id
@@ -102,7 +103,7 @@ class IdeaCounts(db.Model):
     replies = db.Column(db.Integer)
     likes = db.Column(db.Integer)
 
-    idea = db.relationship('stocktwits.Ideas', backref='counts')
+    idea = db.relationship('Ideas', backref='ideas_count')
 
     def __repr__(self):
         return self.ideas_id
@@ -117,7 +118,7 @@ class IdeaCashtags(db.Model):
         db.BigInteger, db.ForeignKey(Ideas.ideas_id), primary_key=True)
     cashtag = db.Column(db.String(60))
 
-    idea = db.relationship('stocktwits.Ideas', backref='cashtags')
+    idea = db.relationship('Ideas', backref='idea_cashtags')
 
     def __repr__(self):
         return self.cashtag
@@ -132,7 +133,7 @@ class IdeaHashtags(db.Model):
         db.BigInteger, db.ForeignKey(Ideas.ideas_id), primary_key=True)
     hashtag = db.Column(db.String(60))
 
-    idea = db.relationship('stocktwits.Ideas', backref='hashtags')
+    idea = db.relationship('Ideas', backref='idea_hashtags')
 
     def __repr__(self):
         return self.hashtag
@@ -148,7 +149,7 @@ class IdeaUrls(db.Model):
     url = db.Column(db.String(255))
     link = db.Column(db.String(255))
 
-    idea = db.relationship('stocktwits.Ideas', backref='urls')
+    idea = db.relationship('Ideas', backref='ideas_url')
 
     def __repr__(self):
         return self.url
@@ -165,7 +166,7 @@ class Replys(db.Model):
     reply_userid = db.Column(db.BigInteger)
     text = db.Column(db.Text)
 
-    idea = db.relationship('stocktwits.Ideas', backref='replys')
+    idea = db.relationship('Ideas', backref='reply')
 
     def __repr__(self):
         return self.reply_id

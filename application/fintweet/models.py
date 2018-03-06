@@ -22,12 +22,13 @@ class User(db.Model):
     user_intro = db.Column(db.String(255))
     verified = db.Column(db.String(10))
 
-    # tweets = db.relationship('Tweet', lazy='dynamic')
+    tweets = db.relationship('Tweet', lazy='dynamic')
     counts = db.relationship(
-        'UserCount', backref='user', lazy='dynamic', uselist=False)
+        "application.fintweet.models.UserCount", backref='user', uselist=False)
     mentions = db.relationship(
         'TweetMention',
-        primaryjoin="TweetMention.user_id==User.user_id",
+        primaryjoin=
+        "TweetMention.user_id==application.fintweet.models.User.user_id",
         backref='user',
         lazy='dynamic')
 
@@ -61,10 +62,6 @@ class UserCount(db.Model):
     likes = db.Column(db.Integer)
     lists = db.Column(db.Integer)
 
-    # user = db.relationship('User', backref='counts')
-    # user = db.relationship('User', backref='user_count', lazy='dynamic',
-    #                        primaryjoin="UserCount.user_id==User.user_id", foreign_keys='User.user_id')
-
     def __repr__(self):
         return self.user_id
 
@@ -85,7 +82,7 @@ class Tweet(db.Model):
     reply_to = db.Column(db.BigInteger)
     permalink = db.Column(db.String(255))
 
-    users = db.relationship('User', uselist=False)
+    user = db.relationship('application.fintweet.models.User', uselist=False)
 
     # cashtags = db.relationship('TweetCashtag', lazy='dynamic')
     # counts = db.relationship('TweetCount', lazy='dynamic')

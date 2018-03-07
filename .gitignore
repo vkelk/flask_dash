@@ -183,3 +183,5 @@ application/db_config.py
 
 # project specifics
 application/uploads
+.vscode/settings.json
+application/ml/ml.py

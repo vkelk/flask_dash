@@ -14,3 +14,5 @@ def _before_request():
 
 
 stocktwit.before_request(_before_request)
+
+import application.stocktwits.views

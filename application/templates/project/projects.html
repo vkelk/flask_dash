@@ -23,7 +23,7 @@
         <tbody>
         {% for project in projects %}
             <tr>
-                <td><a href="{{ url_for('project.project', uuid=project.uuid) }}">{{ project.name }}</a></td>
+                <td><a href="{{ url_for('project.project_uuid', uuid=project.uuid) }}">{{ project.name }}</a></td>
                 <td> {{ project.date_start }} </td>
                 <td> {{ project.date_end }} </td>
                 <td> {{ project.description }} </td>

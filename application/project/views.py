@@ -2,6 +2,7 @@ import hashlib, json, os
 from datetime import datetime, timedelta
 import pandas as pd
 from pprint import pprint
+from sqlalchemy import func
 from flask import render_template, request, Markup, flash, redirect, url_for, abort, session, jsonify, send_file
 from flask_login import login_user, current_user, login_required, logout_user
 from werkzeug.utils import secure_filename, CombinedMultiDict
@@ -26,7 +27,7 @@ def project_add():
             message = Markup(
                 "<strong>Project created!</strong> Please continue...")
             flash(message, 'success')
-            return redirect(url_for('project.project', uuid=new_project.uuid))
+            return redirect(url_for('project.project_uuid', uuid=new_project.uuid))
         except Exception as e:
             db.session.rollback()
             pprint(e)
@@ -82,7 +83,7 @@ def project_activate(uuid):
         message = Markup(
             "<strong>Project activated!</strong>")
         flash(message, 'success')
-        return redirect(url_for('project.project', uuid=uuid))
+        return redirect(url_for('project.project_uuid', uuid=uuid))
     except Exception as e:
         db.session.rollback()
         pprint(e)

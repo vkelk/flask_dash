@@ -175,7 +175,6 @@ scrapers/tweets/word_list_3.xlsx
 scrapers/stocktwits/symbol_list.xlsx
 scrapers/stocktwits/report.csv
 application/db_config.py
-.vscode/settings.json
 
 # IDE
 .vscode/
@@ -183,5 +182,4 @@ application/db_config.py
 
 # project specifics
 application/uploads
-.vscode/settings.json
 application/ml/ml.py

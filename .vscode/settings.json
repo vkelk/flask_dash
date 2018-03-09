@@ -1,4 +1,7 @@
 {
-    "python.pythonPath": "C:/Users/Vasko/Envs/flask_dash/Scripts/python.exe",
-    "python.linting.enabled": true
+    "python.pythonPath": "C:\\Users\\vkelk\\Envs\\flask_dash\\Scripts\\python.exe",
+    "python.linting.enabled": true,
+    "python.formatting.provider": "yapf",
+    "python.linting.pylintEnabled": false,
+    "python.linting.pep8Enabled": true
 }

@@ -1,7 +1,11 @@
 import logging
 import os
+from dotenv import load_dotenv
 from application.db_config import db_config, pg_config, MAILGUN_KEY as MK, MAILGUN_DOMAIN as MD
 
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(basedir, '.env'))
 
 class Configuration(object):
     # Statement for enabling the development environment
@@ -39,10 +43,11 @@ class Configuration(object):
 
     # Use a secure, unique and absolutely secret key for
     # signing the data.
-    CSRF_SESSION_KEY = "protectyoursecrets"
+    CSRF_SESSION_KEY = os.getenv("SECRET_KEY") or "protectyoursecrets1"
 
     # Secret key for signing cookies
-    SECRET_KEY = 'protectyoursecrets'  # Create a unique key for your app
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'protectyoursecrets2'
+    print(SECRET_KEY)
 
     LOG_LEVEL = logging.WARNING
 

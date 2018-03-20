@@ -31,7 +31,7 @@ class PgTweetCounts(Base):
 
 
 class PgTweetCashtags(Base):
-    __table__ = Table('tweet_cashtags', pg_meta, autoload=True)
+    __table__ = Table('tweet_cashtags_new', pg_meta, autoload=True)
 
 
 class PgTweetHashtags(Base):
@@ -59,7 +59,7 @@ emoticons_str = r"""
     )"""
 
 regex_str = [
-    emoticons_str,
+    # emoticons_str,
     r'<[^>]+>',  # HTML tags
     r'(?:@[\w_]+)',  # @-mentions
     r"(?:\#+[\w_]+[\w\'_\-]*[\w_]+)",  # hash-tags
@@ -73,7 +73,9 @@ regex_str = [
     r'(?:\S)'  # anything else
 ]
 
-tokens_re = re.compile(r'(' + '|'.join(regex_str) + ')', re.VERBOSE | re.IGNORECASE)
+regex_cashtags = r"(\$[a-zA-Z]{1,7}(?:[.:]{1}[a-zA-Z]{1,7})?\b)"  # cash-tags
+
+tokens_re = re.compile(regex_cashtags, re.VERBOSE | re.IGNORECASE)
 emoticon_re = re.compile(r'^' + emoticons_str + '$', re.VERBOSE | re.IGNORECASE)
 
 
@@ -81,29 +83,31 @@ def tokenize(s):
     return tokens_re.findall(s)
 
 
-def preprocess(s, lowercase=False):
+def preprocess(s, lowercase=False, upercase=False):
     tokens = tokenize(s)
     if lowercase:
         tokens = [token if emoticon_re.search(token) else token.lower() for token in tokens]
+    if upercase:
+        tokens = [token.upper() for token in tokens]
     return tokens
 
 
 def extract(tweet):
     global i
-    tokens = preprocess(tweet.text)
+    tokens = preprocess(tweet.text, upercase=True)
     cashtags = [term for term in tokens if term.startswith('$') and len(term) > 1]
-    hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
-    mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
-    urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
-    if len(cashtags) > 0:
+    # hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
+    # mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
+    # urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
+    if len(cashtags) > 1 and len(cashtags) <=11:
         for cashtag in cashtags:
             process_cashtag(tweet.tweet_id, cashtag)
-        for hashtag in hashtags:
-            process_hashtag(tweet.tweet_id, hashtag)
-        for mention in mentions:
-            process_mention(tweet.tweet_id, mention)
-        for url in urls:
-            process_url(tweet.tweet_id, url)
+        # for hashtag in hashtags:
+        #     process_hashtag(tweet.tweet_id, hashtag)
+        # for mention in mentions:
+        #     process_mention(tweet.tweet_id, mention)
+        # for url in urls:
+        #     process_url(tweet.tweet_id, url)
 
 
 def process_cashtag(tweet_id, cashtag):
@@ -177,7 +181,7 @@ def process_url(tweet_id, url):
 if __name__ == '__main__':
     session = Session()
 
-    for t in session.query(PgTweets).filter(PgTweets.tweet_id > 295453374990671872) \
+    for t in session.query(PgTweets).filter(PgTweets.tweet_id > 1) \
             .order_by(PgTweets.tweet_id.asc()).yield_per(100):
         extract(t)
 

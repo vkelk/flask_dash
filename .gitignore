@@ -184,3 +184,5 @@ vscode/
 # project specifics
 application/uploads
 application/ml/ml.py
+files/
+migration_tools/db_config.py

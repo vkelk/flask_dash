@@ -1,8 +1,11 @@
-import os, re
+import os
+import re
 import pandas as pd
 from pprint import pprint
-from application.project.models import *
-from application.fintweet.models import *
+from application import db
+from application.project.models import Project, Event, EventTweets
+from application.fintweet.models import Tweet, TweetCashtag
+from application.stocktwits.models import Ideas, IdeaCashtags
 
 
 def slugify(s):
@@ -56,27 +59,44 @@ def dataframe_from_file(filename):
     return None
 
 
-def get_data_from_query(c_tag, estimation):
-    q = db.session \
-        .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
-        .join(TweetCashtag) \
-        .filter(TweetCashtag.cashtags == c_tag) \
-        .filter(Tweet.date >= estimation['pre_start']) \
-        .filter(Tweet.date <= estimation['post_end']) \
-        .group_by(Tweet.date).order_by(Tweet.date)
-    # print(q)
+def get_data_from_query(c_tag, estimation, dataset=None):
+    if dataset in [None, 'fintweet']:
+        q = db.session \
+            .query(Tweet.date, db.func.count(Tweet.tweet_id).label("count")) \
+            .join(TweetCashtag) \
+            .filter(TweetCashtag.cashtags == c_tag) \
+            .filter(Tweet.date >= estimation['pre_start']) \
+            .filter(Tweet.date <= estimation['post_end']) \
+            .group_by(Tweet.date).order_by(Tweet.date)
+        # print(q)
+    elif dataset == 'stocktwits':
+        q = db.session \
+            .query(Ideas.date, db.func.count(Ideas.ideas_id).label("count")) \
+            .join(IdeaCashtags) \
+            .filter(IdeaCashtags.cashtag == c_tag) \
+            .filter(Ideas.date >= estimation['pre_start']) \
+            .filter(Ideas.date <= estimation['post_end']) \
+            .group_by(Ideas.date).order_by(Ideas.date)
     return [r._asdict() for r in q.all()]
 
 
-def get_tweets_from_event_period(c_tag, period_start, period_end):
-    q = db.session \
-        .query(Tweet.tweet_id) \
-        .join(TweetCashtag) \
-        .filter(TweetCashtag.cashtags == c_tag) \
-        .filter(Tweet.date >= period_start) \
-        .filter(Tweet.date <= period_end) \
-        .order_by(Tweet.date)
-    # print(q)
+def get_tweets_from_event_period(c_tag, period_start, period_end, dataset=None):
+    if dataset in [None, 'fintweet']:
+        q = db.session \
+            .query(Tweet.tweet_id) \
+            .join(TweetCashtag) \
+            .filter(TweetCashtag.cashtags == c_tag) \
+            .filter(Tweet.date >= period_start) \
+            .filter(Tweet.date <= period_end) \
+            .order_by(Tweet.date)
+    elif dataset == 'stocktwits':
+        q = db.session \
+            .query(Ideas.ideas_id) \
+            .join(IdeaCashtags) \
+            .filter(IdeaCashtags.cashtag == c_tag) \
+            .filter(Ideas.date >= period_start) \
+            .filter(Ideas.date <= period_end) \
+            .order_by(Ideas.date)
     return q.all()
 
 
@@ -120,14 +140,17 @@ def insert_event_tweets(event):
     return None
 
 
-def count_sentiment(cashtag, start, end):
+def count_sentiment(cashtag, start, end, dataset=None):
     filters = {"cashtag": cashtag, "start": start, "end": end}
-    q = "select sum(case when s.sentiment = 'Bullish' then 1 else 0 end) as bullish, sum(case when s.sentiment = 'Bearish' then 1 else 0 end) as bearish, " \
-        "sum (case when s.tone = 'positive' then 1 else 0 end) as positive, sum (case when s.tone = 'negative' then 1 else 0 end) as negative " \
-        "from fintweet.tweet_cashtags c join fintweet.tweet t on t.tweet_id = c.tweet_id join fintweet.tweet_sentiment s on c.tweet_id = s.tweet_id " \
-        "where c.cashtags='{cashtag}' and t.date >='{start}' and t.date <='{end}'".format(**filters)
-    result = db.session.execute(q).fetchone()
+    if dataset in [None, 'fintweet']:
+        q = "select sum(case when s.sentiment = 'Bullish' then 1 else 0 end) as bullish, sum(case when s.sentiment = 'Bearish' then 1 else 0 end) as bearish, " \
+            "sum (case when s.tone = 'positive' then 1 else 0 end) as positive, sum (case when s.tone = 'negative' then 1 else 0 end) as negative " \
+            "from fintweet.tweet_cashtags c join fintweet.tweet t on t.tweet_id = c.tweet_id join fintweet.tweet_sentiment s on c.tweet_id = s.tweet_id " \
+            "where c.cashtags='{cashtag}' and t.date >='{start}' and t.date <='{end}'".format(**filters)
+        result = db.session.execute(q).fetchone()
     # print(result.keys(), result)
+    elif dataset == 'stocktwits':
+        pass
     return result
 
 

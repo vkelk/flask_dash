@@ -42,8 +42,10 @@ class EventForm(FlaskForm):
 
 class EventStudyForm(FlaskForm):
     # project_id = HiddenField('Project Id', validators=[DataRequired()])
-    dataset = SelectField("Select dataset", validators=[DataRequired()],
-                          choices=[('fintweet', 'Fintweet')])
+    dataset = SelectField(
+        "Select dataset",
+        validators=[DataRequired()],
+        choices=[('fintweet', 'Fintweet'), ('stocktwits', 'Stocktwits')])
 
     events = FieldList(FormField(EventForm), min_entries=1)
     add_event = SubmitField('Add new event')
@@ -51,8 +53,10 @@ class EventStudyForm(FlaskForm):
 
 
 class EventStudyFileForm(FlaskForm):
-    dataset = SelectField("Select dataset", validators=[DataRequired()],
-                          choices=[('fintweet', 'Fintweet')])
+    dataset = SelectField(
+        "Select dataset",
+        validators=[DataRequired()],
+        choices=[('fintweet', 'Fintweet'), ('stocktwits', 'Stocktwits')])
     days_pre_event = IntegerField('Pre event days', default=-1, validators=[DataRequired()])
     days_post_event = IntegerField('Post event days', default=2,
                                    validators=[DataRequired(), NumberRange(min=0, message='Must be non-negative')])

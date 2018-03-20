@@ -178,6 +178,7 @@ application/db_config.py
 
 # IDE
 .vscode/
+vscode/
 .idea/
 
 # project specifics

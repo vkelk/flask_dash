@@ -181,6 +181,8 @@ application/uploads
 application/ml/ml.py
 files/
 migration_tools/db_config.py
+scrapers/tweets/settings.py
+scrapers/stocktwits/settings.py
 scrapers/tweets/*.xlsx
 scrapers/tweets/*.csv
 scrapers/tweets/*.txt

@@ -27,7 +27,7 @@ import random
 import tweet_api
 
 ISUSERPROFILE = True
-IS_PROFILE_SEARCH=True
+IS_PROFILE_SEARCH = True
 time_wait = 0
 flag1 = False
 
@@ -42,7 +42,7 @@ regex_str = [
     r'<[^>]+>',  # HTML tags
     r'(?:@[\w_]+)',  # @-mentions
     r"(?:\#+[\w_]+[\w\'_\-]*[\w_]+)",  # hash-tags
-    r"(?:\$+[a-zA-Z]+[\w\'_\-]*[\w_]+)",  # cash-tags
+    r"(?:\$[a-zA-Z]{1,7}(?:[.:]{1}[a-zA-Z]{1,7})?\b)",  # cash-tags
     r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+',  # URLs
 
     r'(?:(?:\d+,?)+(?:\.?\d+)?)',  # numbers
@@ -74,9 +74,6 @@ class Twit:
         return self.text
 
 
-
-
-
 def get_symbols(s):
     s = s.upper()
     res = re.findall('(\$[A-Z]{1,6}([._][A-Z]{1,2})?)', s, re.M)
@@ -89,7 +86,8 @@ def get_symbols(s):
 
 
 def scra(query, i, proxy, lock, session):
-    twitter_scraper=tweet_api.TweetScraper(proxy, IS_PROFILE_SEARCH=IS_PROFILE_SEARCH, logname='awam')
+    twitter_scraper = tweet_api.TweetScraper(proxy, IS_PROFILE_SEARCH=IS_PROFILE_SEARCH, logname='awam')
+
     def tokenize(s):
         return tokens_re.findall(s)
 
@@ -116,7 +114,7 @@ def scra(query, i, proxy, lock, session):
     login = credential['login']
     password = credential['password']
 
-    for t in twitter_scraper.get_new_search( query, login, password):
+    for t in twitter_scraper.get_new_search(query, login, password):
 
         data = {}
         data['permno'] = permno
@@ -167,11 +165,10 @@ def scra(query, i, proxy, lock, session):
         else:
             data['TimeZoneUTC'] = None
 
-
         tokens = preprocess(t.text)
-        cashtags = [term for term in tokens if term.startswith('$') and len(term) > 1]
-        hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
-        mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
+        cashtags = set([term for term in tokens if term.startswith('$') and len(term) > 1])
+        hashtags = set([term for term in tokens if term.startswith('#') and len(term) > 1])
+        # mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
         urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
 
         tweet_list.append(data)
@@ -220,6 +217,7 @@ def scra(query, i, proxy, lock, session):
             session.add(user)
             try:
                 session.commit()
+                print('Inserted new user:', data['UserID'])
             except sqlalchemy.exc.IntegrityError as err:
                 if re.search("duplicate key value violates unique constraint", err.args[0]):
                     print('ROLLBACK USER')
@@ -273,10 +271,11 @@ def scra(query, i, proxy, lock, session):
             twit.counts.append(tweet_count)
             session.add(tweet_count)
         else:
-            i=1
+            i = 1
         session.add(twit)
         try:
             session.commit()
+            print('Inserted new Tweet:', data['tweet_id'])
         except sqlalchemy.exc.IntegrityError as err:
             if re.search('duplicate key value violates unique constraint', err.args[0]):
                 print('ROLLBACK common')
@@ -462,11 +461,12 @@ def add_engine_pidguard(engine):
 
 Base = declarative_base()
 pg_config = {'username': settings.PG_USER, 'password': settings.PG_PASSWORD, 'database': settings.PG_DBNAME,
-                'host': settings.DB_HOST}
+             'host': settings.DB_HOST}
 pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
 db_engine = create_engine(pg_dsn)
 add_engine_pidguard(db_engine)
 pg_meta = MetaData(bind=db_engine, schema="fintweet")
+
 
 class User(Base):
     __table__ = Table('user', pg_meta, autoload=True)
@@ -505,7 +505,8 @@ class Tweet(Base):
     cash_s = relationship('TweetCashtags')
     hash_s = relationship('TweetHashtags')
     url_s = relationship('TweetUrl')
-    
+
+
 DstSession = sessionmaker(bind=db_engine, autoflush=False)
 
 
@@ -535,7 +536,7 @@ if __name__ == '__main__':
 
             permno = str(ws.cell(row=i, column=1).value).lower().strip(' ')
             query = str(ws.cell(row=i, column=1).value).lower().strip(' '), \
-                    str(ws.cell(row=i, column=2).value).lower().strip(' ') ,0,0,None
+                str(ws.cell(row=i, column=2).value).lower().strip(' '), 0, 0, None
             print(query)
 
             user_queue.put((query, i))

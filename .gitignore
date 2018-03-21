@@ -182,6 +182,9 @@ application/ml/ml.py
 files/
 migration_tools/db_config.py
 scrapers/tweets/*.xlsx
+scrapers/tweets/*.csv
+scrapers/tweets/*.txt
+scrapers/tweets/*.log
 scrapers/stocktwits/*.xlsx
 scrapers/stocktwits/*.csv
 application/db_config.py

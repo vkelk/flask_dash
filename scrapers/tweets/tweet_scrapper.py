@@ -25,8 +25,8 @@ from pprint import pprint
 import tweet_api
 import random
 
-IS_PROFILE_SEARCH=False
-ISUSERPROFILE=True
+IS_PROFILE_SEARCH = False
+ISUSERPROFILE = True
 time_wait = 0
 flag1 = False
 
@@ -68,6 +68,7 @@ class Twit:
     def __repr__(self):
         return self.text
 
+
 def get_symbols(s):
     s = s.upper()
     res = re.findall('(\$[A-Z]{1,6}([._][A-Z]{1,2})?)', s, re.M)
@@ -81,6 +82,7 @@ def get_symbols(s):
 
 def scra(query, i, proxy, lock, session):
     twitter_scraper = tweet_api.TweetScraper(proxy, IS_PROFILE_SEARCH=IS_PROFILE_SEARCH, logname='awam')
+
     def tokenize(s):
         return tokens_re.findall(s)
 
@@ -135,7 +137,10 @@ def scra(query, i, proxy, lock, session):
         data['is_verified'] = t.is_verified
         # data['isProtected'] = t.is_protected
         data['isReply'] = t.is_reply
-        data['ReplyTweetID'] = t.data_conversation_id
+        try:
+            data['ReplyTweetID'] = int(t.data_conversation_id)
+        except ValueError:
+            data['ReplyTweetID'] = None
         data['ReplyUserId'] = t.is_reply_id
         # data['ReplyScreenName'] = t.is_reply_screen_name
         # data['Lang'] = t.lang
@@ -157,10 +162,9 @@ def scra(query, i, proxy, lock, session):
         else:
             data['TimeZoneUTC'] = None
 
-
         tokens = preprocess(t.text)
-        cashtags = [term.upper() for term in tokens if term.startswith('$') and len(term) > 1]
-        hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
+        cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 1])
+        hashtags = set([term for term in tokens if term.startswith('#') and len(term) > 1])
         # mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
         urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
 
@@ -191,7 +195,6 @@ def scra(query, i, proxy, lock, session):
 
         user = session.query(User).filter_by(user_id=data['UserID']).first()
         if not user:
-            print('New user:', data['UserID'])
             user = User(user_id=data['UserID'],
                         twitter_handle=data['UserScreenName'][:120],
                         user_name=data['UserName'][:120],
@@ -212,6 +215,7 @@ def scra(query, i, proxy, lock, session):
                 user.counts.append(user_count)
                 session.add(user)
                 session.commit()
+                print('Inserted new user:', data['UserID'])
             except sqlalchemy.exc.IntegrityError as err:
                 if re.search("duplicate key value violates unique constraint", err.args[0]):
                     print('ROLLBACK USER')
@@ -222,21 +226,19 @@ def scra(query, i, proxy, lock, session):
 
         twit = session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first()
         if not twit:
-            print('New Tweet:', data['tweet_id'])
             twit = Tweet(tweet_id=data['tweet_id'],
                          date=datetime.strptime(data['DateOfActivity'], '%d/%m/%Y'),
                          time=data['TimeOfActivity'],
                          timezone=data['TimeZoneUTC'][:10] if data['TimeZoneUTC'] else None,
                          retweet_status=data['Re_tweet'],
                          text=data['Tweet'],
-                         reply_to=t.data_conversation_id if t.is_reply else None,
+                         reply_to=data['ReplyTweetID'],
                          location=data['Location'][:255] if data['Location'] else None,
                          permalink=data['tweet_url'][:255] if data['tweet_url'] else None,
                          emoticon=','.join(t.emoji) if t.emoji else None)
             tweet_count = TweetCount(reply=data['NumberOfReplies'],
                                      favorite=data['NumberOfFavorites'],
                                      retweet=t.retweets_count)
-
 
         if not session.query(TweetHashtags).filter_by(tweet_id=data['tweet_id']).first():
             for hash_s in hashtags:
@@ -267,10 +269,11 @@ def scra(query, i, proxy, lock, session):
             twit.counts.append(tweet_count)
             session.add(tweet_count)
         else:
-            i=1
+            i = 1
         try:
             session.add(twit)
             session.commit()
+            print('Inserted new Tweet:', data['tweet_id'])
         except sqlalchemy.exc.IntegrityError as err:
             if re.search('duplicate key value violates unique constraint', err.args[0]):
                 print('ROLLBACK common')
@@ -373,30 +376,23 @@ if __name__ == '__main__':
         tweets = relationship('Tweet')
         counts = relationship('UserCount')
 
-
     class UserCount(Base):
         __table__ = Table('user_count', pg_meta, autoload=True)
-
 
     class TweetCount(Base):
         __table__ = Table('tweet_count', pg_meta, autoload=True)
 
-
     class TweetMentions(Base):
         __table__ = Table('tweet_mentions', pg_meta, autoload=True)
-
 
     class TweetCashtags(Base):
         __table__ = Table('tweet_cashtags', pg_meta, autoload=True)
 
-
     class TweetHashtags(Base):
         __table__ = Table('tweet_hashtags', pg_meta, autoload=True)
 
-
     class TweetUrl(Base):
         __table__ = Table('tweet_url', pg_meta, autoload=True)
-
 
     class Tweet(Base):
         __table__ = Table('tweet', pg_meta, autoload=True)
@@ -435,8 +431,8 @@ if __name__ == '__main__':
             t2 = re.sub(' 00:00:00', '', t2)
             permno = str(ws.cell(row=i, column=1).value).lower().strip(' ')
             query = str(ws.cell(row=i, column=2).value).lower().strip(' '), \
-                    str(ws.cell(row=i, column=3).value).lower().strip(' '), \
-                    t1, t2, permno
+                str(ws.cell(row=i, column=3).value).lower().strip(' '), \
+                t1, t2, permno
             print(query)
 
             user_queue.put((query, i))

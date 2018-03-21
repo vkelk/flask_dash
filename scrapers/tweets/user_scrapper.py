@@ -15,7 +15,8 @@ import os
 import sqlalchemy.exc
 import tweet_api
 
-ISUSERPROFILE=True
+ISUSERPROFILE = True
+
 
 class Twit:
     def __init__(self):
@@ -71,7 +72,7 @@ def user_loader(n, user_queue, pg_dsn, proxy):
             u = Twit()
             if twitter_scraper.get_user_profile(username, u):
                 if not user_id:
-                    user_id=u.user_id
+                    user_id = u.user_id
                 if u.utc_offset:
                     if u.utc_offset / 3600 >= 0:
                         timezone = 'UTC+' + str(int(u.utc_offset / 3600))
@@ -102,6 +103,7 @@ def user_loader(n, user_queue, pg_dsn, proxy):
                 if is_there_anything_to_record:
                     try:
                         session.commit()
+                        print('Inserted new user:', user_id)
                     except sqlalchemy.exc.IntegrityError as err:
                         if re.search("duplicate key value violates unique constraint", err.args[0]):
                             print('ROLLBACK USER', username)
@@ -118,7 +120,7 @@ def check_user(user_queue, pg_dsn, proxy_list):
     DstSession = sessionmaker(bind=db_engine, autoflush=False)
     session = DstSession()
     username_list = []
-    count =0
+    count = 0
     for idx, tweet in enumerate(session.query(Tweet).all()):
         user_id = tweet.user_id
         user = session.query(User).filter_by(user_id=user_id).first()
@@ -127,7 +129,7 @@ def check_user(user_queue, pg_dsn, proxy_list):
             username = re.findall('https://twitter.com/(.+?)/status', tweet.permalink)[0]
             if username not in username_list:
                 user_queue.put((username, user_id))
-                count +=1
+                count += 1
                 username_list.append(username)
 
     # Send poisoned pill
@@ -140,11 +142,12 @@ def check_user(user_queue, pg_dsn, proxy_list):
 
 Base = declarative_base()
 pg_config = {'username': settings.PG_USER, 'password': settings.PG_PASSWORD, 'database': settings.PG_DBNAME,
-                'host': settings.DB_HOST}
+             'host': settings.DB_HOST}
 pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
 db_engine = create_engine(pg_dsn)
 add_engine_pidguard(db_engine)
 pg_meta = MetaData(bind=db_engine, schema="fintweet")
+
 
 class User(Base):
     __table__ = Table('user', pg_meta, autoload=True)
@@ -183,12 +186,13 @@ class Tweet(Base):
     cash_s = relationship('TweetCashtags')
     hash_s = relationship('TweetHashtags')
     url_s = relationship('TweetUrl')
-    
+
+
 DstSession = sessionmaker(bind=db_engine, autoflush=False)
 
 
 if __name__ == '__main__':
-    
+
     dstssn = DstSession()
 
     try:

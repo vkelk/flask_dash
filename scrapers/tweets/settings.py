@@ -5,7 +5,7 @@ PG_PASSWORD = 'c1ns@lt3ng'
 DB_HOST = '192.168.101.201'
 
 twitter_logins = [
-    {'login': 'mariaf.lums@gmail.com', 'password': 'pakistan2pakistan'}   
+    {'login': 'mariaf.lums@gmail.com', 'password': 'pakistan2pakistan'}
 ]
 
 

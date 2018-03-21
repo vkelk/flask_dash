@@ -18,6 +18,7 @@ from pyquery import PyQuery
 import json
 import time
 from datetime import datetime
+from pprint import pprint
 
 ISUSERPROFILE = True
 
@@ -73,8 +74,9 @@ regex_str = [
     r'<[^>]+>',  # HTML tags
     r'(?:@[\w_]+)',  # @-mentions
     r"(?:\#+[\w_]+[\w\'_\-]*[\w_]+)",  # hash-tags
-    r"(?:\$+[a-zA-Z]+[\w\'_\-]*[\w_]+)",  # cash-tags
-    r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+',  # URLs
+    r"(?:\$[a-zA-Z]{1,7}(?:[.:]{1}[a-zA-Z]{1,7})?\b)",  # cash-tags
+    # URLs
+    r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+',
 
     r'(?:(?:\d+,?)+(?:\.?\d+)?)',  # numbers
     r"(?:[a-z][a-z'\-_]+[a-z])",  # words with - and '
@@ -92,7 +94,8 @@ def tokenize(s):
 def preprocess(s, lowercase=False):
     tokens = tokenize(s)
     if lowercase:
-        tokens = [token if emoticon_re.search(token) else token.lower() for token in tokens]
+        tokens = [token if emoticon_re.search(
+            token) else token.lower() for token in tokens]
     return tokens
 
 
@@ -109,8 +112,10 @@ def fill(session, t, query=None, permno=None):
         data['QueryEndDate'] = query[3]
         data['Query'] = query[1]
         data['Keyword'] = query[1]
-    data['TimeOfActivity'] = time.strftime('%H:%M:%S', time.localtime(t.unixtime))
-    data['DateOfActivity'] = time.strftime('%d/%m/%Y', time.localtime(t.unixtime))
+    data['TimeOfActivity'] = time.strftime(
+        '%H:%M:%S', time.localtime(t.unixtime))
+    data['DateOfActivity'] = time.strftime(
+        '%d/%m/%Y', time.localtime(t.unixtime))
     data['tweet_id'] = t.id
     data['tweet_url'] = t.permalink
     data['UserID'] = t.user_id
@@ -127,7 +132,10 @@ def fill(session, t, query=None, permno=None):
     data['is_verified'] = t.is_verified
     # data['isProtected'] = t.is_protected
     data['isReply'] = t.is_reply
-    data['ReplyTweetID'] = t.data_conversation_id
+    try:
+        data['ReplyTweetID'] = int(t.data_conversation_id)
+    except ValueError:
+        data['ReplyTweetID'] = None
     data['ReplyUserId'] = t.is_reply_id
     # data['ReplyScreenName'] = t.is_reply_screen_name
     # data['Lang'] = t.lang
@@ -140,6 +148,8 @@ def fill(session, t, query=None, permno=None):
     # data['Location ID'] = t.location_id
     data['DateJoined'] = dateparser.parse(t.user_created) if t.user_created else None
     data['Tweet'] = t.text
+    # pprint(data)
+    # exit()
 
     if t.utc_offset:
         if t.utc_offset / 3600 >= 0:
@@ -150,9 +160,9 @@ def fill(session, t, query=None, permno=None):
         data['TimeZoneUTC'] = None
 
     tokens = preprocess(t.text)
-    cashtags = [term for term in tokens if term.startswith('$') and len(term) > 1]
-    hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
-    mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
+    cashtags = set([term for term in tokens if term.startswith('$') and len(term) > 1])
+    hashtags = set([term for term in tokens if term.startswith('#') and len(term) > 1])
+    # mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
     urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
 
     if ISUSERPROFILE:
@@ -206,10 +216,11 @@ def fill(session, t, query=None, permno=None):
                      timezone=data['TimeZoneUTC'][:10] if data['TimeZoneUTC'] else None,
                      retweet_status=data['Re_tweet'],
                      text=data['Tweet'],
-                     reply_to=t.data_conversation_id if t.is_reply else None,
+                     reply_to=data['ReplyTweetID'],
                      location=data['Location'][:255] if data['Location'] else None,
                      permalink=data['tweet_url'] if data['tweet_url'] else None,
                      emoticon=','.join(t.emoji) if t.emoji else None)
+        # print(twit.tweet_id, twit.reply_to)
         tweet_count = TweetCount(reply=data['NumberOfReplies'],
                                  favorite=data['NumberOfFavorites'],
                                  retweet=t.retweets_count)
@@ -234,7 +245,8 @@ def fill(session, t, query=None, permno=None):
 
     if not session.query(TweetMentions).filter_by(tweet_id=data['tweet_id']).first():
         for ment_s in t.ment_s:
-            tweet_mentions = TweetMentions(mentions=ment_s[0][:45], user_id=ment_s[1])
+            tweet_mentions = TweetMentions(
+                mentions=ment_s[0][:45], user_id=ment_s[1])
             twit.ment_s.append(tweet_mentions)
             session.add(tweet_mentions)
     user.tweets.append(twit)
@@ -247,6 +259,7 @@ def fill(session, t, query=None, permno=None):
     session.add(twit)
     try:
         session.commit()
+        print('Inserted', twit.tweet_id, twit.reply_to)
     except sqlalchemy.exc.IntegrityError as err:
         if re.search('duplicate key value violates unique constraint', err.args[0]):
             print('ROLLBACK common')
@@ -282,7 +295,7 @@ def reply(session, twitter_scraper, username, tweet_id):
         if res:
             data_min = res[0]
             if (first and re.search('show_more_button', r1, re.M) or (not first and j[
-                'has_more_items'])):  # PyQuery(r1)('li.ThreadedConversation-moreReplies').attr('data-expansion-url')
+                    'has_more_items'])):  # PyQuery(r1)('li.ThreadedConversation-moreReplies').attr('data-expansion-url')
                 first = False
                 url = 'https://twitter.com/i/' + username + '/conversation/' + str(
                     tweet_id) + '?include_available_features=1&include_entities=1&max_position=' + data_min + '&reset_error_state=false'
@@ -296,8 +309,9 @@ def reply_loader(n, user_queue, pg_dsn, proxy):
     add_engine_pidguard(db_engine)
     DstSession = sessionmaker(bind=db_engine, autoflush=False)
     session = DstSession()
-    twitter_scraper = tweet_api.TweetScraper(proxy, IS_PROFILE_SEARCH=None, logname='awam')
-    print('Scraper {} with Proxy {} started'.format(n,proxy))
+    twitter_scraper = tweet_api.TweetScraper(
+        proxy, IS_PROFILE_SEARCH=None, logname='awam')
+    print('Scraper {} with Proxy {} started'.format(n, proxy))
     # reply(session, twitter_scraper,'anatoliisharii',975426560424599552)
     while True:
         r = user_queue.get()
@@ -320,7 +334,8 @@ def check_tweet(user_queue, pg_dsn, proxy_list):
         tweet_id = tweet.tweet_id
 
         # Getting the user name from permalink
-        username = re.findall('https://twitter.com/(.+?)/status', tweet.permalink)[0]
+        username = re.findall(
+            'https://twitter.com/(.+?)/status', tweet.permalink)[0]
         user_queue.put((username, tweet_id))
 
     # Send poisoned pill
@@ -333,11 +348,14 @@ def check_tweet(user_queue, pg_dsn, proxy_list):
 
 Base = declarative_base()
 pg_config = {'username': settings.PG_USER, 'password': settings.PG_PASSWORD, 'database': settings.PG_DBNAME,
-                'host': settings.DB_HOST}
-pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
+             'host': settings.DB_HOST}
+pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(
+    **pg_config)
 db_engine = create_engine(pg_dsn)
 add_engine_pidguard(db_engine)
 pg_meta = MetaData(bind=db_engine, schema="fintweet")
+DstSession = sessionmaker(bind=db_engine, autoflush=False)
+
 
 class User(Base):
     __table__ = Table('user', pg_meta, autoload=True)
@@ -376,8 +394,6 @@ class Tweet(Base):
     cash_s = relationship('TweetCashtags')
     hash_s = relationship('TweetHashtags')
     url_s = relationship('TweetUrl')
-    
-DstSession = sessionmaker(bind=db_engine, autoflush=False)
 
 
 if __name__ == '__main__':
@@ -400,6 +416,8 @@ if __name__ == '__main__':
     pp.append(p)
 
     for idx, s in enumerate(settings.proxy_list):
+        # reply_loader(idx + 1, reply_queue, pg_dsn, s)
+        # exit()
         p = Process(target=reply_loader, args=(idx + 1, reply_queue, pg_dsn, s))
         p.start()
         pp.append(p)

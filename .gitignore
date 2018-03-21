@@ -171,11 +171,6 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-scrapers/tweets/word_list_3.xlsx
-scrapers/stocktwits/symbol_list.xlsx
-scrapers/stocktwits/report.csv
-application/db_config.py
-
 # IDE
 .vscode/
 vscode/
@@ -186,3 +181,8 @@ application/uploads
 application/ml/ml.py
 files/
 migration_tools/db_config.py
+scrapers/tweets/*.xlsx
+scrapers/stocktwits/*.xlsx
+scrapers/stocktwits/*.csv
+application/db_config.py
+

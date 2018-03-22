@@ -1,3 +1,5 @@
+import csv
+import os
 import re
 import concurrent.futures as cf
 from sqlalchemy import *
@@ -5,51 +7,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
 from pprint import pprint
 from datetime import datetime
-from application.db_config import pg_config
 
-pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
-
-Base = declarative_base()
-db = create_engine(pg_dsn, pool_size=100, max_overflow=0)
-pg_meta = MetaData(bind=db, schema="fintweet")
-
-
-class PgUsers(Base):
-    __table__ = Table('user', pg_meta, autoload=True)
-
-
-class PgUsersCount(Base):
-    __table__ = Table('user_count', pg_meta, autoload=True)
-
-
-class PgTweets(Base):
-    __table__ = Table('tweet', pg_meta, autoload=True)
-
-
-class PgTweetCounts(Base):
-    __table__ = Table('tweet_count', pg_meta, autoload=True)
-
-
-class PgTweetCashtags(Base):
-    __table__ = Table('tweet_cashtags_new', pg_meta, autoload=True)
-
-
-class PgTweetHashtags(Base):
-    __table__ = Table('tweet_hashtags', pg_meta, autoload=True)
-
-
-class PgTweetMentions(Base):
-    __table__ = Table('tweet_mentions', pg_meta, autoload=True)
-
-
-class PgTweetUrls(Base):
-    __table__ = Table('tweet_url', pg_meta, autoload=True)
-
-
-# Create a session to use the tables
-session_factory = sessionmaker(db, autocommit=True, autoflush=True)
-# Session = scoped_session(session_factory)
-Session = sessionmaker(bind=db)
 
 emoticons_str = r"""
     (?:
@@ -99,8 +57,8 @@ def extract(tweet):
     # hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
     # mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
     # urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
-    for cashtag in cashtags:
-        if len(cashtag) > 1 and len(cashtag) <= 11:
+    if len(cashtags) > 1 and len(cashtags) <= 11:
+        for cashtag in cashtags:
             process_cashtag(tweet.tweet_id, cashtag)
         # for hashtag in hashtags:
         #     process_hashtag(tweet.tweet_id, hashtag)
@@ -178,7 +136,32 @@ def process_url(tweet_id, url):
             raise
 
 
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+CSV_DIR = os.path.join(os.path.dirname(DIR_PATH), 'files')
+
+
 if __name__ == '__main__':
+
+    files = [f for f in os.listdir(CSV_DIR) if f.endswith('.csv')]
+    file_location = os.path.join(CSV_DIR, files[0])
+    with open(file_location, 'r', encoding='utf-8') as csvfile:
+        reader = csv.reader(csvfile)
+        i = 0
+        for row in reader:
+            # pprint(row)
+            # print(row[0], row[1])
+            tokens = preprocess(row[1], upercase=True)
+            cashtags = set([term for term in tokens if term.startswith('$') and len(term) > 1])
+            for cashtag in cashtags:
+                if len(cashtag) > 1 and len(cashtag) <= 11:
+                    if cashtag == '$AAPL':
+                        i += 1
+                else:
+                    print(cashtag)
+
+            # exit()
+    print(i)
+    exit()
     session = Session()
 
     for t in session.query(PgTweets).filter(PgTweets.tweet_id > 1) \

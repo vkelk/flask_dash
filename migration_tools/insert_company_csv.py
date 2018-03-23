@@ -32,7 +32,7 @@ regex_str = [
     r'(?:@[\w_]+)',  # @-mentions
     r"(?:\#+[\w_]+[\w\'_\-]*[\w_]+)",  # hash-tags
     # r"(?:\$+[a-zA-Z]+[\w\'_\-]*[\w_]+)",  # cash-tags
-    r"(\$[a-zA-Z]{1,7}(?:[.:]{1}[a-zA-Z]{1,7})?\b)",  # cash-tags
+    r"(?:\$[a-zA-Z]{1,7}(?:[.:]{1}[a-zA-Z]{1,7})?\b)",  # cash-tags
     r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+',  # URLs
     r'(?:(?:\d+,?)+(?:\.?\d+)?)',  # numbers
     r"(?:[a-z][a-z'\-_]+[a-z])",  # words with - and '
@@ -81,6 +81,10 @@ class TweetMentions(Base):
 
 class TweetUrls(Base):
     __table__ = Table('tweet_url', db_meta, autoload=True)
+
+
+class FileInfo(Base):
+    __table__ = Table('fileinfo', db_meta, autoload=True)
 
 
 def fname_exists(fname):
@@ -188,32 +192,10 @@ def add_tweet_url(row, url):
     return tweet_url
 
 
-def add_file_info(fname, row, count):
-    try:
-        date_start = datetime.strptime(row['QueryStartDate'], '%Y-%m-%d')
-    except BaseException as e:
-        try:
-            date_start = datetime.strptime(row['QueryStartDate'], '%m/%d/%Y')
-        except BaseException as e:
-            logger.warning(str(e))
-            date_start = None
-    try:
-        date_end = datetime.strptime(row['QueryEndDate'], '%Y-%m-%d')
-    except BaseException as e:
-        try:
-            date_end = datetime.strptime(row['QueryEndDate'], '%m/%d/%Y')
-        except BaseException as e:
-            logger.warning(str(e))
-            date_end = None
-        # date_end = None
+def add_file_info(fname, row=None, count=None):
     file_info = FileInfo(
         filename=fname,
         fileloc=os.path.join(CSV_DIR, fname),
-        permno=row['permno'],
-        query=row['Query'],
-        keyword=row['Keyword'],
-        query_date_start=date_start,
-        query_date_end=date_end,
         status='working',
         last_line=count
     )
@@ -254,8 +236,8 @@ def process_tweet(row):
     session.add(add_tweet(row))
     session.add(add_tweet_count(row))
     tokens = preprocess(row['Text'])
-    cashtags = [term for term in tokens if term.startswith('$') and len(term) > 1]
-    hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
+    cashtags = set([term for term in tokens if term.startswith('$') and len(term) > 1])
+    hashtags = set([term for term in tokens if term.startswith('#') and len(term) > 1])
     # mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
     urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
     if len(cashtags) > 0:
@@ -298,7 +280,7 @@ def process_file(fname):
             try:
                 count += 1
                 global_count += 1
-                # db_file_info = session.query(FileInfo).filter_by(filename=fname).first()
+                db_file_info = session.query(FileInfo).filter_by(filename=fname).first()
                 if not db_file_info:
                     file_info = add_file_info(fname, row, count)
                     session.add(file_info)
@@ -361,7 +343,10 @@ if __name__ == '__main__':
     global_count = 0
     global_start = datetime.now()
 
-    process_file(files[0])
+    for file in files:
+        print(file)
+
+    # process_file(files[0])
     exit()
 
     with cf.ThreadPoolExecutor() as executor:

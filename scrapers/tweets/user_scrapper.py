@@ -114,6 +114,30 @@ def user_loader(n, user_queue, pg_dsn, proxy):
             return
 
 
+def user_incomplete(user):
+    if user.user_name is None:
+        return True
+    elif user.location is None:
+        return True
+    elif user.date_joined is None:
+        return True
+    elif user.timezone is None:
+        return True
+    return False
+
+
+def counts_incomplete(counts):
+    if counts.follower == 0:
+        return True
+    elif counts.following == 0:
+        return True
+    elif counts.tweets == 0:
+        return True
+    elif counts.likes == 0:
+        return True
+    return False
+
+
 def check_user(user_queue, pg_dsn, proxy_list):
     db_engine = create_engine(pg_dsn, pool_size=1)
     add_engine_pidguard(db_engine)
@@ -121,10 +145,11 @@ def check_user(user_queue, pg_dsn, proxy_list):
     session = DstSession()
     username_list = []
     count = 0
-    for idx, tweet in enumerate(session.query(Tweet).all()):
+    for idx, tweet in enumerate(session.query(Tweet).yield_per(200)):
         user_id = tweet.user_id
         user = session.query(User).filter_by(user_id=user_id).first()
-        if not user or not session.query(UserCount).filter_by(user_id=user_id).first():
+        counts = session.query(UserCount).filter_by(user_id=user_id).first()
+        if not user or user_incomplete(user) or counts_incomplete(counts):
             # Getting the user name from permalink
             username = re.findall('https://twitter.com/(.+?)/status', tweet.permalink)[0]
             if username not in username_list:

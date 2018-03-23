@@ -91,23 +91,41 @@ def user_loader(n, user_queue, pg_dsn, proxy):
                                 website=u.website[:255] if u.website else None,
                                 user_intro=u.user_description[:255] if u.user_description else None,
                                 verified=u.is_verified)
-                    session.add(user)
-                    is_there_anything_to_record = True
-                if not session.query(UserCount).filter_by(user_id=user_id).first():
+                else:
+                    user.user_name = u.username[:120]
+                    user.location = u.user_location[:255] if u.user_location else None
+                    user.date_joined = dateparser.parse(u.user_created) if u.user_created else None
+                    user.timezone = timezone[:10] if timezone else None
+                    user.website = u.website[:255] if u.website else None
+                    user.user_intro = u.user_description[:255] if u.user_description else None
+                    user.verified = u.is_verified
+                session.add(user)
+                is_there_anything_to_record = True
+                user_count = session.query(UserCount).filter_by(user_id=user_id).first()
+                if not user_count:
                     user_count = UserCount(follower=u.user_followers_count, following=u.user_following_count,
                                            tweets=u.user_tweet_count, likes=u.likes, lists=u.user_listed_count)
-                    session.add(user_count)
-                    user.counts.append(user_count)
-                    is_there_anything_to_record = True
+                else:
+                    user_count.follower = u.user_followers_count
+                    user_count.following = u.user_following_count
+                    user_count.tweets = u.user_tweet_count
+                    user_count.likes = u.likes
+                    user_count.lists = u.user_listed_count
+                session.add(user_count)
+                user.counts.append(user_count)
+                is_there_anything_to_record = True
 
                 if is_there_anything_to_record:
                     try:
                         session.commit()
-                        print('Inserted new user:', user_id)
+                        print('Updated user:', user_id)
                     except sqlalchemy.exc.IntegrityError as err:
                         if re.search("duplicate key value violates unique constraint", err.args[0]):
                             print('ROLLBACK USER', username)
                             session.rollback()
+                    except Exceptions as err:
+                        print(err)
+                        raise
                     print('{} Loaded {}'.format(n, username))
             del (u)
         else:
@@ -145,13 +163,15 @@ def check_user(user_queue, pg_dsn, proxy_list):
     session = DstSession()
     username_list = []
     count = 0
-    for idx, tweet in enumerate(session.query(Tweet).yield_per(200)):
+    for idx, tweet in enumerate(session.query(Tweet.user_id).group_by(Tweet.user_id).order_by(Tweet.user_id.asc()).yield_per(200)):
         user_id = tweet.user_id
         user = session.query(User).filter_by(user_id=user_id).first()
         counts = session.query(UserCount).filter_by(user_id=user_id).first()
         if not user or user_incomplete(user) or counts_incomplete(counts):
             # Getting the user name from permalink
-            username = re.findall('https://twitter.com/(.+?)/status', tweet.permalink)[0]
+            # print('Permalink', tweet.permalink)
+            # username = re.findall('https://twitter.com/(.+?)/status', tweet.permalink)[0]
+            username = user.twitter_handle
             if username not in username_list:
                 user_queue.put((username, user_id))
                 count += 1

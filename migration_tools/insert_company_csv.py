@@ -28,16 +28,16 @@ emoticons_str = r"""
     )"""
 regex_str = [
     # emoticons_str,
-    r'<[^>]+>',  # HTML tags
-    r'(?:@[\w_]+)',  # @-mentions
-    r"(?:\#+[\w_]+[\w\'_\-]*[\w_]+)",  # hash-tags
+    r'<[^>]+>',    # HTML tags
+    r'(?:@[\w_]+)',    # @-mentions
+    r"(?:\#+[\w_]+[\w\'_\-]*[\w_]+)",    # hash-tags
     # r"(?:\$+[a-zA-Z]+[\w\'_\-]*[\w_]+)",  # cash-tags
-    r"(?:\$[a-zA-Z]{1,7}(?:[.:]{1}[a-zA-Z]{1,7})?\b)",  # cash-tags
-    r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+',  # URLs
-    r'(?:(?:\d+,?)+(?:\.?\d+)?)',  # numbers
-    r"(?:[a-z][a-z'\-_]+[a-z])",  # words with - and '
-    r'(?:[\w_]+)',  # other words
-    r'(?:\S)'  # anything else
+    r"(?:\$[a-zA-Z]{1,7}(?:[.:]{1}[a-zA-Z]{1,7})?\b)",    # cash-tags
+    r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+',    # URLs
+    r'(?:(?:\d+,?)+(?:\.?\d+)?)',    # numbers
+    r"(?:[a-z][a-z'\-_]+[a-z])",    # words with - and '
+    r'(?:[\w_]+)',    # other words
+    r'(?:\S)'    # anything else
 ]
 tokens_re = re.compile(r'(' + '|'.join(regex_str) + ')', re.VERBOSE | re.IGNORECASE)
 emoticon_re = re.compile(r'^' + emoticons_str + '$', re.VERBOSE | re.IGNORECASE)
@@ -104,8 +104,7 @@ def add_user(row):
         twitter_handle=row['UserScreenName'],
         user_name=row['UserName'],
         verified=row['isVerified'],
-        is_company=True
-    )
+        is_company=True)
     return user
 
 
@@ -119,7 +118,7 @@ def add_user_count(row):
         follower=FollowersCount,
         following=FollowingCount,
         tweets=TweetsCount
-        # likes=LikesCount
+    # likes=LikesCount
     )
     return user_count
 
@@ -138,8 +137,7 @@ def add_tweet(row):
         text=row['Text'],
         user_id=row['UserID'],
         reply_to=row['ReplyTweetID'],
-        permalink=row['Permalink']
-    )
+        permalink=row['Permalink'])
     return tweet
 
 
@@ -148,57 +146,36 @@ def add_tweet_count(row):
     Retweets = to_integer(row['RetweetCount'])
     Favorites = to_integer(row['FavoriteCount'])
     tweet_count = TweetCount(
-        tweet_id=row['TweetID'],
-        reply=Replies,
-        retweet=Retweets,
-        favorite=Favorites
-    )
+        tweet_id=row['TweetID'], reply=Replies, retweet=Retweets, favorite=Favorites)
     return tweet_count
 
 
 def add_tweet_cashtag(row, cashtag):
-    tweet_cashtag = TweetCashtag(
-        tweet_id=row['TweetID'],
-        cashtags=cashtag
-    )
+    tweet_cashtag = TweetCashtag(tweet_id=row['TweetID'], cashtags=cashtag)
     return tweet_cashtag
 
 
 def add_tweet_hashtag(row, hashtag):
-    tweet_hashtag = TweetHashtag(
-        tweet_id=row['TweetID'],
-        hashtags=hashtag
-    )
+    tweet_hashtag = TweetHashtag(tweet_id=row['TweetID'], hashtags=hashtag)
     return tweet_hashtag
 
 
 def add_tweet_mention(row, mention):
     mentions, mentions_id = mention
-    tweet_mention = TweetMentions(
-        tweet_id=row['TweetID'],
-        mentions=mentions,
-        user_id=mentions_id
-    )
+    tweet_mention = TweetMentions(tweet_id=row['TweetID'], mentions=mentions, user_id=mentions_id)
     return tweet_mention
 
 
 def add_tweet_url(row, url):
     if len(url) > 255:
         url = url[:255]
-    tweet_url = TweetUrls(
-        tweet_id=row['TweetID'],
-        url=url
-    )
+    tweet_url = TweetUrls(tweet_id=row['TweetID'], url=url)
     return tweet_url
 
 
 def add_file_info(fname, row=None, count=None):
     file_info = FileInfo(
-        filename=fname,
-        fileloc=os.path.join(CSV_DIR, fname),
-        status='working',
-        last_line=count
-    )
+        filename=fname, fileloc=os.path.join(CSV_DIR, fname), status='working', last_line=count)
     return file_info
 
 

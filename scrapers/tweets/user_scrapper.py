@@ -23,12 +23,23 @@ class Twit:
         pass
 
     def json(self):
-        return {'date': self.unixtime, 'text': self.text, 'screen_name': self.screen_name, 'user_name': self.user_name,
-                'user_id': self.user_id,
-                'id': self.id, 'retweets_count': self.retweets_count, 'favorites_count': self.favorites_count,
-                'permalink': self.permalink, 'urls': self.urls, 'mentions': self.mentions,
-                'hashtags': self.hashtags, 'is_retweet': self.is_retweet, 'symbols': self.symbols,
-                'is_protected': self.is_protected}
+        return {
+            'date': self.unixtime,
+            'text': self.text,
+            'screen_name': self.screen_name,
+            'user_name': self.user_name,
+            'user_id': self.user_id,
+            'id': self.id,
+            'retweets_count': self.retweets_count,
+            'favorites_count': self.favorites_count,
+            'permalink': self.permalink,
+            'urls': self.urls,
+            'mentions': self.mentions,
+            'hashtags': self.hashtags,
+            'is_retweet': self.is_retweet,
+            'symbols': self.symbols,
+            'is_protected': self.is_protected
+        }
 
     def __repr__(self):
         return self.text
@@ -44,17 +55,16 @@ def add_engine_pidguard(engine):
         pid = os.getpid()
         if connection_record.info['pid'] != pid:
             # substitute log.debug() or similar here as desired
-            warnings.warn(
-                "Parent process %(orig)s forked (%(newproc)s) with an open "
-                "database connection, "
-                "which is being discarded and recreated." %
-                {"newproc": pid, "orig": connection_record.info['pid']})
+            warnings.warn("Parent process %(orig)s forked (%(newproc)s) with an open "
+                          "database connection, "
+                          "which is being discarded and recreated." % {
+                              "newproc": pid,
+                              "orig": connection_record.info['pid']
+                          })
             connection_record.connection = connection_proxy.connection = None
-            raise exc.DisconnectionError(
-                "Connection record belongs to pid %s, "
-                "attempting to check out in pid %s" %
-                (connection_record.info['pid'], pid)
-            )
+            raise exc.DisconnectionError("Connection record belongs to pid %s, "
+                                         "attempting to check out in pid %s" %
+                                         (connection_record.info['pid'], pid))
 
 
 def user_loader(n, user_queue, pg_dsn, proxy):
@@ -82,15 +92,16 @@ def user_loader(n, user_queue, pg_dsn, proxy):
                     timezone = None
                 user = session.query(User).filter_by(user_id=user_id).first()
                 if not user:
-                    user = User(user_id=user_id,
-                                twitter_handle=username[:120],
-                                user_name=u.username[:120],
-                                location=u.user_location[:255] if u.user_location else None,
-                                date_joined=dateparser.parse(u.user_created) if u.user_created else None,
-                                timezone=timezone[:10] if timezone else None,
-                                website=u.website[:255] if u.website else None,
-                                user_intro=u.user_description[:255] if u.user_description else None,
-                                verified=u.is_verified)
+                    user = User(
+                        user_id=user_id,
+                        twitter_handle=username[:120],
+                        user_name=u.username[:120],
+                        location=u.user_location[:255] if u.user_location else None,
+                        date_joined=dateparser.parse(u.user_created) if u.user_created else None,
+                        timezone=timezone[:10] if timezone else None,
+                        website=u.website[:255] if u.website else None,
+                        user_intro=u.user_description[:255] if u.user_description else None,
+                        verified=u.is_verified)
                 else:
                     user.user_name = u.username[:120]
                     user.location = u.user_location[:255] if u.user_location else None
@@ -103,8 +114,12 @@ def user_loader(n, user_queue, pg_dsn, proxy):
                 is_there_anything_to_record = True
                 user_count = session.query(UserCount).filter_by(user_id=user_id).first()
                 if not user_count:
-                    user_count = UserCount(follower=u.user_followers_count, following=u.user_following_count,
-                                           tweets=u.user_tweet_count, likes=u.likes, lists=u.user_listed_count)
+                    user_count = UserCount(
+                        follower=u.user_followers_count,
+                        following=u.user_following_count,
+                        tweets=u.user_tweet_count,
+                        likes=u.likes,
+                        lists=u.user_listed_count)
                 else:
                     user_count.follower = u.user_followers_count
                     user_count.following = u.user_following_count
@@ -163,7 +178,9 @@ def check_user(user_queue, pg_dsn, proxy_list):
     session = DstSession()
     username_list = []
     count = 0
-    for idx, tweet in enumerate(session.query(Tweet.user_id).group_by(Tweet.user_id).order_by(Tweet.user_id.asc()).yield_per(200)):
+    for idx, tweet in enumerate(
+            session.query(Tweet.user_id).group_by(Tweet.user_id).order_by(
+                Tweet.user_id.asc()).yield_per(200)):
         user_id = tweet.user_id
         user = session.query(User).filter_by(user_id=user_id).first()
         counts = session.query(UserCount).filter_by(user_id=user_id).first()
@@ -186,8 +203,12 @@ def check_user(user_queue, pg_dsn, proxy_list):
 
 
 Base = declarative_base()
-pg_config = {'username': settings.PG_USER, 'password': settings.PG_PASSWORD, 'database': settings.PG_DBNAME,
-             'host': settings.DB_HOST}
+pg_config = {
+    'username': settings.PG_USER,
+    'password': settings.PG_PASSWORD,
+    'database': settings.PG_DBNAME,
+    'host': settings.DB_HOST
+}
 pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
 db_engine = create_engine(pg_dsn)
 add_engine_pidguard(db_engine)
@@ -234,7 +255,6 @@ class Tweet(Base):
 
 
 DstSession = sessionmaker(bind=db_engine, autoflush=False)
-
 
 if __name__ == '__main__':
 

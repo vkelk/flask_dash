@@ -180,14 +180,11 @@ vscode/
 application/uploads
 application/ml/ml.py
 files/
-migration_tools/db_config.py
-scrapers/tweets/settings.py
-scrapers/stocktwits/settings.py
-scrapers/tweets/*.xlsx
-scrapers/tweets/*.csv
-scrapers/tweets/*.txt
-scrapers/tweets/*.log
-scrapers/stocktwits/*.xlsx
-scrapers/stocktwits/*.csv
-application/db_config.py
+db_config.py
+settings.py
+*.xlsx
+*.csv
+*.txt
+*.log
+
 

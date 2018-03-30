@@ -1,6 +1,6 @@
 from sqlalchemy import Table, create_engine, MetaData
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.orm import relationship, sessionmaker, scoped_session
 
 from .settings import PG_USER, PG_PASSWORD, PG_DBNAME, DB_HOST
 
@@ -10,6 +10,7 @@ pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".fo
 db_engine = create_engine(pg_dsn)
 db_meta = MetaData(bind=db_engine, schema="fintweet")
 Session = sessionmaker(bind=db_engine, autoflush=False)
+ScopedSession = scoped_session(sessionmaker(bind=db_engine, autoflush=False))
 
 
 class User(Base):

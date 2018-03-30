@@ -11,6 +11,7 @@ db_engine = create_engine(pg_dsn)
 db_meta = MetaData(bind=db_engine, schema="fintweet")
 Session = sessionmaker(bind=db_engine, autoflush=False)
 ScopedSession = scoped_session(sessionmaker(bind=db_engine, autoflush=False))
+ScopedSessionAuto = scoped_session(sessionmaker(bind=db_engine, autocommit=True, autoflush=False))
 
 
 class User(Base):
@@ -68,3 +69,7 @@ class Tweet(Base):
 
     def __repr__(self):
         return "<Tweet(tweet_id='%s', user_id='%s')>" % (self.tweet_id, self.user_id)
+
+
+class FileInfo(Base):
+    __table__ = Table('fileinfo', db_meta, autoload=True)

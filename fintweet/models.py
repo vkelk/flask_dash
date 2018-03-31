@@ -8,14 +8,15 @@ Base = declarative_base()
 pg_config = {'username': PG_USER, 'password': PG_PASSWORD, 'database': PG_DBNAME, 'host': DB_HOST}
 pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
 db_engine = create_engine(pg_dsn)
-db_meta = MetaData(bind=db_engine, schema="fintweet")
+fintweet_meta = MetaData(bind=db_engine, schema="fintweet")
+dashboard_meta = MetaData(bind=db_engine, schema="dashboard")
 Session = sessionmaker(bind=db_engine, autoflush=False)
 ScopedSession = scoped_session(sessionmaker(bind=db_engine, autoflush=False))
 ScopedSessionAuto = scoped_session(sessionmaker(bind=db_engine, autocommit=True, autoflush=False))
 
 
 class User(Base):
-    __table__ = Table('user', db_meta, autoload=True)
+    __table__ = Table('user', fintweet_meta, autoload=True)
     tweets = relationship('Tweet')
     counts = relationship('UserCount')
 
@@ -24,40 +25,40 @@ class User(Base):
 
 
 class UserCount(Base):
-    __table__ = Table('user_count', db_meta, autoload=True)
+    __table__ = Table('user_count', fintweet_meta, autoload=True)
 
     def __str__(self):
         return self.user_id
 
 
 class TweetCount(Base):
-    __table__ = Table('tweet_count', db_meta, autoload=True)
+    __table__ = Table('tweet_count', fintweet_meta, autoload=True)
 
     def __str__(self):
         return self.tweet_id
 
 
 class TweetMentions(Base):
-    __table__ = Table('tweet_mentions', db_meta, autoload=True)
+    __table__ = Table('tweet_mentions', fintweet_meta, autoload=True)
 
 
 class TweetCashtags(Base):
-    __table__ = Table('tweet_cashtags', db_meta, autoload=True)
+    __table__ = Table('tweet_cashtags', fintweet_meta, autoload=True)
 
     def __str__(self):
         return self.cashtags
 
 
 class TweetHashtags(Base):
-    __table__ = Table('tweet_hashtags', db_meta, autoload=True)
+    __table__ = Table('tweet_hashtags', fintweet_meta, autoload=True)
 
 
 class TweetUrl(Base):
-    __table__ = Table('tweet_url', db_meta, autoload=True)
+    __table__ = Table('tweet_url', fintweet_meta, autoload=True)
 
 
 class Tweet(Base):
-    __table__ = Table('tweet', db_meta, autoload=True)
+    __table__ = Table('tweet', fintweet_meta, autoload=True)
     counts = relationship('TweetCount')
     ment_s = relationship('TweetMentions')
     cash_s = relationship('TweetCashtags')
@@ -72,4 +73,8 @@ class Tweet(Base):
 
 
 class FileInfo(Base):
-    __table__ = Table('fileinfo', db_meta, autoload=True)
+    __table__ = Table('fileinfo', fintweet_meta, autoload=True)
+
+
+class CompanySec(Base):
+    __table__ = Table('company_sec', dashboard_meta, autoload=True)

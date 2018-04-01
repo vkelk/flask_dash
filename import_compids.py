@@ -14,7 +14,10 @@ from fintweet.models import (User, UserCount, Tweet, TweetCashtags, TweetHashtag
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 LOG_DIR = os.path.join(DIR_PATH, 'logs')
-CSV_DIR = os.path.join(DIR_PATH, 'files/company_ids')
+# CSV_DIR = os.path.join(DIR_PATH, 'files/company_ids')
+CSV_DIR = 'C:\\Users\\sa_mgq16ma\\Desktop\\company_ids'
+
+scinot = re.compile('[+\-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+\-]?\d+)?')
 
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
@@ -44,7 +47,7 @@ def add_file_info(fname, row=None, count=None):
         session.add(file_info)
         session.commit()
     except Exception as err:
-        print(type(err), err)
+        logger.error("{} {}".format(type(err), err))
         raise
     return file_info
 
@@ -61,7 +64,7 @@ def add_user(row):
         session.add(user)
         session.commit()
     except Exception as err:
-        print(type(err), err)
+        logger.error("{} {}".format(type(err), err))
         raise
     return user
 
@@ -82,7 +85,7 @@ def add_user_count(row):
         session.add(user_count)
         session.commit()
     except Exception as err:
-        print(type(err), err)
+        logger.error("{} {}".format(type(err), err))
         raise
     return user_count
 
@@ -94,10 +97,25 @@ def add_tweet(row):
     except BaseException as e:
         logger.warning(str(e))
         date = None
-    try:
-        reply_to = int(row['ReplyTweetID'])
-    except ValueError:
+    # scinot = re.compile('[+\-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+\-]?\d+)?')
+    if len(re.findall(scinot, row['ReplyTweetID'])) == 0:
+        try:
+            reply_to = int(row['ReplyTweetID'])
+        except ValueError:
+            reply_to = None
+    else:
         reply_to = None
+        logger.warning("Reply_to is in scientific format. Cannot insert to db")
+    # print(row['UserID'])
+    if len(re.findall(scinot, str(row['UserID']))) > 0:
+        # twitter_handle = row['Permalink'].split('/')[-1]
+        user = session.query(User).filter_by(twitter_handle=row['UserScreenName']).first()
+        if user:
+            row['UserID'] = user.user_id
+        else:
+            logger.warning("User_id is in scientific format. Cannot insert to db")
+            return None
+        # row['TweetID'] = row['Permalink'].split('/')[-1]
     # print(row['ReplyTweetID'], reply_to)
     tweet = Tweet(
         tweet_id=row['TweetID'],
@@ -112,7 +130,7 @@ def add_tweet(row):
         session.add(tweet)
         session.commit()
     except Exception as err:
-        print(type(err), err)
+        logger.error("{} {}".format(type(err), err))
         raise
     return tweet
 
@@ -128,7 +146,7 @@ def add_tweet_count(row):
         session.add(tweet_count)
         session.commit()
     except Exception as err:
-        print(type(err), err)
+        logger.error("{} {}".format(type(err), err))
         raise
     return tweet_count
 
@@ -140,7 +158,7 @@ def add_tweet_cashtag(row, cashtag):
         session.add(tweet_cashtag)
         session.commit()
     except Exception as err:
-        print(type(err), err)
+        logger.error("{} {}".format(type(err), err))
         raise
     return tweet_cashtag
 
@@ -152,7 +170,7 @@ def add_tweet_hashtag(row, hashtag):
         session.add(tweet_hashtag)
         session.commit()
     except Exception as err:
-        print(type(err), err)
+        logger.error("{} {}".format(type(err), err))
         raise
     return tweet_hashtag
 
@@ -160,12 +178,18 @@ def add_tweet_hashtag(row, hashtag):
 def add_tweet_mention(row, mention):
     session = ScopedSession()
     mentions, mentions_id = mention
+    if len(re.findall(scinot, mentions_id)) > 0:
+        try:
+            mentions_id = int(mentions_id)
+        except ValueError:
+            logger.warning("Mentions_id is in scientific format. Cannot insert to db")
+            return None
     tweet_mention = TweetMentions(tweet_id=row['TweetID'], mentions=mentions, user_id=mentions_id)
     try:
         session.add(tweet_mention)
         session.commit()
     except Exception as err:
-        print(type(err), err)
+        logger.error("{} {}".format(type(err), err))
         raise
     return tweet_mention
 
@@ -179,7 +203,7 @@ def add_tweet_url(row, url):
         session.add(tweet_url)
         session.commit()
     except Exception as err:
-        print(type(err), err)
+        logger.error("{} {}".format(type(err), err))
         raise
     return tweet_url
 
@@ -199,8 +223,8 @@ def preprocess(s, lowercase=False, upercase=False):
 
 def process_tweet(row):
     session = ScopedSession()
-    session.add(add_tweet(row))
-    session.add(add_tweet_count(row))
+    add_tweet(row)
+    add_tweet_count(row)
     tokens = preprocess(row['Text'])
     cashtags = set([term for term in tokens if term.startswith('$') and len(term) > 1])
     hashtags = set([term for term in tokens if term.startswith('#') and len(term) > 1])
@@ -208,29 +232,30 @@ def process_tweet(row):
     urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
     if len(cashtags) > 0:
         for cashtag in cashtags:
-            session.add(add_tweet_cashtag(row, cashtag.upper().strip()))
+            add_tweet_cashtag(row, cashtag.upper().strip())
     if len(hashtags) > 0:
         for hashtag in hashtags:
-            session.add(add_tweet_hashtag(row, hashtag.strip()))
+            add_tweet_hashtag(row, hashtag.strip())
     if len(urls) > 0:
         for url in urls:
-            session.add(add_tweet_url(row, url.strip()))
+            add_tweet_url(row, url.strip())
     if len(row['Mentions_name'].strip()) > 0:
         mentions = row['Mentions_name'].splitlines()
         mentions_ids = row['Mentions_id'].splitlines()
         ment = zip(mentions, mentions_ids)
         for mention in ment:
-            session.add(add_tweet_mention(row, mention))
+            add_tweet_mention(row, mention)
 
 
 def process_file(fname):
     global global_count
+    global global_start
     file_location = os.path.join(CSV_DIR, fname)
     logger.info('Opening file %s...', fname)
     session = ScopedSession()
     db_file_info = session.query(FileInfo).filter_by(filename=fname).first()
     if db_file_info and db_file_info.status == 'finished':
-        logger.info('File %s already in database', fname)
+        logger.warning('File %s already in database', fname)
         return None
 
     with open(file_location, 'r', encoding='utf-8') as csvfile:
@@ -252,36 +277,36 @@ def process_file(fname):
                 if global_count % 100 == 0:
                     global_td = datetime.now() - global_start
                     g_speed = global_count / global_td.total_seconds()
+                    global_start = datetime.now()
+                    global_count = 0
                     logger.info('Rows per second processed: %s', g_speed)
-
+                if len(re.findall(scinot, str(row['UserID']))) > 0:
+                    try:
+                        row['UserID'] = int(row['UserID'])
+                    except ValueError:
+                        logger.warning("Useer_id is in scientific format. Cannot insert to db")
+                        break
                 db_user = session.query(User).filter_by(user_id=row['UserID']).first()
                 if not db_user:
-                    session.add(add_user(row))
-                    session.add(add_user_count(row))
-                scinot = re.compile('[+\-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+\-]?\d+)?')
+                    add_user(row)
+                    add_user_count(row)
                 if len(re.findall(scinot, row['TweetID'])) > 0:
                     row['TweetID'] = row['Permalink'].split('/')[-1]
                 tweet_db = session.query(Tweet).filter_by(tweet_id=row['TweetID']).first()
                 if not tweet_db:
                     process_tweet(row)
-                    if len(row['Mentions_name'].strip()) > 0:
-                        mentions = row['Mentions_name'].splitlines()
-                        mentions_ids = row['Mentions_id'].splitlines()
-                        ment = zip(mentions, mentions_ids)
-                        for mention in ment:
-                            session.add(add_tweet_mention(row, mention))
                 session.add(db_file_info)
                 session.commit()
-            except Exception as e:
-                logger.error(str(e))
+            except Exception as err:
+                logger.error("{} {}".format(type(err), err))
                 raise
     if db_file_info.status == 'working':
         try:
             db_file_info.counts = count
             db_file_info.status = 'finished'
             session.add(db_file_info)
-        except BaseException as e:
-            logger.error(str(e))
+        except BaseException as err:
+            logger.error("{} {}".format(type(err), err))
             raise
 
 
@@ -295,16 +320,14 @@ if __name__ == '__main__':
     global_start = datetime.now()
 
     # for file in files:
-    #     print(file)
-
-    # process_file(files[0])
+    #     process_file(file)
     # exit()
 
-    with cf.ThreadPoolExecutor(max_workers=10) as executor:
+    with cf.ThreadPoolExecutor(max_workers=12) as executor:
         try:
             executor.map(process_file, tuple(files))
-        except BaseException as e:
-            logger.error(str(e))
+        except BaseException as err:
+            logger.error("{} {}".format(type(err), err))
             raise
 
     logger.info('ALL FILES IMPORTED')

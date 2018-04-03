@@ -50,17 +50,16 @@ def add_engine_pidguard(engine):
         pid = os.getpid()
         if connection_record.info['pid'] != pid:
             # substitute log.debug() or similar here as desired
-            warnings.warn(
-                "Parent process %(orig)s forked (%(newproc)s) with an open "
-                "database connection, "
-                "which is being discarded and recreated." %
-                {"newproc": pid, "orig": connection_record.info['pid']})
+            warnings.warn("Parent process %(orig)s forked (%(newproc)s) with an open "
+                          "database connection, "
+                          "which is being discarded and recreated." % {
+                              "newproc": pid,
+                              "orig": connection_record.info['pid']
+                          })
             connection_record.connection = connection_proxy.connection = None
-            raise exc.DisconnectionError(
-                "Connection record belongs to pid %s, "
-                "attempting to check out in pid %s" %
-                (connection_record.info['pid'], pid)
-            )
+            raise exc.DisconnectionError("Connection record belongs to pid %s, "
+                                         "attempting to check out in pid %s" %
+                                         (connection_record.info['pid'], pid))
 
 
 emoticons_str = r"""
@@ -71,17 +70,16 @@ emoticons_str = r"""
     )"""
 regex_str = [
     emoticons_str,
-    r'<[^>]+>',  # HTML tags
-    r'(?:@[\w_]+)',  # @-mentions
-    r"(?:\#+[\w_]+[\w\'_\-]*[\w_]+)",  # hash-tags
-    r"(?:\$[a-zA-Z]{1,7}(?:[.:]{1}[a-zA-Z]{1,7})?\b)",  # cash-tags
+    r'<[^>]+>',    # HTML tags
+    r'(?:@[\w_]+)',    # @-mentions
+    r"(?:\#\w*[a-zA-Z]+\w*)",    # hash-tags
+    r"(?:\$[A-Za-z0-9]{1,5}\b)",    # cash-tags
     # URLs
     r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+',
-
-    r'(?:(?:\d+,?)+(?:\.?\d+)?)',  # numbers
-    r"(?:[a-z][a-z'\-_]+[a-z])",  # words with - and '
-    r'(?:[\w_]+)',  # other words
-    r'(?:\S)'  # anything else
+    r'(?:(?:\d+,?)+(?:\.?\d+)?)',    # numbers
+    r"(?:[a-z][a-z'\-_]+[a-z])",    # words with - and '
+    r'(?:[\w_]+)',    # other words
+    r'(?:\S)'    # anything else
 ]
 tokens_re = re.compile(r'(' + '|'.join(regex_str) + ')', re.VERBOSE | re.IGNORECASE)
 emoticon_re = re.compile(r'^' + emoticons_str + '$', re.VERBOSE | re.IGNORECASE)
@@ -94,8 +92,7 @@ def tokenize(s):
 def preprocess(s, lowercase=False):
     tokens = tokenize(s)
     if lowercase:
-        tokens = [token if emoticon_re.search(
-            token) else token.lower() for token in tokens]
+        tokens = [token if emoticon_re.search(token) else token.lower() for token in tokens]
     return tokens
 
 
@@ -112,10 +109,8 @@ def fill(session, t, query=None, permno=None):
         data['QueryEndDate'] = query[3]
         data['Query'] = query[1]
         data['Keyword'] = query[1]
-    data['TimeOfActivity'] = time.strftime(
-        '%H:%M:%S', time.localtime(t.unixtime))
-    data['DateOfActivity'] = time.strftime(
-        '%d/%m/%Y', time.localtime(t.unixtime))
+    data['TimeOfActivity'] = time.strftime('%H:%M:%S', time.localtime(t.unixtime))
+    data['DateOfActivity'] = time.strftime('%d/%m/%Y', time.localtime(t.unixtime))
     data['tweet_id'] = t.id
     data['tweet_url'] = t.permalink
     data['UserID'] = t.user_id
@@ -179,21 +174,23 @@ def fill(session, t, query=None, permno=None):
 
     user = session.query(User).filter_by(user_id=data['UserID']).first()
     if not user:
-        user = User(user_id=data['UserID'],
-                    twitter_handle=data['UserScreenName'][:120],
-                    user_name=data['UserName'][:120],
-                    location=data['user_location'][:255] if data['user_location'] else None,
-                    date_joined=data['DateJoined'],
-                    timezone=data['TimeZoneUTC'],
-                    website=data['Website'][:255] if data['Website'] else None,
-                    user_intro=t.user_description[:255] if t.user_description else None,
-                    verified=data['is_verified'])
+        user = User(
+            user_id=data['UserID'],
+            twitter_handle=data['UserScreenName'][:120],
+            user_name=data['UserName'][:120],
+            location=data['user_location'][:255] if data['user_location'] else None,
+            date_joined=data['DateJoined'],
+            timezone=data['TimeZoneUTC'],
+            website=data['Website'][:255] if data['Website'] else None,
+            user_intro=t.user_description[:255] if t.user_description else None,
+            verified=data['is_verified'])
         if not session.query(UserCount).filter_by(user_id=data['UserID']).first():
-            user_count = UserCount(follower=data['UserFollowersCount'],
-                                   following=data['UserFollowingCount'],
-                                   tweets=data['UserTweetsCount'],
-                                   likes=data['NumberOfFavorites'],
-                                   lists=t.user_listed_count)
+            user_count = UserCount(
+                follower=data['UserFollowersCount'],
+                following=data['UserFollowingCount'],
+                tweets=data['UserTweetsCount'],
+                likes=data['NumberOfFavorites'],
+                lists=t.user_listed_count)
             session.add(user_count)
             user.counts.append(user_count)
         session.add(user)
@@ -210,20 +207,22 @@ def fill(session, t, query=None, permno=None):
 
     twit = session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first()
     if not twit:
-        twit = Tweet(tweet_id=data['tweet_id'],
-                     date=datetime.strptime(data['DateOfActivity'], '%d/%m/%Y'),
-                     time=data['TimeOfActivity'],
-                     timezone=data['TimeZoneUTC'][:10] if data['TimeZoneUTC'] else None,
-                     retweet_status=data['Re_tweet'],
-                     text=data['Tweet'],
-                     reply_to=data['ReplyTweetID'],
-                     location=data['Location'][:255] if data['Location'] else None,
-                     permalink=data['tweet_url'] if data['tweet_url'] else None,
-                     emoticon=','.join(t.emoji) if t.emoji else None)
+        twit = Tweet(
+            tweet_id=data['tweet_id'],
+            date=datetime.strptime(data['DateOfActivity'], '%d/%m/%Y'),
+            time=data['TimeOfActivity'],
+            timezone=data['TimeZoneUTC'][:10] if data['TimeZoneUTC'] else None,
+            retweet_status=data['Re_tweet'],
+            text=data['Tweet'],
+            reply_to=data['ReplyTweetID'],
+            location=data['Location'][:255] if data['Location'] else None,
+            permalink=data['tweet_url'] if data['tweet_url'] else None,
+            emoticon=','.join(t.emoji) if t.emoji else None)
         # print(twit.tweet_id, twit.reply_to)
-        tweet_count = TweetCount(reply=data['NumberOfReplies'],
-                                 favorite=data['NumberOfFavorites'],
-                                 retweet=t.retweets_count)
+        tweet_count = TweetCount(
+            reply=data['NumberOfReplies'],
+            favorite=data['NumberOfFavorites'],
+            retweet=t.retweets_count)
 
     if not session.query(TweetHashtags).filter_by(tweet_id=data['tweet_id']).first():
         for hash_s in hashtags:
@@ -245,8 +244,7 @@ def fill(session, t, query=None, permno=None):
 
     if not session.query(TweetMentions).filter_by(tweet_id=data['tweet_id']).first():
         for ment_s in t.ment_s:
-            tweet_mentions = TweetMentions(
-                mentions=ment_s[0][:45], user_id=ment_s[1])
+            tweet_mentions = TweetMentions(mentions=ment_s[0][:45], user_id=ment_s[1])
             twit.ment_s.append(tweet_mentions)
             session.add(tweet_mentions)
     user.tweets.append(twit)
@@ -294,11 +292,14 @@ def reply(session, twitter_scraper, username, tweet_id):
 
         if res:
             data_min = res[0]
-            if (first and re.search('show_more_button', r1, re.M) or (not first and j[
-                    'has_more_items'])):  # PyQuery(r1)('li.ThreadedConversation-moreReplies').attr('data-expansion-url')
+            if (
+                    first and re.search('show_more_button', r1, re.M)
+                    or (not first and j['has_more_items'])
+            ):    # PyQuery(r1)('li.ThreadedConversation-moreReplies').attr('data-expansion-url')
                 first = False
                 url = 'https://twitter.com/i/' + username + '/conversation/' + str(
-                    tweet_id) + '?include_available_features=1&include_entities=1&max_position=' + data_min + '&reset_error_state=false'
+                    tweet_id
+                ) + '?include_available_features=1&include_entities=1&max_position=' + data_min + '&reset_error_state=false'
                 continue
         break
     return count
@@ -309,8 +310,7 @@ def reply_loader(n, user_queue, pg_dsn, proxy):
     add_engine_pidguard(db_engine)
     DstSession = sessionmaker(bind=db_engine, autoflush=False)
     session = DstSession()
-    twitter_scraper = tweet_api.TweetScraper(
-        proxy, IS_PROFILE_SEARCH=None, logname='awam')
+    twitter_scraper = tweet_api.TweetScraper(proxy, IS_PROFILE_SEARCH=None, logname='awam')
     print('Scraper {} with Proxy {} started'.format(n, proxy))
     # reply(session, twitter_scraper,'anatoliisharii',975426560424599552)
     while True:
@@ -334,8 +334,7 @@ def check_tweet(user_queue, pg_dsn, proxy_list):
         tweet_id = tweet.tweet_id
 
         # Getting the user name from permalink
-        username = re.findall(
-            'https://twitter.com/(.+?)/status', tweet.permalink)[0]
+        username = re.findall('https://twitter.com/(.+?)/status', tweet.permalink)[0]
         user_queue.put((username, tweet_id))
 
     # Send poisoned pill
@@ -347,10 +346,13 @@ def check_tweet(user_queue, pg_dsn, proxy_list):
 
 
 Base = declarative_base()
-pg_config = {'username': settings.PG_USER, 'password': settings.PG_PASSWORD, 'database': settings.PG_DBNAME,
-             'host': settings.DB_HOST}
-pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(
-    **pg_config)
+pg_config = {
+    'username': settings.PG_USER,
+    'password': settings.PG_PASSWORD,
+    'database': settings.PG_DBNAME,
+    'host': settings.DB_HOST
+}
+pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
 db_engine = create_engine(pg_dsn)
 add_engine_pidguard(db_engine)
 pg_meta = MetaData(bind=db_engine, schema="fintweet")

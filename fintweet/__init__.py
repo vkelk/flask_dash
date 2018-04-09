@@ -20,3 +20,17 @@ REGEX_STR = [
 ]
 TOKENS_RE = re.compile(r'(' + '|'.join(REGEX_STR) + ')', re.VERBOSE | re.IGNORECASE)
 EMOTICON_RE = re.compile(r'^' + EMOTICONS_STR + '$', re.VERBOSE | re.IGNORECASE)
+
+
+def tokenize(s):
+    return TOKENS_RE.findall(s)
+
+
+def preprocess(s, lowercase=False, upercase=False):
+    tokens = tokenize(s)
+    if lowercase:
+        tokens = [token if TOKENS_RE.search(token) else token.lower() for token in tokens]
+    if upercase:
+        tokens = [token.upper() for token in tokens]
+    return tokens
+    

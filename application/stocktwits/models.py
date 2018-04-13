@@ -20,6 +20,7 @@ class User(Stocktwits):
     verified = db.Column(db.String(10))
 
     ideas = db.relationship('Ideas', lazy='dynamic')
+    counts = db.relationship("application.stocktwits.models.UserCount", backref='user', uselist=False)
     # counts = db.relationship(
     #     'application.stocktwits.models.UserCount',
     #     backref='user_count',

@@ -1,8 +1,8 @@
 {% extends "_base.html" %}
 
-{% block title %}Fintweet | Users{% endblock %}
+{% block title %}Stocktwit | Users{% endblock %}
 
-{% block content_title %}Fintweet | Users{% endblock %}
+{% block content_title %}Stocktwit | Users{% endblock %}
 
 {% block css %}
     <!-- Custom Fonts -->
@@ -45,7 +45,7 @@
     <div id="user_stats" class="row" style="margin-top: 3em; display: none;">
         <div class="row">
             <div id="user_info" class="col-sm-4 col-md-4 col-lg-3">
-                <div class="col-sm-12"><h4 id="twitter_handle"></h4></div>
+                <div class="col-sm-12"><h4 id="user_handle"></h4></div>
                 <div class="col-sm-12">Date joined: <span id="date_joined"></span></div>
                 <div class="col-sm-12">Website: <span id="website"></span></div>
                 <div class="col-sm-12">Location: <span id="location"></span></div>
@@ -78,7 +78,7 @@
                     </div>
                 </div>
 
-                <div class="panel panel-body bg-danger-400 has-bg-image">
+                <!-- <div class="panel panel-body bg-danger-400 has-bg-image">
                     <div class="media no-margin">
                         <div class="media-body">
                             <h3 id="total_mentions" class="no-margin"></h3>
@@ -89,7 +89,7 @@
                             <i class="fa fa-user fa-3x opacity-75"></i>
                         </div>
                     </div>
-                </div>
+                </div> -->
             </div>
             <div class="col-sm-4">
                 <table id="dt_top_ctags" class="table display compact" cellspacing="0" width="100%"></table>
@@ -130,7 +130,7 @@
                     var user_id = user_data.user_id;
                     console.log(user_id);
                     getTweets(user_id);
-                    getMentions(user_id);
+                    // getMentions(user_id);
                     getUserCounts(user_id);
                     loadCtags(user_id);
                     loadHtags(user_id);
@@ -152,7 +152,7 @@
                         json: data,
                         type: 'bar',
                         keys: {
-                            x: 'twitter_handle',
+                            x: 'user_handle',
                             value: ['count']
                         },
                         labels: true,
@@ -196,7 +196,7 @@
             tblUsers = $('#dt_top_users').DataTable({
                 "data": jsonData,
                 "columns": [
-                    {title: "Username", data: "twitter_handle"},
+                    {title: "Username", data: "user_handle"},
                     {title: "Tweets count", data: "count"},
                     {
                         title: "Twitter age ", data: "date_joined",
@@ -217,7 +217,7 @@
             var tblCashtags = $('#dt_top_ctags').DataTable({
                 "data": jsonData,
                 "columns": [
-                    {title: "Cashtag", data: "cashtags"},
+                    {title: "Cashtag", data: "cashtag"},
                     {title: "Tweets count", data: "count"},
                 ],
                 "order": [[1, "desc"]],
@@ -233,7 +233,7 @@
             var tblCashtags = $('#dt_top_htags').DataTable({
                 "data": jsonData,
                 "columns": [
-                    {title: "Hashtag", data: "hashtags"},
+                    {title: "Hashtag", data: "hashtag"},
                     {title: "Tweets count", data: "count"},
                 ],
                 "order": [[1, "desc"]],
@@ -248,7 +248,7 @@
         function getTweets(user_id) {
             var filters = [{"name": "user_id", "op": "==", "val": user_id}];
             $.ajax({
-                url: 'api/tweet',
+                url: 'api/ideas',
                 data: {"q": JSON.stringify({"filters": filters})},
                 dataType: "json",
                 contentType: "application/json",
@@ -263,16 +263,17 @@
             var url = "api/user/" + user_id + "/counts";
             $.ajax({
                 url: url,
-                {#data: {"q": JSON.stringify({"filters": filters})},#}
+                // data: {"q": JSON.stringify({"filters": filters})},
                 dataType: "json",
                 contentType: "application/json",
                 success: function (data) {
                     console.log(data);
-                    var followers = data.follower.toLocaleString('en', {useGrouping: true});
+                    // console.log(data.objects[0].follower);
+                    var followers = data.followers.toLocaleString('en', {useGrouping: true});
                     var following = data.following.toLocaleString('en', {useGrouping: true});
-                    var likes = data.likes.toLocaleString('en', {useGrouping: true});
-                    var tweets = data.tweets.toLocaleString('en', {useGrouping: true});
-                    var twitter_handle = data.user.twitter_handle;
+                    // var likes = data.likes.toLocaleString('en', {useGrouping: true});
+                    var tweets = data.ideas.toLocaleString('en', {useGrouping: true});
+                    var user_handle = data.user.user_handle;
                     var website = data.user.website;
                     var location = data.user.location;
                     var date_joined = data.user.date_joined;
@@ -280,7 +281,7 @@
                     $('#user_tweets').html(tweets);
                     $('#following').html(following);
                     $('#likes').html(likes);
-                    $("#twitter_handle").html("@" + twitter_handle);
+                    $("#user_handle").html("@" + user_handle);
                     $("#website").html(website);
                     $("#location").html(location);
                     $("#date_joined").html(date_joined);

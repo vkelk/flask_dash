@@ -189,7 +189,13 @@
                                             <li class="{% if request.path == url_for('fintweet.index') %}active{% endif %}">
                                                 <a href="{{ url_for('fintweet.index') }}">Overview</a>
                                             </li>
-                                            <li class="dd-parent">
+                                            <li class="{% if request.path == url_for('fintweet.tweets') %}active{% endif %}">
+                                                <a href="{{ url_for('fintweet.tweets') }}">Tweets</a>
+                                            </li>
+                                            <li class="{% if request.path == url_for('fintweet.users') %}active{% endif %}">
+                                                <a href="{{ url_for('fintweet.users') }}">Users</a>
+                                            </li>
+                                            <!-- <li class="dd-parent">
                                                 <a href="#" class="dd-parent-a">
                                                     <i class="icon-insert-template"></i>
                                                     Tweets
@@ -218,7 +224,7 @@
                                                         <a href="#">Item 2</a>
                                                     </li>
                                                 </ul>
-                                            </li>
+                                            </li> -->
                                             <!-- <li class="dd-parent last">
                                                 <a href="#" class="dd-parent-a"><i class="icon-insert-template"></i>
                                                     Event study<span class="dd-icon"></span></a>
@@ -235,7 +241,7 @@
                                     </div>
                                 </div>
                                 <div class="col-sm-3">
-                                    <span class="menu-heading underlined">Stocktweets</span>
+                                    <span class="menu-heading underlined">Stocktwits</span>
                                     <div class="dd-wrapper" id="dd-wrapper-0">
                                         <div id="dd-header-0" class="dd-header">
                                             <h6>Back to parent</h6>
@@ -244,7 +250,13 @@
                                             <li class="{% if request.path == url_for('stocktwit.index') %}active{% endif %}">
                                                 <a href="{{ url_for('stocktwit.index') }}">Overview</a>
                                             </li>
-                                            <li class="dd-parent">
+                                            <li class="{% if request.path == url_for('stocktwit.tweets') %}active{% endif %}">
+                                                <a href="{{ url_for('stocktwit.tweets') }}">Tweets</a>
+                                            </li>
+                                            <li class="{% if request.path == url_for('stocktwit.users') %}active{% endif %}">
+                                                <a href="{{ url_for('stocktwit.users') }}">Users</a>
+                                            </li>
+                                            <!-- <li class="dd-parent">
                                                 <a href="#" class="dd-parent-a">
                                                     <i class="icon-insert-template"></i>
                                                     Tweets
@@ -259,7 +271,7 @@
                                                     </li>
 
                                                 </ul>
-                                            </li>
+                                            </li> -->
                                             <!-- <li class="dd-parent last">
                                                 <a href="#" class="dd-parent-a"><i class="icon-insert-template"></i>
                                                     Event study<span class="dd-icon"></span></a>
@@ -277,7 +289,7 @@
                     </div>
 
                 </li>
-                <li class="dropdown {% if request.path in [
+                <!-- <li class="dropdown {% if request.path in [
                                         url_for('fintweet.index'),
                                         url_for('fintweet.tweets'),
                                         url_for('fintweet.users'),
@@ -306,7 +318,7 @@
                             <a href="{{ url_for('fintweet.eventstudyfile') }}">Event Study File</a>
                         </li>
                     </ul>
-                </li>
+                </li> -->
             </ul>
         </div>
     </div>

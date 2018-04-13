@@ -11,7 +11,7 @@ import time
 from openpyxl import load_workbook
 from datetime import datetime
 import settings
-from sqlalchemy import *
+from sqlalchemy import create_engine, MetaData, Table
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
 import sqlalchemy.event as event
@@ -121,8 +121,8 @@ regex_str = [
     emoticons_str,
     r'<[^>]+>',    # HTML tags
     r'(?:@[\w_]+)',    # @-mentions
-    r"(?:\#+[\w_]+[\w\'_\-]*[\w_]+)",    # hash-tags
-    r"(?:\$+[a-zA-Z]+[\w\'_\-]*[\w_]+)",    # cash-tags
+    r"(?:\#\w*[a-zA-Z]+\w*)",    # hash-tags
+    r"(?:\$[A-Za-z0-9]{1,5}\b)",    # cash-tags
     r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+',    # URLs
     r'(?:(?:\d+,?)+(?:\.?\d+)?)',    # numbers
     r"(?:[a-z][a-z'\-_]+[a-z])",    # words with - and '
@@ -267,9 +267,7 @@ def get_symbols(s):
 def get_new_search(n, page, proxy, query):
     # page = Page(proxy)
     params = {}
-
     query = query.strip('$').upper()
-
     url = 'https://stocktwits.com/symbol/' + query
     r = page.load(n, 'get', url)
     params = {}
@@ -415,7 +413,6 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                 t['id']) + '/conversation.json?max='
             flag_conv = False
             while True:
-
                 r = page.load(n, 'get', url, important=False)
                 if not r:
                     print(n, 'Error loading conversation')
@@ -460,24 +457,24 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
         idea.counts.append(idea_count)
 
         tokens = preprocess(idea.text)
-        cashtags = [term for term in tokens if term.startswith('$') and len(term) > 1]
+        cashtags = set([term for term in tokens if term.startswith('$') and len(term) > 1])
         if len(cashtags) > 0:
             for cashtag in cashtags:
                 ctag = IdeasCashtags(ideas_id=idea.ideas_id, cashtag=cashtag)
                 idea.cash_s.append(ctag)
-                session.add(ctag)
+                # session.add(ctag)
         hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
         if len(hashtags) > 0:
             for hashtag in hashtags:
                 htag = IdeasHashtags(ideas_id=idea.ideas_id, hashtag=hashtag)
                 idea.hash_s.append(htag)
-                session.add(htag)
+                # session.add(htag)
         urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
         if len(urls) > 0:
             for u in urls:
-                utag = IdeasHashtags(ideas_id=idea.ideas_id, hashtag=u)
+                utag = IdeasUrls(ideas_id=idea.ideas_id, url=u)
                 idea.url_s.append(utag)
-                session.add(utag)
+                # session.add(utag)
 
         # if t.get('links', False):
         #     link = 'https://stocktwits.com/' + t['user']['username'] + '/message/' + str(t['id'])
@@ -554,12 +551,6 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
 def scrape(n, user_queue, proxy, lock, pg_dsn):
     db_engine = create_engine(pg_dsn, pool_size=1)
     add_engine_pidguard(db_engine)
-    # db_engine.execute('USE `stocktwits`')
-
-    # db_engine.execute('SET NAMES utf8mb4;')
-    # db_engine.execute('SET CHARACTER SET utf8mb4;')
-    # db_engine.execute('SET character_set_connection=utf8mb4;')
-    pg_meta = MetaData(bind=db_engine, schema="stocktwits")
     Session = sessionmaker(bind=db_engine)
     session = Session()
 
@@ -615,6 +606,9 @@ if __name__ == '__main__':
         n += 1
         proxy_list.append({'proxy': proxy, 'num': n})
     pool = ThreadPool(len(settings.proxy_list))
+    # Single process for testing
+    # scrape(0, user_queue, proxy_list[0], lock, pg_dsn)
+    # exit()
     while True:
         pool.map(lambda x: (scrape(x['num'], user_queue, x['proxy'], lock, pg_dsn)), proxy_list)
         pool.close()

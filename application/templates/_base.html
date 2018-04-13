@@ -241,8 +241,8 @@
                                             <h6>Back to parent</h6>
                                         </div>
                                         <ul class="menu-list has-children dd-menu" tabindex="0" style="overflow: hidden; outline: none;">
-                                            <li>
-                                                <a href="#">Overview</a>
+                                            <li class="{% if request.path == url_for('stocktwit.index') %}active{% endif %}">
+                                                <a href="{{ url_for('stocktwit.index') }}">Overview</a>
                                             </li>
                                             <li class="dd-parent">
                                                 <a href="#" class="dd-parent-a">

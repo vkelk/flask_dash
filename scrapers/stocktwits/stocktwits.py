@@ -457,19 +457,19 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
         idea.counts.append(idea_count)
 
         tokens = preprocess(idea.text)
-        cashtags = set([term for term in tokens if term.startswith('$') and len(term) > 1])
+        cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 1])
         if len(cashtags) > 0:
             for cashtag in cashtags:
                 ctag = IdeasCashtags(ideas_id=idea.ideas_id, cashtag=cashtag)
                 idea.cash_s.append(ctag)
                 # session.add(ctag)
-        hashtags = [term for term in tokens if term.startswith('#') and len(term) > 1]
+        hashtags = set([term for term in tokens if term.startswith('#') and len(term) > 1])
         if len(hashtags) > 0:
             for hashtag in hashtags:
                 htag = IdeasHashtags(ideas_id=idea.ideas_id, hashtag=hashtag)
                 idea.hash_s.append(htag)
                 # session.add(htag)
-        urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
+        urls = set([term for term in tokens if term.startswith('http') and len(term) > 4])
         if len(urls) > 0:
             for u in urls:
                 utag = IdeasUrls(ideas_id=idea.ideas_id, url=u)

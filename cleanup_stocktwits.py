@@ -47,7 +47,7 @@ def extract(idea):
         if hashtag and len(hashtag) > 1 and len(hashtag) <= 120:
             process_hashtag(idea.ideas_id, hashtag)
     for url in urls:
-        if cashtag and len(cashtag) > 4 and len(cashtag) <= 255:
+        if url and len(url) > 4 and len(url) <= 255:
             process_url(idea.ideas_id, url)
 
 

@@ -311,6 +311,7 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
     page = Page(proxy)
     login(n, page)
     for t in get_new_search(n, page, proxy, query):
+        # pprint(t)
         count_repl = 0
         t1 = datetime.strptime(t['created_at'], '%Y-%m-%dT%H:%M:%SZ')
         # print(dateto,t1)

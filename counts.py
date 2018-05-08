@@ -26,6 +26,7 @@ utc_open = nyse_open.astimezone(to_zone)
 utc_close = nyse_close.astimezone(to_zone)
 utc_pre_open = nyse_pre_open.astimezone(to_zone)
 utc_post_close = nyse_post_close.astimezone(to_zone)
+print(utc_pre_open, utc_open, utc_close, utc_post_close)
 
 date_open = utc_open.date()
 time_open = utc_open.time()
@@ -43,6 +44,9 @@ time_post_close = utc_post_close.time()
 
 c_tag = '$AAPL'
 
+def count_period(c_tag, date):
+    pass
+
 q1 = session \
             .query(Tweet.tweet_id) \
             .join(TweetCashtags) \
@@ -52,8 +56,10 @@ q1 = session \
             .filter(Tweet.time <= time_close)
 
 q2 = session \
-            .query(Tweet.tweet_id) \
+            .query(Tweet.tweet_id, Tweet.date, Tweet.time) \
             .join(TweetCashtags) \
-            .filter(TweetCashtags.cashtags == c_tag) \
-            .filter(((Tweet.date == date_open) & (Tweet.time > time_close)) | ((Tweet.date == date_post_close) & (Tweet.time < time_post_close)))
+            .filter(((Tweet.date == date_open) & (Tweet.time > time_close)) | ((Tweet.date == date_post_close) & (Tweet.time < time_post_close))) \
+            .order_by(Tweet.tweet_id)
 print(q2)
+for t in q2.all():
+    print(t.tweet_id, t.date, t.time)

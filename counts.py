@@ -46,18 +46,26 @@ def get_period(date, period_type=0):
 
 def count_period(c_tag, date, period_type=0):
     period = get_period(date, period_type)
-    start = and_(Tweet.date == period['start'].date(), Tweet.time >= period['start'].time()).self_group()
-    end = and_(Tweet.date == period['end'].date(), Tweet.time < period['end'].time()).self_group()
+    if period_type in (0, -1):
+        filter_period = and_(Tweet.date == period['start'].date(), Tweet.time >= period['start'].time(), Tweet.time < period['end'].time())
+    elif period_type == 1:
+        start = and_(Tweet.date == period['start'].date(), Tweet.time >= period['start'].time()).self_group()
+        end = and_(Tweet.date == period['end'].date(), Tweet.time < period['end'].time()).self_group()
+        filter_period = or_(start, end)
+    # start = and_(Tweet.date == period['start'].date(), Tweet.time >= period['start'].time()).self_group()
+    # end = and_(Tweet.date == period['end'].date(), Tweet.time < period['end'].time()).self_group()
     q = session.query(TweetCashtags.tweet_id).join(Tweet) \
         .filter(TweetCashtags.cashtags == c_tag) \
-        .filter(or_(start, end))
+        .filter(filter_period)
     print(q)
+    print(period)
     print(q.count())
 
 
-count_period('$AAPL', '2016-01-22', -1)
-count_period('$AAPL', '2016-01-22', 0)
-count_period('$AAPL', '2016-01-22', 1)
+date = '2016-02-02'
+count_period('$AAPL', date, -1)
+count_period('$AAPL', date, 0)
+count_period('$AAPL', date, 1)
 exit()
 
 q1 = session \

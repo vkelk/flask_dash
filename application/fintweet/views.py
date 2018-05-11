@@ -2,18 +2,17 @@ import os
 from datetime import timedelta
 import pandas as pd
 import json
-from functools import reduce
 from pprint import pprint
-from flask import request, render_template, url_for, jsonify, Response, Markup, flash, abort, send_file, make_response
+from flask import request, render_template, jsonify, Markup, flash, send_file, make_response
 from flask_login import login_required
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from werkzeug.utils import secure_filename, CombinedMultiDict
 from application.config import Configuration
-from application.fintweet.helpers import Collections, DataTables, slugify
+from application.fintweet.helpers import slugify
 from application.fintweet import fintweet
-from application.fintweet.models import *
-from application.fintweet.forms import *
+from application.fintweet.models import db, Tweet, TweetCashtag, DealNosFT, User, TweetHashtag
+from application.fintweet.forms import EventStudyFileForm, EventStydyForm
 
 from .helpers import object_list
 

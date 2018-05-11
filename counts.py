@@ -1,51 +1,64 @@
 from datetime import datetime, timedelta
 from dateutil import tz
 
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, and_
 
 from fintweet.models import Session, Tweet, TweetCashtags
 
 session = Session()
 
-from_zone = tz.gettz('America/New_York')
-to_zone = tz.gettz('UTC')
+ZONE_NY = tz.gettz('America/New_York')
+ZONE_UTC = tz.gettz('UTC')
 
-nyse_open = datetime.strptime('2017-02-01 09:30:00', '%Y-%m-%d %H:%M:%S')
-nyse_close = datetime.strptime('2017-02-01 16:00:00', '%Y-%m-%d %H:%M:%S')
-nyse_pre_open = nyse_open - timedelta(hours=9.5)
-nyse_post_close = nyse_close + timedelta(hours=8)
 
-# Tell the datetime object that it's in NY time zone since datetime objects are 'naive' by default
-nyse_open = nyse_open.replace(tzinfo=from_zone)
-nyse_close = nyse_close.replace(tzinfo=from_zone)
-nyse_pre_open = nyse_pre_open.replace(tzinfo=from_zone)
-nyse_post_close = nyse_post_close.replace(tzinfo=from_zone)
+def convert_date(input_dt, zone_from=ZONE_NY, zone_to=ZONE_UTC):
+    utc_datetime = datetime.strptime(input_dt, '%Y-%m-%d %H:%M:%S')
+    # Tell the datetime object that it's in NY time zone since datetime objects are 'naive' by default
+    utc_datetime = utc_datetime.replace(tzinfo=zone_from)
+    return utc_datetime.astimezone(zone_to)
 
-# Convert time zone to UTC
-utc_open = nyse_open.astimezone(to_zone)
-utc_close = nyse_close.astimezone(to_zone)
-utc_pre_open = nyse_pre_open.astimezone(to_zone)
-utc_post_close = nyse_post_close.astimezone(to_zone)
-print(utc_pre_open, utc_open, utc_close, utc_post_close)
 
-date_open = utc_open.date()
-time_open = utc_open.time()
-date_close = utc_close.date()
-time_close = utc_close.time()
-date_pre_open = utc_pre_open.date()
-time_pre_open = utc_pre_open.time()
-date_post_close = utc_post_close.date()
-time_post_close = utc_post_close.time()
+date_open = convert_date('2017-02-02 09:30:00').date()
+time_open = convert_date('2017-02-02 09:30:00').time()
+time_close = convert_date('2017-02-02 16:00:00').time()
+date_pre_open = convert_date('2017-02-02 00:00:00').date()
+time_pre_open = convert_date('2017-02-02 00:00:00').time()
+date_post_close = convert_date('2017-02-03 00:00:00').date()
+time_post_close = convert_date('2017-02-03 00:00:00').time()
 
-# q = session.query(Tweet) \
-#     .filter(Tweet.date == date_open) \
-#     .filter(Tweet.time >= time_open) \
-#     .filter(Tweet.time <= time_close)
 
 c_tag = '$AAPL'
 
-def count_period(c_tag, date):
-    pass
+
+def get_period(date, period_type=0):
+    if period_type == 0:
+        period_start = date + ' 09:30:00'
+        period_end = date + ' 16:00:00'
+    elif period_type == -1:
+        period_start = date + ' 00:00:00'
+        period_end = date + ' 09:30:00'
+    elif period_type == 1:
+        period_start = date + ' 16:00:00'
+        period_end = (datetime.strptime(date, '%Y-%m-%d') + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+
+    return {'start': convert_date(period_start), 'end': convert_date(period_end)}
+
+
+def count_period(c_tag, date, period_type=0):
+    period = get_period(date, period_type)
+    start = and_(Tweet.date == period['start'].date(), Tweet.time >= period['start'].time()).self_group()
+    end = and_(Tweet.date == period['end'].date(), Tweet.time < period['end'].time()).self_group()
+    q = session.query(TweetCashtags.tweet_id).join(Tweet) \
+        .filter(TweetCashtags.cashtags == c_tag) \
+        .filter(or_(start, end))
+    print(q)
+    print(q.count())
+
+
+count_period('$AAPL', '2016-01-22', -1)
+count_period('$AAPL', '2016-01-22', 0)
+count_period('$AAPL', '2016-01-22', 1)
+exit()
 
 q1 = session \
             .query(Tweet.tweet_id) \

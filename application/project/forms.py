@@ -35,8 +35,8 @@ class EventForm(FlaskForm):
     days_grace = IntegerField('Grace period', default=0)
     code_type_radio = SelectField('Select code type', validators=[DataRequired()],
                                   choices=[('permno', 'PermNo'), ('ticker', 'Ticker'), ('hashtag', 'Hashtag'),
-                                          ('cashtag', 'Cashtag'), ('mentions', 'Mentions'),
-                                          ('user_names', 'User Names')])
+                                           ('cashtag', 'Cashtag'), ('mentions', 'Mentions'),
+                                           ('user_names', 'User Names')])
     code_text = StringField('Tag text', validators=[DataRequired()])
 
 
@@ -69,6 +69,25 @@ class EventStudyFileForm(FlaskForm):
                                         choices=[('false', 'No'), ('true', 'Yes')],
                                         validators=[DataRequired()])
 
+    file_input = FileField(
+        validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text data files only!')])
+    file_name = HiddenField()
+    output_file = HiddenField()
+
+    create_study = SubmitField('Process study')
+
+
+class CountsFileForm(FlaskForm):
+    dataset = SelectField(
+        "Select dataset",
+        validators=[DataRequired()],
+        choices=[('fintweet', 'Fintweet'), ('stocktwits', 'Stocktwits')])
+    # date_start = DateField('Date start:', validators=[DataRequired()])
+    # date_end = DateField('Date end', validators=[DataRequired()])
+    days_status = SelectField(
+        "Select days",
+        validators=[DataRequired()],
+        choices=[('trading', 'Trading Days Only'), ('all', 'All Days')])
     file_input = FileField(
         validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text data files only!')])
     file_name = HiddenField()

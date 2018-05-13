@@ -50,7 +50,8 @@ def create_app(config=None):
 
     from application.main import main as main_blueprint
     from application.account import account as account_blueprint
-    from application.project import project as project_blueprint
+    # from application.project import project as project_blueprint
+    from .project import project as project_blueprint
     from application.fintweet import fintweet as fintweet_blueprint
     from application.stocktwits import stocktwit as stocktwit_blueprint
     # from application.fintweet.resources import api_fintweet

@@ -169,6 +169,10 @@
                                 </ul>
                             </li>
                         </li>
+                        <li class="{% if request.path == url_for('project.counts_upload') %}active{% endif %}">
+                            <a href="{{ url_for('project.counts_upload') }}">
+                                <i class="icon-grid2"></i>Counts </a>
+                        </li>
                     </ul>
                 </li>
                 <li class="dropdown mega-menu mega-menu-wide">

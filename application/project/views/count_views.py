@@ -1,177 +1,133 @@
-import hashlib
-import json
-import os
-import uuid
 from datetime import datetime, timedelta
+from dateutil import tz
+import hashlib
+import os
 import pandas as pd
 from pprint import pprint
-from sqlalchemy import func
-from flask import render_template, request, Markup, flash, redirect, url_for, abort, session, jsonify, send_file
-from flask_login import login_user, current_user, login_required, logout_user
+import uuid
+from flask import render_template, request, session
+from flask_login import current_user, login_required
+from sqlalchemy import or_, and_
 from werkzeug.utils import secure_filename, CombinedMultiDict
-from application import db, login_manager
+from application import db
+from application.config import Configuration
 from application.project import project
-from .models import Project, ProjectDetais, Event, EventStats, EventTweets, Event
-from application.fintweet.models import *
-from application.project.forms import *
-from application.project.helpers import *
+from application.project.models import Project, Dataset
+from application.project.forms import CountsFileForm
+from application.project.helpers import slugify
+from application.fintweet.models import Tweet, TweetCashtag, TweetHashtag, TweetMention
 
 
-@project.route('/project_add', methods=['GET', 'POST'])
+ZONE_NY = tz.gettz('America/New_York')
+ZONE_UTC = tz.gettz('UTC')
+
+
+def convert_date(input_dt, zone_from=ZONE_NY, zone_to=ZONE_UTC):
+    utc_datetime = datetime.strptime(input_dt, '%Y-%m-%d %H:%M:%S')
+    # Tell the datetime object that it's in NY time zone since datetime objects are 'naive' by default
+    utc_datetime = utc_datetime.replace(tzinfo=zone_from)
+    return utc_datetime.astimezone(zone_to)
+
+
+def get_period(date, period_type=0):
+    if period_type == 0:
+        period_start = date + ' 09:30:00'
+        period_end = date + ' 16:00:00'
+    elif period_type == -1:
+        period_start = date + ' 00:00:00'
+        period_end = date + ' 09:30:00'
+    elif period_type == 1:
+        period_start = date + ' 16:00:00'
+        period_end = (datetime.strptime(date, '%Y-%m-%d') + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+    return {'start': convert_date(period_start), 'end': convert_date(period_end)}
+
+
+def get_tweets_in_period(c_tag, date, period_type=0):
+    period = get_period(date, period_type)
+    if period_type in (0, -1):
+        filter_period = and_(
+            Tweet.date == period['start'].date(),
+            Tweet.time >= period['start'].time(),
+            Tweet.time < period['end'].time())
+    elif period_type == 1:
+        start = and_(Tweet.date == period['start'].date(), Tweet.time >= period['start'].time()).self_group()
+        end = and_(Tweet.date == period['end'].date(), Tweet.time < period['end'].time()).self_group()
+        filter_period = or_(start, end)
+    tweets = db.session.query(TweetCashtag.tweet_id).join(Tweet) \
+        .filter(TweetCashtag.cashtags == c_tag) \
+        .filter(filter_period)
+    return [t[0] for t in tweets.all()]
+
+
+def get_users_count(tweet_list):
+    q = db.session.query(Tweet.user_id).filter(Tweet.tweet_id.in_(tweet_list)).group_by(Tweet.user_id)
+    return q.count()
+
+
+def get_retweet_count(tweet_list):
+    q = db.session.query(Tweet.tweet_id).filter(Tweet.tweet_id.in_(tweet_list)).filter(Tweet.retweet_status is True)
+    return q.count()
+
+
+def get_hashtag_count(tweet_list):
+    q = db.session.query(TweetHashtag.hashtags).filter(TweetHashtag.tweet_id.in_(tweet_list))
+    return q.count()
+
+
+def get_replys_count(tweet_list):
+    q = db.session.query(Tweet.tweet_id).filter(Tweet.tweet_id.in_(tweet_list)).filter(Tweet.reply_to > 0)
+    return q.count()
+
+
+def get_mentions_count(tweet_list):
+    q = db.session.query(TweetMention.user_id).filter(TweetMention.tweet_id.in_(tweet_list))
+    return q.count()
+
+
+def dataframe_from_file(filename):
+    ext = os.path.splitext(filename)[1]
+    if ext in ['.xls', '.xlsx']:
+        df = pd.read_excel(filename)
+        df.columns = [slugify(col) for col in df.columns]
+        df["status"] = ""
+        df["trading tweet count"] = ""
+        df["trading user count"] = ""
+        df["trading retweet count"] = ""
+        df["trading hashtag count"] = ""
+        df["trading reply count"] = ""
+        df["trading mention count"] = ""
+        df["pre-trading tweet count"] = ""
+        df["pre-trading user count"] = ""
+        df["pre-trading retweet count"] = ""
+        df["pre-trading hashtag count"] = ""
+        df["pre-trading reply count"] = ""
+        df["pre-trading mention count"] = ""
+        df["post-trading tweet count"] = ""
+        df["post-trading user count"] = ""
+        df["post-trading retweet count"] = ""
+        df["post-trading hashtag count"] = ""
+        df["post-trading reply count"] = ""
+        df["post-trading mention count"] = ""
+        return df
+    # TODO: Create import from CSV
+    return None
+
+
+def get_all_counts(cashtag, date_from, date_to, dates='all'):
+    date_delta = date_to - date_to
+    for i in range(date_delta.days + 1):
+        print(date_from + timedelta(days=i))
+
+
+@project.route('/counts_upload', methods=['GET', 'POST'])
 @login_required
-def project_add():
-    form = NewProjectForm(request.form)
-    if request.method == 'POST' and form.validate_on_submit():
-        try:
-            new_project = Project(form.name.data, form.description.data,
-                                  form.date_start.data, form.date_end.data)
-            new_project.account_id = current_user.get_id()
-            db.session.add(new_project)
-            db.session.commit()
-            message = Markup(
-                "<strong>Project created!</strong> Please continue...")
-            flash(message, 'success')
-            return redirect(
-                url_for('project.project_uuid', uuid=new_project.uuid))
-        except Exception as e:
-            db.session.rollback()
-            pprint(e)
-            message = Markup(
-                "<strong>Error!</strong> Unable to create new project.")
-            flash(message, 'danger')
-    if len(form.errors) > 0:
-        pprint(form.errors)
-    return render_template('project/project_add.html', form=form)
-
-
-@project.route('/project_edit/<uuid>', methods=['GET', 'POST'])
-@login_required
-def project_edit(uuid):
-    form = NewProjectForm(request.form)
-    if request.method == 'POST' and form.validate_on_submit():
-        try:
-            new_project = Project(form.name.data, form.description.data,
-                                  form.date_start.data, form.date_end.data)
-            new_project.account_id = current_user.get_id()
-            db.session.add(new_project)
-            db.session.commit()
-            message = Markup(
-                "<strong>Project created!</strong> Please continue...")
-            flash(message, 'success')
-            return redirect(url_for('account.project', uuid=new_project.uuid))
-        except Exception as e:
-            db.session.rollback()
-            pprint(e)
-            message = Markup(
-                "<strong>Error!</strong> Unable to create new project.")
-            flash(message, 'danger')
-    else:
-        project = Project.query.filter(Project.uuid == uuid).first()
-    if len(form.errors) > 0:
-        pprint(form.errors)
-    return render_template(
-        'project/project_details.html', project=project, form=form)
-
-
-@project.route('/project_activate/<uuid>', methods=['GET'])
-@login_required
-def project_activate(uuid):
-    try:
-        projects = Project.query.filter(
-            Project.account_id == current_user.get_id()).all()
-        for project in projects:
-            if project.uuid == uuid:
-                project.active = True
-                db.session.add(project)
-                db.session.commit()
-                session['active_project'] = uuid
-                session['active_project_name'] = project.name
-            else:
-                project.active = False
-                db.session.add(project)
-                db.session.commit()
-        message = Markup("<strong>Project activated!</strong>")
-        flash(message, 'success')
-        return redirect(url_for('project.project_uuid', uuid=uuid))
-    except Exception as e:
-        db.session.rollback()
-        pprint(e)
-        message = Markup("<strong>Error!</strong> Unable to activate project.")
-        flash(message, 'danger')
-    return redirect(url_for('project.list'))
-
-
-@project.route('/list')
-@login_required
-def list():
-    # projects = Project.query.filter(Project.account_id == current_user.get_id()).order_by(Project.uuid).all()
-    projects = db.session.query(Project.uuid, Project.name, Project.description, Project.date_start, Project.date_end,
-                                Project.active, func.count(Event.project_id).label('events_count')).select_from(Project) \
-        .outerjoin(Event, Event.project_id == Project.uuid).filter(Project.account_id == current_user.get_id()) \
-        .group_by(Project.uuid).group_by(Event.project_id).order_by(Project.uuid).all()
-    return render_template('project/projects.html', projects=projects)
-
-
-@project.route('/event_list')
-@login_required
-def event_list():
-    project = Project.query.filter(Project.account_id == current_user.get_id()
-                                   ).filter(Project.active == True).first()
-    if project:
-        session['active_project'] = project.uuid
-    events = Event.query.filter(Event.project_id == project.uuid).all()
-    return render_template(
-        'project/events.html', events=events, project=project)
-
-
-@project.route('/event_tweets/<uuid>')
-@login_required
-def event_tweets(uuid):
-    event = Event.query.filter(Event.uuid == uuid).first()
-    return render_template('project/event_tweets.html', event=event)
-
-
-@project.route('/event_users/<uuid>')
-@login_required
-def event_users(uuid):
-    event = Event.query.filter(Event.uuid == uuid).first()
-    return render_template('project/event_users.html', event=event)
-
-
-@project.route('/event_new', methods=['GET', 'POST'])
-@login_required
-def event_new():
-    project = Project.query.filter(Project.account_id == current_user.get_id()
-                                   ).filter(Project.active == True).first()
-    if project:
-        session['active_project'] = project.uuid
-    datasets = Dataset.query.all()
-    form = EventStudyForm(request.form)
-    if request.method == 'POST' and form.validate_on_submit():
-        if form.add_event.data:
-            form.events.append_entry()
-            return render_template(
-                'project/event_new.html', form=form, project=project)
-        if form.create_study.data:
-            pprint(form.events.data)
-            return render_template(
-                'project/event_new.html', form=form, project=project)
-
-    if len(form.errors) > 0:
-        pprint(form.errors)
-    return render_template(
-        'project/event_new.html', form=form, project=project)
-
-
-@project.route('/events_upload', methods=['GET', 'POST'])
-@login_required
-def events_upload():
+def counts_upload():
     project = Project.query.filter(Project.account_id == current_user.get_id()) \
         .filter(Project.active == True).first()
     if project:
         session['active_project'] = project.uuid
-    # datasets = Dataset.query.all()
-    form = EventStudyFileForm(CombinedMultiDict((request.files, request.form)))
+    datasets = Dataset.query.all()
+    form = CountsFileForm(CombinedMultiDict((request.files, request.form)))
     if request.method == 'POST' and form.validate_on_submit():
         if form.create_study.data:
             file_input = secure_filename(
@@ -183,36 +139,22 @@ def events_upload():
             df_in = dataframe_from_file(
                 os.path.join(Configuration.UPLOAD_FOLDER, form.file_name.data))
             if df_in.empty:
-                return None
+                return render_template(
+                    'project/counts_upload.html',
+                    form=form,
+                    project=project,
+                    df_in=df_in.to_html(classes='table table-striped'))
             for index, row in df_in.iterrows():
-                date_on_event = row['event_date'].to_pydatetime()
-                days_pre_event = abs(form.days_pre_event.data)
-                event_window = {
-                    'date':
-                    date_on_event,
-                    'start':
-                    date_on_event - timedelta(days=days_pre_event),
-                    'end':
-                    date_on_event + timedelta(days=form.days_post_event.data)
-                }
-                date_estwin_pre_end = event_window['start'] - timedelta(
-                    days=(form.days_grace.data + 1))
-                date_estwin_pre_start = date_estwin_pre_end - timedelta(
-                    days=form.days_estimation.data)
-                date_estwin_pre_start = max(date_estwin_pre_start.date(),
-                                            project.date_start)
-                if form.select_deal_resolution.data == 'false':
-                    date_estwin_post_start = event_window['end'] + timedelta(
-                        days=1)
-                    date_estwin_post_end = date_estwin_post_start + timedelta(
-                        days=form.days_estimation.data)
-                else:
-                    date_estwin_post_start = event_window['end'] + timedelta(
-                        days=1)
-                    date_estwin_post_end = date_estwin_post_start + timedelta(
-                        days=row['deal_resolution'])
-                    date_estwin_post_end = min(date_estwin_post_end.date(),
-                                               project.date_end)
+                date_from = row['date_from'].to_pydatetime()
+                date_to = row['date_to'].to_pydatetime()
+                cashtag = row['cashtag']
+                get_all_counts(cashtag, date_from, date_to)
+
+                return render_template(
+                    'project/counts_upload.html',
+                    form=form,
+                    project=project,
+                    df_in=df_in.to_html(classes='table table-striped'))
 
                 estimation_window = {
                     'pre_end': date_estwin_pre_end,
@@ -420,7 +362,7 @@ def events_upload():
             db.session.add(project)
             db.session.commit()
             return render_template(
-                'project/events_upload.html',
+                'project/counts_upload.html',
                 form=form,
                 project=project,
                 df_in=df_in.to_html(classes='table table-striped'))
@@ -428,72 +370,4 @@ def events_upload():
     if len(form.errors) > 0:
         pprint(form.errors)
     return render_template(
-        'project/events_upload.html', form=form, project=project)
-
-
-@project.route('/ajax_event_tweets/<uuid>/<period>')
-def ajax_event_tweets(uuid, period):
-    event = Event.query.filter(Event.uuid == uuid).first()
-    if period == 'on_event':
-        date_start = event.event_start
-        date_end = event.event_end
-    elif period == 'pre_event':
-        date_start = event.event_pre_start
-        date_end = event.event_pre_end
-    elif period == 'post_event':
-        date_start = event.event_post_start
-        date_end = event.event_post_end
-    q = db.session.query(func.to_char(TweetCashtag.tweet_id, 'FM999999999999999999').label('tweet_id'),
-                         Tweet.text, User.twitter_handle, TweetCount.retweet, TweetCount.reply, TweetCount.favorite) \
-        .select_from(TweetCashtag) \
-        .join(Tweet, Tweet.tweet_id == TweetCashtag.tweet_id) \
-        .join(Event, Event.text == TweetCashtag.cashtags) \
-        .join(User, User.user_id == Tweet.user_id) \
-        .join(TweetCount, TweetCount.tweet_id == TweetCashtag.tweet_id) \
-        .filter(Event.uuid == uuid).filter(Tweet.date >= date_start, Tweet.date <= date_end) \
-        .order_by(Tweet.tweet_id)
-    return jsonify(q.all())
-
-
-@project.route('/ajax_event_users/<uuid>/<period>')
-def ajax_event_users(uuid, period):
-    event = Event.query.filter(Event.uuid == uuid).first()
-    if period == 'on_event':
-        date_start = event.event_start
-        date_end = event.event_end
-    elif period == 'pre_event':
-        date_start = event.event_pre_start
-        date_end = event.event_pre_end
-    elif period == 'post_event':
-        date_start = event.event_post_start
-        date_end = event.event_post_end
-    q = db.session.query(func.to_char(Tweet.user_id, 'FM999999999999999999').label('user_id'), User.twitter_handle,
-                         UserCount.follower, UserCount.following, UserCount.tweets, UserCount.likes) \
-        .select_from(TweetCashtag) \
-        .join(Tweet, Tweet.tweet_id == TweetCashtag.tweet_id) \
-        .join(Event, Event.text == TweetCashtag.cashtags) \
-        .join(User, User.user_id == Tweet.user_id) \
-        .join(UserCount, UserCount.user_id == Tweet.user_id) \
-        .filter(Event.uuid == uuid).filter(Tweet.date >= date_start, Tweet.date <= date_end) \
-        .distinct()
-    return jsonify(q.all())
-
-
-@project.route('/getfile/<filename>')  # this is a job for GET, not POST
-def getfile(filename):
-    if not filename:
-        return None
-    return send_file(
-        'uploads/' + filename,
-        mimetype='text/csv',
-        attachment_filename=filename,
-        as_attachment=True)
-
-
-@project.route('/<uuid>')
-@login_required
-def project_uuid(uuid):
-    project_obj = Project.query.filter(Project.uuid == uuid).first()
-    events = Event.query.filter(Event.project_id == project_obj.uuid).all()
-    return render_template(
-        'project/project_details.html', project=project_obj, events=events)
+        'project/counts_upload.html', form=form, project=project)

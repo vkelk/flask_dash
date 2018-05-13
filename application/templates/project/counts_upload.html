@@ -1,0 +1,130 @@
+{% extends "_base.html" %}
+{% from "_formshelper.html" import render_field %}
+{% block title %}Counts{% endblock %}
+{% block content %}
+    <style>
+        label {
+            margin-left: 3px;
+            margin-right: 5px;
+        }
+
+        table.dataframe, .dataframe th, .dataframe td {
+            border: none;
+            border-bottom: 1px solid #C8C8C8;
+            border-collapse: collapse;
+            text-align: left;
+            padding: 10px;
+            margin-bottom: 40px;
+            font-size: 0.9em;
+        }
+
+        #tbl_events > tbody > tr > td {
+            padding: 5px 5px;
+        }
+
+
+    </style>
+    <script>
+        $(function () {
+            $(".datepicker").datepicker({
+                changeMonth: true,
+                changeYear: true,
+                dateFormat: "yy-mm-dd"
+            });
+        });
+    </script>
+    <div class="row">
+        <form action="{{ url_for('project.counts_upload') }}" method="post" role="form" id="main_form"
+              enctype="multipart/form-data">
+            {{ form.csrf_token }}
+            <div class="col-md-8 col-md-offset-2">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><h5>Active project: <strong>{{ project.name }}</strong></h5></div>
+                    <div class="panel-body">
+                        <div class="row">
+                            <div class="col-sm-6"><h6>Date range is inhereted from project settings:<br>
+                                {{ project.date_start }} - {{ project.date_end }}</h6>
+                            </div>
+                            <div class="col-sm-3">
+                                    {{ render_field(form.days_status.label) }}
+                                    {{ render_field(form.days_status, class="form-control") }}
+                            </div>
+                            <div class="col-sm-3">
+                                    {{ render_field(form.dataset.label) }}
+                                    {{ render_field(form.dataset, class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            
+                        </div>
+                    </div>
+                    <div class="panel-footer">
+                        <div class="col-sm-6">
+                            {{ render_field(form.file_input, class="form-control") }}
+                        </div>
+                        <div class="col-sm-2 col-sm-offset-4">
+                            {{ render_field(form.create_study, class="btn btn-success") }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+    </div>
+    <div class="row">
+        <div class="col-sm-12">
+            {% if df_in %}
+                <div class="panel-group">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <a data-toggle="collapse" href="#df_in_collapse">Input data (click here to
+                                        collapse)</a>
+                                </div>
+                                <div class="col-sm-3 col-sm-offset-3">
+                                    <a id="download"
+                                       href="{{ url_for('project.getfile', filename=form.output_file.data) }}"
+                                       target="_blank">Download data</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="df_in_collapse" class="panel-collapse collapse in">
+                            <div class="panel-body">{{ df_in | safe }}</div>
+                        </div>
+                        <div class="panel-footer">
+
+                        </div>
+                    </div>
+                </div>
+
+            {% endif %}
+        </div>
+    </div>
+
+
+{% endblock %}
+
+{% block javascript %}
+    <script>
+        function objectifyForm(formArray) { //serialize data function
+
+            var returnArray = {};
+            for (var i = 0; i < formArray.length; i++) {
+                returnArray[formArray[i]['name']] = formArray[i]['value'];
+            }
+            return returnArray;
+        }
+
+        $(document).ready(function () {
+            $('#create_study').click(function (event) {
+                // event.preventDefault();
+                var formData = $("#main_form").serializeArray();
+                ;
+                // console.log(objectifyForm(formData));
+                // alert('Processing study...');
+            });
+        })
+    </script>
+
+{% endblock %}

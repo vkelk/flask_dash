@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from dateutil import tz
 import hashlib
 import os
@@ -29,21 +29,23 @@ def convert_date(input_dt, zone_from=ZONE_NY, zone_to=ZONE_UTC):
     return utc_datetime.astimezone(zone_to)
 
 
-def get_period(date, period_type=0):
+def get_period(date_input, period_type=0):
+    if isinstance(date_input, date):
+        date_input = str(date_input)
     if period_type == 0:
-        period_start = date + ' 09:30:00'
-        period_end = date + ' 16:00:00'
+        period_start = date_input + ' 09:30:00'
+        period_end = date_input + ' 16:00:00'
     elif period_type == -1:
-        period_start = date + ' 00:00:00'
-        period_end = date + ' 09:30:00'
+        period_start = date_input + ' 00:00:00'
+        period_end = date_input + ' 09:30:00'
     elif period_type == 1:
-        period_start = date + ' 16:00:00'
-        period_end = (datetime.strptime(date, '%Y-%m-%d') + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+        period_start = date_input + ' 16:00:00'
+        period_end = (datetime.strptime(date_input, '%Y-%m-%d') + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
     return {'start': convert_date(period_start), 'end': convert_date(period_end)}
 
 
-def get_tweets_in_period(c_tag, date, period_type=0):
-    period = get_period(date, period_type)
+def get_tweets_in_period(c_tag, date_input, period_type=0):
+    period = get_period(date_input, period_type)
     if period_type in (0, -1):
         filter_period = and_(
             Tweet.date == period['start'].date(),
@@ -90,33 +92,42 @@ def dataframe_from_file(filename):
         df = pd.read_excel(filename)
         df.columns = [slugify(col) for col in df.columns]
         df["status"] = ""
-        df["trading tweet count"] = ""
-        df["trading user count"] = ""
-        df["trading retweet count"] = ""
-        df["trading hashtag count"] = ""
-        df["trading reply count"] = ""
-        df["trading mention count"] = ""
-        df["pre-trading tweet count"] = ""
-        df["pre-trading user count"] = ""
-        df["pre-trading retweet count"] = ""
-        df["pre-trading hashtag count"] = ""
-        df["pre-trading reply count"] = ""
-        df["pre-trading mention count"] = ""
-        df["post-trading tweet count"] = ""
-        df["post-trading user count"] = ""
-        df["post-trading retweet count"] = ""
-        df["post-trading hashtag count"] = ""
-        df["post-trading reply count"] = ""
-        df["post-trading mention count"] = ""
+        # df["trading tweet count"] = ""
+        # df["trading user count"] = ""
+        # df["trading retweet count"] = ""
+        # df["trading hashtag count"] = ""
+        # df["trading reply count"] = ""
+        # df["trading mention count"] = ""
+        # df["pre-trading tweet count"] = ""
+        # df["pre-trading user count"] = ""
+        # df["pre-trading retweet count"] = ""
+        # df["pre-trading hashtag count"] = ""
+        # df["pre-trading reply count"] = ""
+        # df["pre-trading mention count"] = ""
+        # df["post-trading tweet count"] = ""
+        # df["post-trading user count"] = ""
+        # df["post-trading retweet count"] = ""
+        # df["post-trading hashtag count"] = ""
+        # df["post-trading reply count"] = ""
+        # df["post-trading mention count"] = ""
         return df
     # TODO: Create import from CSV
     return None
 
 
-def get_all_counts(cashtag, date_from, date_to, dates='all'):
-    date_delta = date_to - date_to
+def get_all_tweet_ids(cashtag, date_from, date_to, dates='all'):
+    date_delta = date_to - date_from
+    tweets = {'open': [], 'pre': [], 'post': []}
     for i in range(date_delta.days + 1):
-        print(date_from + timedelta(days=i))
+        date_input = (date_from + timedelta(days=i)).date()
+        if date_input in [date_input]:
+            open_period = get_tweets_in_period(cashtag, date_input, 0)
+            tweets['open'].extend(open_period)
+            pre_open_period = get_tweets_in_period(cashtag, date_input, -1)
+            tweets['pre'].extend(pre_open_period)
+            post_open_period = get_tweets_in_period(cashtag, date_input, 1)
+            tweets['post'].extend(post_open_period)
+    return tweets
 
 
 @project.route('/counts_upload', methods=['GET', 'POST'])
@@ -148,8 +159,25 @@ def counts_upload():
                 date_from = row['date_from'].to_pydatetime()
                 date_to = row['date_to'].to_pydatetime()
                 cashtag = row['cashtag']
-                get_all_counts(cashtag, date_from, date_to)
-
+                tweets = get_all_tweet_ids(cashtag, date_from, date_to)
+                df_in.at[index, 'opent tweets'] = str(len(tweets['open']))
+                df_in.at[index, 'opent users'] = str(get_users_count(tweets['open']))
+                df_in.at[index, 'opent retweets'] = str(get_retweet_count(tweets['open']))
+                df_in.at[index, 'opent hashtags'] = str(get_hashtag_count(tweets['open']))
+                df_in.at[index, 'opent replys'] = str(get_replys_count(tweets['open']))
+                df_in.at[index, 'opent mentions'] = str(get_mentions_count(tweets['open']))
+                df_in.at[index, 'pret tweets'] = str(len(tweets['pre']))
+                df_in.at[index, 'pret users'] = str(get_users_count(tweets['pre']))
+                df_in.at[index, 'pret retweets'] = str(get_retweet_count(tweets['pre']))
+                df_in.at[index, 'pret hashtags'] = str(get_hashtag_count(tweets['pre']))
+                df_in.at[index, 'pret replys'] = str(get_replys_count(tweets['pre']))
+                df_in.at[index, 'pret mentions'] = str(get_mentions_count(tweets['pre']))
+                df_in.at[index, 'postt tc'] = str(len(tweets['post']))
+                df_in.at[index, 'postt users'] = str(get_users_count(tweets['post']))
+                df_in.at[index, 'postt retweets'] = str(get_retweet_count(tweets['post']))
+                df_in.at[index, 'postt hashtags'] = str(get_hashtag_count(tweets['post']))
+                df_in.at[index, 'postt replys'] = str(get_replys_count(tweets['post']))
+                df_in.at[index, 'postt mentions'] = str(get_mentions_count(tweets['post']))
                 return render_template(
                     'project/counts_upload.html',
                     form=form,

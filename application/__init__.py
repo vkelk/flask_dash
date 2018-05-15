@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
 from flask_bcrypt import Bcrypt
+from flask_debugtoolbar import DebugToolbarExtension
 # from flask_restful import Api
 # from flask_restless import APIManager
 # from flask_marshmallow import Marshmallow
@@ -14,6 +15,7 @@ from .config import Configuration
 db = SQLAlchemy()
 csrf = CSRFProtect()
 bcrypt = Bcrypt()
+toolbar = DebugToolbarExtension()
 # api = Api()
 # apimanager = APIManager(flask_sqlalchemy_db=db)
 # ma = Marshmallow()
@@ -40,6 +42,7 @@ def create_app(config=None):
     db.init_app(app)
     login_manager.init_app(app)
     bcrypt.init_app(app)
+    toolbar.init_app(app)
 
     # Extensions like Flask-SQLAlchemy not know what the "current" app
     with app.app_context():

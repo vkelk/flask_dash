@@ -1,4 +1,4 @@
-import json, uuid
+import uuid
 from datetime import datetime
 from application import db
 from application.account.models import Account
@@ -142,3 +142,12 @@ class EventTweets(db.Model):
         self.event_uuid = uuid
         self.event_period = event_period
         self.tweet_id = tweet_id
+
+
+class TradingDays(db.Model):
+    __tablename__ = 'trading_days'
+    __table_args__ = {"schema": "dashboard"}
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    date = db.Column(db.Date)
+    is_trading = db.Column(db.Boolean)

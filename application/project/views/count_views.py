@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, date
 from dateutil import tz
-import hashlib
 import os
 import pandas as pd
 from pprint import pprint
@@ -12,7 +11,7 @@ from werkzeug.utils import secure_filename, CombinedMultiDict
 from application import db
 from application.config import Configuration
 from application.project import project
-from ..models import Project, Dataset
+from ..models import Project, Dataset, TradingDays
 from ..forms import CountsFileForm
 from ..helpers import slugify
 from application.fintweet.models import Tweet, TweetCashtag, TweetHashtag, TweetMention
@@ -67,7 +66,10 @@ def get_users_count(tweet_list):
 
 
 def get_retweet_count(tweet_list):
-    q = db.session.query(Tweet.tweet_id).filter(Tweet.tweet_id.in_(tweet_list)).filter(Tweet.retweet_status is True)
+    true_list = ['1', 'True', 'true']
+    q = db.session.query(Tweet.tweet_id) \
+        .filter(Tweet.tweet_id.in_(tweet_list)) \
+        .filter(Tweet.retweet_status.in_(true_list))
     return q.count()
 
 
@@ -117,10 +119,22 @@ def dataframe_from_file(filename):
 
 def get_all_tweet_ids(cashtag, date_from, date_to, dates='all'):
     date_delta = date_to - date_from
+    if dates == 'trading':
+        trading_days = db.session.query(TradingDays.date) \
+            .filter(TradingDays.is_trading == True) \
+            .filter(TradingDays.date.between(date_from, date_to))
+        days_list = [d[0] for d in trading_days.all()]
     tweets = {'open': [], 'pre': [], 'post': []}
     for i in range(date_delta.days + 1):
         date_input = (date_from + timedelta(days=i)).date()
-        if date_input in [date_input]:
+        if dates == 'trading' and date_input in days_list:
+            open_period = get_tweets_in_period(cashtag, date_input, 0)
+            tweets['open'].extend(open_period)
+            pre_open_period = get_tweets_in_period(cashtag, date_input, -1)
+            tweets['pre'].extend(pre_open_period)
+            post_open_period = get_tweets_in_period(cashtag, date_input, 1)
+            tweets['post'].extend(post_open_period)
+        elif dates == 'all':
             open_period = get_tweets_in_period(cashtag, date_input, 0)
             tweets['open'].extend(open_period)
             pre_open_period = get_tweets_in_period(cashtag, date_input, -1)
@@ -149,7 +163,7 @@ def counts_upload():
             form.file_name.data = file_input
             df_in = dataframe_from_file(
                 os.path.join(Configuration.UPLOAD_FOLDER, form.file_name.data))
-            if df_in.empty:
+            if df_in is None or df_in.empty:
                 return render_template(
                     'project/counts_upload.html',
                     form=form,
@@ -159,7 +173,7 @@ def counts_upload():
                 date_from = row['date_from'].to_pydatetime()
                 date_to = row['date_to'].to_pydatetime()
                 cashtag = row['cashtag']
-                tweets = get_all_tweet_ids(cashtag, date_from, date_to)
+                tweets = get_all_tweet_ids(cashtag, date_from, date_to, form.days_status.data)
                 df_in.at[index, 'opent tweets'] = str(len(tweets['open']))
                 df_in.at[index, 'opent users'] = str(get_users_count(tweets['open']))
                 df_in.at[index, 'opent retweets'] = str(get_retweet_count(tweets['open']))
@@ -178,217 +192,12 @@ def counts_upload():
                 df_in.at[index, 'postt hashtags'] = str(get_hashtag_count(tweets['post']))
                 df_in.at[index, 'postt replys'] = str(get_replys_count(tweets['post']))
                 df_in.at[index, 'postt mentions'] = str(get_mentions_count(tweets['post']))
-                return render_template(
-                    'project/counts_upload.html',
-                    form=form,
-                    project=project,
-                    df_in=df_in.to_html(classes='table table-striped'))
-
-                estimation_window = {
-                    'pre_end': date_estwin_pre_end,
-                    'pre_start': date_estwin_pre_start,
-                    'post_start': date_estwin_post_start,
-                    'post_end': date_estwin_post_end
-                }
-                result_list = get_data_from_query(row['cashtag'],
-                                                  estimation_window, form.dataset.data)
-                if len(result_list) > 0:
-                    check_string = project.uuid + 'cashtag' + row['cashtag'] + str(
-                        event_window['date'])
-                    event_uuid = hashlib.md5(
-                        check_string.encode('utf-8')).hexdigest()
-                    event = Event.query.filter(
-                        Event.uuid == event_uuid).first()
-                    if not event:
-                        event = Event(project.uuid, form.dataset.data)
-                        event.type = 'cashtag'
-                        event.text = row['cashtag']
-                        event.event_date = event_window['date']
-                        event.uuid = hashlib.md5(
-                            check_string.encode('utf-8')).hexdigest()
-                        event.event_start = event_window['start']
-                        event.event_end = event_window['end']
-                        event.event_pre_start = estimation_window['pre_start']
-                        event.event_pre_end = estimation_window['pre_end']
-                        event.event_post_start = estimation_window[
-                            'post_start']
-                        event.event_post_end = estimation_window['post_end']
-                        event.days_pre = form.days_pre_event.data
-                        event.days_post = form.days_post_event.data
-                        event.days_estimation = form.days_estimation.data
-                        event.days_grace = form.days_grace.data
-                        db.session.add(event)
-                        db.session.commit()
-
-                    df_full = pd.DataFrame.from_records(
-                        result_list, index='date')
-                    df_full.fillna(0)
-                    df_pre_est = df_full.loc[:estimation_window['pre_end']
-                                             .date()]
-                    df_pre_est.fillna(0)
-                    df_event = df_full.loc[event_window['start'].date():
-                                           event_window['end'].date()]
-                    df_event.fillna(0)
-                    df_post_est = df_full.loc[event.event_post_start:]
-                    df_post_est.fillna(0)
-                    df_full.truncate()
-
-                    event_stats = EventStats.query.filter(
-                        EventStats.uuid == event_uuid).first()
-                    if not event_stats:
-                        event_stats = EventStats(event.uuid)
-
-                    event_stats.event_total = int(df_event['count'].sum())
-                    event_stats.event_median = df_event[
-                        'count'].median() if event_stats.event_total > 0 else 0
-                    event_stats.event_mean = df_event[
-                        'count'].mean() if event_stats.event_total > 0 else 0
-                    # event_stats.event_std = df_event['count'].std() if event_stats.event_total > 1 else 0
-                    df_event = None
-                    event_sent = count_sentiment(event.text, event.event_start,
-                                                 event.event_end)
-                    event_stats.event_bullish = event_sent['bullish']
-                    event_stats.event_bearish = event_sent['bearish']
-                    event_stats.event_positive = event_sent['positive']
-                    event_stats.event_negative = event_sent['negative']
-                    event_users = count_users_sentimet(
-                        event.text, event.event_start, event.event_end)
-                    event_stats.users_event = event_users['users']
-                    event_stats.users_event_bullish = event_users['bullish']
-                    event_stats.users_event_bearish = event_users['bearish']
-
-                    event_stats.pre_total = int(df_pre_est['count'].sum())
-                    event_stats.pre_median = df_pre_est[
-                        'count'].median() if event_stats.pre_total > 0 else 0
-                    event_stats.pre_mean = df_pre_est[
-                        'count'].mean() if event_stats.pre_total > 0 else 0
-                    # event_stats.pre_std = df_pre_est['count'].std() if event_stats.pre_total > 1 else 0
-                    df_pre_est = None
-                    event_sent = count_sentiment(
-                        event.text, event.event_pre_start, event.event_pre_end)
-                    event_stats.pre_bullish = event_sent['bullish']
-                    event_stats.pre_bearish = event_sent['bearish']
-                    event_stats.pre_positive = event_sent['positive']
-                    event_stats.pre_negative = event_sent['negative']
-                    event_users = count_users_sentimet(
-                        event.text, event.event_pre_start, event.event_pre_end)
-                    event_stats.users_pre = event_users['users']
-                    event_stats.users_pre_bullish = event_users['bullish']
-                    event_stats.users_pre_bearish = event_users['bearish']
-
-                    event_stats.post_total = int(df_post_est['count'].sum())
-                    event_stats.post_median = df_post_est[
-                        'count'].median() if event_stats.post_total > 0 else 0
-                    event_stats.post_mean = df_post_est[
-                        'count'].mean() if event_stats.post_total > 0 else 0
-                    # event_stats.post_std = df_post_est['count'].std() if event_stats.post_total > 1 else 0
-                    df_post_est = None
-                    event_sent = count_sentiment(event.text,
-                                                 event.event_post_start,
-                                                 event.event_post_end)
-                    event_stats.post_bullish = event_sent['bullish']
-                    event_stats.post_bearish = event_sent['bearish']
-                    event_stats.post_positive = event_sent['positive']
-                    event_stats.post_negative = event_sent['negative']
-                    event_users = count_users_sentimet(event.text,
-                                                       event.event_post_start,
-                                                       event.event_post_end)
-                    event_stats.users_post = event_users['users']
-                    event_stats.users_post_bullish = event_users['bullish']
-                    event_stats.users_post_bearish = event_users['bearish']
-
-                    # event_stats.pct_change = (
-                    #                                      event_stats.post_total - event_stats.pre_total) / event_stats.pre_total if event_stats.pre_total > 0 else 0
-
-                    db.session.add(event_stats)
-                    db.session.commit()
-
-                    df_in.loc[index, "total pre event"] = event_stats.pre_total
-                    df_in.loc[index,
-                              "median pre event"] = event_stats.pre_median
-                    df_in.loc[index, "mean pre event"] = event_stats.pre_mean
-                    df_in.loc[index,
-                              "bullish pre event"] = event_stats.pre_bullish
-                    df_in.loc[index,
-                              "bearish pre event"] = event_stats.pre_bearish
-                    df_in.loc[index,
-                              "positive pre event"] = event_stats.pre_positive
-                    df_in.loc[index,
-                              "negative pre event"] = event_stats.pre_negative
-                    # df_in.loc[index, "std pre event"] = event_stats.pre_std
-                    df_in.loc[index,
-                              "total during event"] = event_stats.event_total
-                    df_in.loc[index,
-                              "median during event"] = event_stats.event_median
-                    df_in.loc[index,
-                              "mean during event"] = event_stats.event_mean
-                    df_in.loc[
-                        index,
-                        "bullish during event"] = event_stats.event_bullish
-                    df_in.loc[
-                        index,
-                        "bearish during event"] = event_stats.event_bearish
-                    df_in.loc[
-                        index,
-                        "positive during event"] = event_stats.event_positive
-                    df_in.loc[
-                        index,
-                        "negative during event"] = event_stats.event_negative
-                    # df_in.loc[index, "std during event"] = event_stats.event_std
-                    df_in.loc[index,
-                              "total post event"] = event_stats.post_total
-                    df_in.loc[index,
-                              "median post event"] = event_stats.post_median
-                    df_in.loc[index, "mean post event"] = event_stats.post_mean
-                    df_in.loc[index,
-                              "bullish post event"] = event_stats.post_bullish
-                    df_in.loc[index,
-                              "bearish post event"] = event_stats.post_bearish
-                    df_in.loc[
-                        index,
-                        "positive post event"] = event_stats.post_positive
-                    df_in.loc[
-                        index,
-                        "negative post event"] = event_stats.post_negative
-                    # df_in.loc[index, "std post event"] = event_stats.post_std
-                    # df_in.loc[index, "pct change"] = event_stats.pct_change
-                    df_in.loc[index, "users pre event"] = event_stats.users_pre
-                    df_in.loc[index,
-                              "users during event"] = event_stats.users_event
-                    df_in.loc[index,
-                              "users post event"] = event_stats.users_post
-                    df_in.loc[
-                        index,
-                        "bullish users pre event"] = event_stats.users_pre_bullish
-                    df_in.loc[
-                        index,
-                        "bearish users pre event"] = event_stats.users_pre_bearish
-                    df_in.loc[
-                        index,
-                        "bullish users during event"] = event_stats.users_event_bullish
-                    df_in.loc[
-                        index,
-                        "bearish users during event"] = event_stats.users_event_bearish
-                    df_in.loc[
-                        index,
-                        "bullish users post event"] = event_stats.users_post_bullish
-                    df_in.loc[
-                        index,
-                        "bearish users post event"] = event_stats.users_post_bearish
-
-                    # insert_event_tweets(event)
 
             file_output = 'output_' + file_input
-            project.file_output = file_output
-            df_in.to_excel(
-                os.path.join(Configuration.UPLOAD_FOLDER, file_output),
-                index=False)
-            # df_in.to_sql('table', db.engine)
-            # df_in.to_stata(os.path.join(Configuration.UPLOAD_FOLDER, 'output.dta'), index=False)
-            # form.output_file.data = 'upload/output' + file_input
+            file_output = file_output.replace('.xlsx', '.dta')
+            df_in.to_stata(os.path.join(Configuration.UPLOAD_FOLDER, file_output), write_index=False)
             form.output_file.data = file_output
-            db.session.add(project)
-            db.session.commit()
+            project.file_output = file_output
             return render_template(
                 'project/counts_upload.html',
                 form=form,

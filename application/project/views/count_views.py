@@ -12,9 +12,9 @@ from werkzeug.utils import secure_filename, CombinedMultiDict
 from application import db
 from application.config import Configuration
 from application.project import project
-from application.project.models import Project, Dataset
-from application.project.forms import CountsFileForm
-from application.project.helpers import slugify
+from ..models import Project, Dataset
+from ..forms import CountsFileForm
+from ..helpers import slugify
 from application.fintweet.models import Tweet, TweetCashtag, TweetHashtag, TweetMention
 
 

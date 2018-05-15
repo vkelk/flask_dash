@@ -5,7 +5,9 @@ from application.db_config import db_config, pg_config, MAILGUN_KEY as MK, MAILG
 
 
 basedir = os.path.abspath(os.path.dirname(__file__))
+print(basedir)
 load_dotenv(os.path.join(basedir, '.env'))
+
 
 class Configuration(object):
     # Statement for enabling the development environment

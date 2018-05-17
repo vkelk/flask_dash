@@ -2,10 +2,12 @@ import logging
 import requests
 import time
 import re
+from pprint import pprint
 from pyquery import PyQuery
 import json
 
 from datetime import datetime
+
 
 class LoadingError(Exception):
     pass
@@ -120,7 +122,7 @@ class TweetScraper(object):
             self.logger.addHandler(self.ch)
         self.IS_PROFILE_SEARCH = IS_PROFILE_SEARCH
         self.page = Page(proxy)
-        self.ISUSERPROFILE=True
+        self.ISUSERPROFILE = True
 
     def twitter_login(self, login, password):
         resp = self.page.load('https://twitter.com/')
@@ -183,8 +185,6 @@ class TweetScraper(object):
                     continue
                 elif re.search('You have initiated too many login verification requests', resp.text, re.S):
                     print('You have initiated too many login verification requests')
-
-
                     raise LoadingError
 
                 else:
@@ -199,7 +199,7 @@ class TweetScraper(object):
         user_name = query[0]
         data_begin = query[2]
         data_end = query[3]
-        data_current=data_begin
+        data_current = data_begin
         refreshCursor = ''
 
         query_string = query[1]
@@ -210,7 +210,7 @@ class TweetScraper(object):
         if self.IS_PROFILE_SEARCH:
             refreshCursor = '999992735314882560'
 
-            token = self.twitter_login(login,password)
+            token = self.twitter_login(login, password)
             if not token:
                 print('UNABLE LOGIN')
                 return False
@@ -234,16 +234,17 @@ class TweetScraper(object):
                 params['vertical'] = 'default'
                 params['src'] = 'typd'
                 params['f'] = 'tweets'
-                params['lang'] = 'en'
-                params['q'] = ' ' + query_string + ' since:' + data_begin + ' until:' + data_end
+                params['l'] = 'en'
+                params['q'] = '"' + query_string + '" since:' + data_begin + ' until:' + data_end
 
             params['max_position'] = refreshCursor
             resp = self.page.load(url, params=params, headers=h)
             try:
                 r = json.loads(resp)
-            except:
+            except Exception as e:
                 print(resp.text)
                 print('JSON error', url, self.page.pr)
+                print(type(e), str(e))
                 raise LoadingError
 
             if not r.get('inner', False):
@@ -288,12 +289,13 @@ class TweetScraper(object):
         self.page.close()
 
     def cont(self, r, query_string):
-        r = re.sub('</span><span class="invisible">', '', r)
+        # r = re.sub('</span><span class="invisible">', '', r)
         try:
             tweets = PyQuery(r)('div.js-stream-tweet')
             # print(tweets.html())
-        except:
+        except Exception as e:
             print('no div.js-stream-tweet')
+            print(type(e), str(e))
             return None
         for tweetHTML in tweets:
             # pprint(tweetHTML)
@@ -330,7 +332,7 @@ class TweetScraper(object):
                 else:
                     tweet.urls.append(aaa.attr('href'))
                     # print(aaa.attr('href'),'https://'+aaa.text())
-                aaa.remove()
+                # aaa.remove()
             # print(tweetPQ("p.js-tweet-text").text())
             # if flag:
             #     raise LoadingError
@@ -347,22 +349,30 @@ class TweetScraper(object):
 
             usernameTweet = tweetPQ.attr("data-screen-name")
 
-            t = tweetPQ("p.js-tweet-text").text().replace('# ', '#').replace('@ ', '@').replace('http:// ',
-                                                                                                'http://').replace(
-                'http://www. ', 'http://www.').replace('https://www. ', 'https://www.').replace('https:// ',
-                                                                                                'https://')
+            t = tweetPQ("p.js-tweet-text").text() \
+                .replace('# ', '#') \
+                .replace('@ ', '@') \
+                .replace('http:// ', 'http://') \
+                .replace('http://www. ', 'http://www.') \
+                .replace('https://www. ', 'https://www.') \
+                .replace('https:// ', 'https://')
+            # t = tweetPQ("p.js-tweet-text").text()
+            # print(tweetPQ("p.js-tweet-text").html())
+            # print('tweetPQ START', t, 'END')
             e = tweetPQ('img.Emoji')
             tweet.emoji = []
             for em in e:
                 tweet.emoji.append(str(PyQuery(em).attr('aria-label').replace('Emoji: ', '')))
 
-            txt = re.sub(r"\s+", " ", t);
-            txt = re.sub('\$ (?P<s>[A-Z]{1,6}([._][A-Z]{1,2})?)', '$\g<s>', txt)
+            txt = re.sub(r"\s+", " ", t)
+            txt = re.sub(r'\$ (?P<s>[A-Za-z][A-Za-z0-9]{1,4}\b)', '$\g<s>', txt)
+            txt = re.sub(r'\# (?P<s>\w*[a-zA-Z]+\w*)', '#\g<s>', txt)
+            txt = re.sub(r'\@ (?P<s>[\w_]+)', '@\g<s>', txt)
 
             if not re.search('<strong class="fullname">Tweet withheld</strong>', str(tweetPQ), re.M):
                 try:
                     retweets = int(tweetPQ("span.ProfileTweet-action--retweet span.ProfileTweet-actionCount").attr(
-                        "data-tweet-stat-count").replace(",", ""));
+                        "data-tweet-stat-count").replace(",", ""))
                 except AttributeError:
                     print(str(tweetPQ))
                     print('Attribute error in ProfileTweet-action--retweet')
@@ -370,12 +380,12 @@ class TweetScraper(object):
                     retweets = 0
 
                 favorites = int(tweetPQ("span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr(
-                    "data-tweet-stat-count").replace(",", ""));
+                    "data-tweet-stat-count").replace(",", ""))
 
                 replyes = int(tweetPQ("span.ProfileTweet-action--reply span.ProfileTweet-actionCount").attr(
-                    "data-tweet-stat-count").replace(",", ""));
+                    "data-tweet-stat-count").replace(",", ""))
 
-            dateSec = int(tweetPQ("small.time span.js-short-timestamp").attr("data-time"));
+            dateSec = int(tweetPQ("small.time span.js-short-timestamp").attr("data-time"))
 
             if tweetPQ.attr('data-protected') == 'true':
                 tweet.is_protected = True
@@ -388,10 +398,10 @@ class TweetScraper(object):
             tweet.permalink = 'https://twitter.com' + permalink
             tweet.screen_name = usernameTweet
             tweet.user_name = tweetPQ.attr('data-name')
-            txt = re.sub('(?:https\://)|(?:http\://)', '', txt)
+            # txt = re.sub('(?:https\://)|(?:http\://)', '', txt)
             # txt = re.sub('https\:\/\/', '', txt)
             # txt=re.sub('http\:\/\/','',txt)
-
+            # print('text START', txt, 'END')
             tweet.text = txt
             tweet.unixtime = dateSec
             tweet.date = datetime.fromtimestamp(dateSec)
@@ -462,10 +472,10 @@ class TweetScraper(object):
 
             tweet.location_name = None
             tweet.location_id = None
-            if True: # ISLOCATION:
+            if True:  # ISLOCATION:
                 url = 'https://twitter.com/' + tweet.screen_name + '/status/' + str(
                     tweet.data_conversation_id) + '?conversation_id=' + str(tweet.data_conversation_id)
-                j = self.get_s( url, tweet.screen_name, important=False)
+                j = self.get_s(url, tweet.screen_name, important=False)
 
                 if j:
                     tweet_status = PyQuery(j['page'])('a.js-geo-pivot-link')
@@ -479,11 +489,11 @@ class TweetScraper(object):
 
     def get_user_profile(self, usernameTweet,  tweet):
         url = 'https://twitter.com/' + usernameTweet
-        j = self.get_s( url, '',important=False)  # query_string)
+        j = self.get_s(url, '', important=False)  # query_string)
         if j:
             if j['init_data']:
                 if j['init_data']['profile_user']:
-                    tweet.user_id=int(j['init_data']['profile_user']['id'])
+                    tweet.user_id = int(j['init_data']['profile_user']['id'])
                     tweet.likes = j['init_data']['profile_user']['favourites_count']
                     tweet.user_tweet_count = j['init_data']['profile_user']['statuses_count']
                     tweet.user_listed_count = j['init_data']['profile_user']['listed_count']
@@ -511,9 +521,10 @@ class TweetScraper(object):
         if resp:
             try:
                 j = json.loads(resp)
-            except:
+            except Exception as e:
                 print(url, resp)
                 print('Json decode error ')
+                print(type(e), str(e))
                 if important:
                     raise LoadingError
                 else:

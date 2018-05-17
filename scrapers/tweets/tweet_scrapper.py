@@ -1,3 +1,4 @@
+# last updated on 2018-05-17 by Vasko
 import os.path
 from multiprocessing.dummy import Pool as ThreadPool, Lock
 from multiprocessing import Process
@@ -25,25 +26,28 @@ from pprint import pprint
 import tweet_api
 import random
 
-from pympler import summary, muppy
-import psutil
+# from pympler import summary, muppy
+# import psutil
 
-def get_virtual_memory_usage_kb():
-    """
-    The process's current virtual memory size in Kb, as a float.
 
-    """
-    return float(psutil.Process().memory_info().vms) / 1024.0
+# def get_virtual_memory_usage_kb():
+#     """
+#     The process's current virtual memory size in Kb, as a float.
 
-def memory_usage(where):
-    """
-    Print out a basic summary of memory usage.
+#     """
+#     return float(psutil.Process().memory_info().vms) / 1024.0
 
-    """
-    mem_summary = summary.summarize(muppy.get_objects())
-    print("Memory summary:", where)
-    summary.print_(mem_summary, limit=3)
-    print("VM: %.2fMb" % (get_virtual_memory_usage_kb() / 1024.0))
+
+# def memory_usage(where):
+#     """
+#     Print out a basic summary of memory usage.
+
+#     """
+#     mem_summary = summary.summarize(muppy.get_objects())
+#     print("Memory summary:", where)
+#     summary.print_(mem_summary, limit=3)
+#     print("VM: %.2fMb" % (get_virtual_memory_usage_kb() / 1024.0))
+
 
 IS_PROFILE_SEARCH = False
 ISUSERPROFILE = True
@@ -61,8 +65,8 @@ regex_str = [
     r'<[^>]+>',  # HTML tags
     r'(?:@[\w_]+)',  # @-mentions
     r"(?:\#\w*[a-zA-Z]+\w*)",    # hash-tags
-    r"(?:\$[A-Za-z0-9]{1,5}\b)",    # cash-tags
-    r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+',  # URLs
+    r"(?:\$[A-Za-z][A-Za-z0-9]{1,4}\b)",    # cash-tags
+    r'(?:http[s]?:\/\/(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+)',  # URLs
 
     r'(?:(?:\d+,?)+(?:\.?\d+)?)',  # numbers
     r"(?:[a-z][a-z'\-_]+[a-z])",  # words with - and '
@@ -74,7 +78,8 @@ emoticon_re = re.compile(r'^' + emoticons_str + '$', re.VERBOSE | re.IGNORECASE)
 
 
 def tokenize(s):
-        return tokens_re.findall(s)
+    return tokens_re.findall(s)
+
 
 def preprocess(s, lowercase=False):
     tokens = tokenize(s)
@@ -82,11 +87,13 @@ def preprocess(s, lowercase=False):
         tokens = [token if emoticon_re.search(token) else token.lower() for token in tokens]
     return tokens
 
-fieldnames = ["QueryStartDate", "QueryEndDate", "Query", "DateOfActivity", "UserScreenName", "Keyword",
-                  "Location", "Website", "DateJoined", "IsMention", "UserID", "TimeOfActivity", "Hashtags",
-                  "Re_tweet", "NumberOfReplies", "NumberOfRe_tweets", "NumberOfFavorites", "Tweet", "tweet_id",
-                  "tweet_url", "is_verified", "Urls", "UserFollowersCount", "UserFollowingCount", "UserTweetsCount",
-                  "LikesCount", "CashtagSymbols", "user_location", "permno"]
+
+fieldnames = ["QueryStartDate", "QueryEndDate", "Query", "DateOfActivity", "UserScreenName", "Keyword", "Location",
+                "Website", "DateJoined", "IsMention", "UserID", "TimeOfActivity", "Hashtags", "Re_tweet",
+                "NumberOfReplies", "NumberOfRe_tweets", "NumberOfFavorites", "Tweet", "tweet_id", "tweet_url",
+                "is_verified", "Urls", "UserFollowersCount", "UserFollowingCount", "UserTweetsCount", "LikesCount",
+                "CashtagSymbols", "user_location", "permno"]
+
 
 class Twit:
     def __init__(self):
@@ -119,7 +126,7 @@ def scra(query, i, proxy, lock, session=None):
     twitter_scraper = tweet_api.TweetScraper(proxy, IS_PROFILE_SEARCH=IS_PROFILE_SEARCH, logname='awam')
     permno = query[4]
     count = 0
-   
+
     # ttm = time.time()
     # tweet_list = []
 
@@ -203,7 +210,11 @@ def scra(query, i, proxy, lock, session=None):
 
         tokens = preprocess(t.text)
         cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 1])
-        hashtags = set([term for term in tokens if term.startswith('#') and len(term) > 1])
+        if len(cashtags) == 0:
+            # print('Skipping, does not contain cashtags', t.text)
+            Session.remove()
+            continue
+        hashtags = set([term.upper() for term in tokens if term.startswith('#') and len(term) > 1])
         # mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
         urls = set([term for term in tokens if term.startswith('http') and len(term) > 4])
 
@@ -326,30 +337,34 @@ def scra(query, i, proxy, lock, session=None):
         count += 1
 
     lock.acquire()
+    date_begin = query[2]
+    date_end = query[3]
     if count > 0:
 
         with open('report.csv', 'a') as f:
             data = {}
-            fdnames = ['time', 'query_name', 'number', ]
+            fdnames = ['time', 'query_name', 'number', 'date_from', 'date_to']
             writer = csv.DictWriter(f, lineterminator='\n', fieldnames=fdnames, dialect='excel', quotechar='"',
                                     quoting=csv.QUOTE_ALL)
             data['time'] = time.strftime('%Y-%m-%d %H:%M:%S')
             data['query_name'] = query[1]
             data['number'] = count
-            # data['date'] = t.user_created
-
+            data['date_from'] = date_begin
+            data['date_to'] = date_end
             writer.writerow(data)
         lock.release()
         return count
     else:
         with open('error.csv', 'a') as f:
             data = {}
-            fdnames = ['time', 'query_name', 'number', ]
+            fdnames = ['time', 'query_name', 'number', 'date_from', 'date_to']
             writer = csv.DictWriter(f, lineterminator='\n', fieldnames=fdnames, dialect='excel', quotechar='"',
                                     quoting=csv.QUOTE_ALL)
             data['time'] = time.strftime('%Y-%m-%d %H:%M:%S')
             data['query_name'] = query[1]
             data['number'] = count
+            data['date_from'] = date_begin
+            data['date_to'] = date_end
             writer.writerow(data)
         lock.release()
         return False

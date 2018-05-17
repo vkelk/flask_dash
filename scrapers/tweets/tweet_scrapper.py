@@ -25,6 +25,26 @@ from pprint import pprint
 import tweet_api
 import random
 
+from pympler import summary, muppy
+import psutil
+
+def get_virtual_memory_usage_kb():
+    """
+    The process's current virtual memory size in Kb, as a float.
+
+    """
+    return float(psutil.Process().memory_info().vms) / 1024.0
+
+def memory_usage(where):
+    """
+    Print out a basic summary of memory usage.
+
+    """
+    mem_summary = summary.summarize(muppy.get_objects())
+    print("Memory summary:", where)
+    summary.print_(mem_summary, limit=3)
+    print("VM: %.2fMb" % (get_virtual_memory_usage_kb() / 1024.0))
+
 IS_PROFILE_SEARCH = False
 ISUSERPROFILE = True
 time_wait = 0
@@ -53,6 +73,21 @@ tokens_re = re.compile(r'(' + '|'.join(regex_str) + ')', re.VERBOSE | re.IGNOREC
 emoticon_re = re.compile(r'^' + emoticons_str + '$', re.VERBOSE | re.IGNORECASE)
 
 
+def tokenize(s):
+        return tokens_re.findall(s)
+
+def preprocess(s, lowercase=False):
+    tokens = tokenize(s)
+    if lowercase:
+        tokens = [token if emoticon_re.search(token) else token.lower() for token in tokens]
+    return tokens
+
+fieldnames = ["QueryStartDate", "QueryEndDate", "Query", "DateOfActivity", "UserScreenName", "Keyword",
+                  "Location", "Website", "DateJoined", "IsMention", "UserID", "TimeOfActivity", "Hashtags",
+                  "Re_tweet", "NumberOfReplies", "NumberOfRe_tweets", "NumberOfFavorites", "Tweet", "tweet_id",
+                  "tweet_url", "is_verified", "Urls", "UserFollowersCount", "UserFollowingCount", "UserTweetsCount",
+                  "LikesCount", "CashtagSymbols", "user_location", "permno"]
+
 class Twit:
     def __init__(self):
         pass
@@ -80,27 +115,11 @@ def get_symbols(s):
         return []
 
 
-def scra(query, i, proxy, lock, session):
+def scra(query, i, proxy, lock, session=None):
     twitter_scraper = tweet_api.TweetScraper(proxy, IS_PROFILE_SEARCH=IS_PROFILE_SEARCH, logname='awam')
-
-    def tokenize(s):
-        return tokens_re.findall(s)
-
-    def preprocess(s, lowercase=False):
-        tokens = tokenize(s)
-        if lowercase:
-            tokens = [token if emoticon_re.search(token) else token.lower() for token in tokens]
-        return tokens
-
     permno = query[4]
-    fieldnames = ["QueryStartDate", "QueryEndDate", "Query", "DateOfActivity", "UserScreenName", "Keyword",
-                  "Location", "Website", "DateJoined", "IsMention", "UserID", "TimeOfActivity", "Hashtags",
-                  "Re_tweet", "NumberOfReplies", "NumberOfRe_tweets", "NumberOfFavorites", "Tweet", "tweet_id",
-                  "tweet_url", "is_verified", "Urls", "UserFollowersCount", "UserFollowingCount", "UserTweetsCount",
-                  "LikesCount", "CashtagSymbols", "user_location", "permno"]
-
     count = 0
-
+   
     # ttm = time.time()
     # tweet_list = []
 
@@ -108,9 +127,31 @@ def scra(query, i, proxy, lock, session):
     credential = settings.twitter_logins[random.randrange(0, len(settings.twitter_logins))]
     login = credential['login']
     password = credential['password']
-
     for t in twitter_scraper.get_new_search(query, login, password):
         data = {}
+        data['tweet_id'] = t.id
+        data['UserID'] = t.user_id
+        # print(query, count, t.date)
+        session = Session()
+        twit = session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first()
+        # if twit and ISUSERPROFILE:
+        if twit and twit.user_id:
+            # print(twit)
+            Session.remove()
+            continue
+        print(query, count, t.date)
+        if twit and twit.user_id is None:
+            try:
+                twit.user_id = data['UserID']
+                session.add(twit)
+                session.flush()
+                session.commit()
+                print('Updated tweet_id {} with user_id {}'.format(data['tweet_id'], data['UserID']))
+            except Exception as e:
+                print(type(e), str(e))
+                raise
+            Session.remove()
+            continue
         data['permno'] = permno
         data['user_location'] = t.user_location
         data['LikesCount'] = t.likes
@@ -121,9 +162,7 @@ def scra(query, i, proxy, lock, session):
         data['Keyword'] = query[1]
         data['TimeOfActivity'] = time.strftime('%H:%M:%S', time.localtime(t.unixtime))
         data['DateOfActivity'] = time.strftime('%d/%m/%Y', time.localtime(t.unixtime))
-        data['tweet_id'] = t.id
         data['tweet_url'] = t.permalink
-        data['UserID'] = t.user_id
         data['UserScreenName'] = t.screen_name
         data['UserName'] = t.user_name
         data['TimeZone'] = t.time_zone
@@ -154,7 +193,7 @@ def scra(query, i, proxy, lock, session):
         data['DateJoined'] = dateparser.parse(t.user_created) if t.user_created else None
         data['Tweet'] = t.text
 
-        if t.utc_offset:
+        if hasattr(t, 'utc_offset') and t.utc_offset:
             if t.utc_offset / 3600 >= 0:
                 data['TimeZoneUTC'] = 'UTC+' + str(int(t.utc_offset / 3600))
             else:
@@ -166,12 +205,12 @@ def scra(query, i, proxy, lock, session):
         cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 1])
         hashtags = set([term for term in tokens if term.startswith('#') and len(term) > 1])
         # mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
-        urls = [term for term in tokens if term.startswith('http') and len(term) > 4]
+        urls = set([term for term in tokens if term.startswith('http') and len(term) > 4])
 
         # tweet_list.append(data)
         # pprint(data)
 
-        print(query, count, t.date)
+        # print(query, count, t.date)
         # print(data)
         if ISUSERPROFILE:
             pass
@@ -190,9 +229,8 @@ def scra(query, i, proxy, lock, session):
             data['Website'] = None
             data['is_verified'] = None
 
-        if session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first():
-            continue
-
+        # if session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first():
+        #     continue
         user = session.query(User).filter_by(user_id=data['UserID']).first()
         if not user:
             user = User(user_id=data['UserID'],
@@ -214,6 +252,7 @@ def scra(query, i, proxy, lock, session):
                 session.add(user_count)
                 user.counts.append(user_count)
                 session.add(user)
+                session.flush()
                 session.commit()
                 print('Inserted new user:', data['UserID'])
             except sqlalchemy.exc.IntegrityError as err:
@@ -221,24 +260,24 @@ def scra(query, i, proxy, lock, session):
                     print('ROLLBACK USER')
                     session.rollback()
             except Exception as e:
-                print(e)
+                print(type(e), str(e))
                 raise
-
-        twit = session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first()
-        if not twit:
-            twit = Tweet(tweet_id=data['tweet_id'],
-                         date=datetime.strptime(data['DateOfActivity'], '%d/%m/%Y'),
-                         time=data['TimeOfActivity'],
-                         timezone=data['TimeZoneUTC'][:10] if data['TimeZoneUTC'] else None,
-                         retweet_status=data['Re_tweet'],
-                         text=data['Tweet'],
-                         reply_to=data['ReplyTweetID'],
-                         location=data['Location'][:255] if data['Location'] else None,
-                         permalink=data['tweet_url'][:255] if data['tweet_url'] else None,
-                         emoticon=','.join(t.emoji) if t.emoji else None)
-            tweet_count = TweetCount(reply=data['NumberOfReplies'],
-                                     favorite=data['NumberOfFavorites'],
-                                     retweet=t.retweets_count)
+        # twit = session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first()
+        # if not twit:
+        twit = Tweet(tweet_id=data['tweet_id'],
+                     user_id=data['UserID'],
+                     date=datetime.strptime(data['DateOfActivity'], '%d/%m/%Y'),
+                     time=data['TimeOfActivity'],
+                     timezone=data['TimeZoneUTC'][:10] if data['TimeZoneUTC'] else None,
+                     retweet_status=data['Re_tweet'],
+                     text=data['Tweet'],
+                     reply_to=data['ReplyTweetID'],
+                     location=data['Location'][:255] if data['Location'] else None,
+                     permalink=data['tweet_url'][:255] if data['tweet_url'] else None,
+                     emoticon=','.join(t.emoji) if t.emoji else None)
+        tweet_count = TweetCount(reply=data['NumberOfReplies'],
+                                 favorite=data['NumberOfFavorites'],
+                                 retweet=t.retweets_count)
 
         if not session.query(TweetHashtags).filter_by(tweet_id=data['tweet_id']).first():
             for hash_s in hashtags:
@@ -263,7 +302,7 @@ def scra(query, i, proxy, lock, session):
                 tweet_mentions = TweetMentions(mentions=ment_s[0][:45], user_id=ment_s[1])
                 twit.ment_s.append(tweet_mentions)
                 session.add(tweet_mentions)
-        user.tweets.append(twit)
+        # user.tweets.append(twit)
 
         if not session.query(TweetCount).filter_by(tweet_id=int(data['tweet_id'])).first():
             twit.counts.append(tweet_count)
@@ -272,6 +311,7 @@ def scra(query, i, proxy, lock, session):
             i = 1
         try:
             session.add(twit)
+            session.flush()
             session.commit()
             print('Inserted new Tweet:', data['tweet_id'])
         except sqlalchemy.exc.IntegrityError as err:
@@ -281,6 +321,8 @@ def scra(query, i, proxy, lock, session):
         except Exception as e:
             print(e)
             raise
+        finally:
+            Session.remove()
         count += 1
 
     lock.acquire()
@@ -314,10 +356,11 @@ def scra(query, i, proxy, lock, session):
 
 
 def scrape_query(user_queue, proxy, lock, pg_dsn):
-    db_engine = create_engine(pg_dsn, pool_size=1)
-    add_engine_pidguard(db_engine)
-    DstSession = sessionmaker(bind=db_engine, autoflush=False)
-    session = DstSession()
+    # db_engine = create_engine(pg_dsn, pool_size=1)
+    # add_engine_pidguard(db_engine)
+    # DstSession = sessionmaker(bind=db_engine, autoflush=False)
+    # session = DstSession()
+    # session = Session()
 
     active = True
     while not user_queue.empty():
@@ -326,16 +369,20 @@ def scrape_query(user_queue, proxy, lock, pg_dsn):
         print('START', i, proxy, query)
         # TODO filter:nativeretweets
         try:
-            res = scra(query, i, proxy, lock, session=session)
+            res = scra(query, i, proxy, lock)
         except tweet_api.LoadingError:
             print('LoadingError except')
             return False
+        except Exception as e:
+            print(type(e), str(e))
+            raise
         if not res:
             print('     SCRAP_USER Error in', query, i)
             with open('error_list.txt', 'a') as f:
                 f.write(query[0] + '\n')
         else:
             print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ' ENDED', i, proxy, query, res)
+    # session.close()
     return True
 
 
@@ -403,7 +450,9 @@ if __name__ == '__main__':
         url_s = relationship('TweetUrl')
 
     DstSession = sessionmaker(bind=db_engine, autoflush=False)
-    dstssn = DstSession()
+    # dstssn = DstSession()
+    session_factory = sessionmaker(bind=db_engine, autoflush=False)
+    Session = scoped_session(session_factory)
 
     if True:  # settings.tweets:
         try:
@@ -439,8 +488,9 @@ if __name__ == '__main__':
             i += 1
 
         pool = ThreadPool(len(settings.proxy_list))
+        # pool = ThreadPool(4)
         lock = Lock()
         # Single process for testings
-        # scrape_query(user_queue, '154.16.11.199:3199', lock, pg_dsn)
+        # scrape_query(user_queue, '207.150.166.171:8800', lock, pg_dsn)
         # exit()
         pool.map(lambda x: (scrape_query(user_queue, x, lock, pg_dsn)), settings.proxy_list)

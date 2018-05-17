@@ -199,6 +199,7 @@ class TweetScraper(object):
         user_name = query[0]
         data_begin = query[2]
         data_end = query[3]
+        data_current=data_begin
         refreshCursor = ''
 
         query_string = query[1]
@@ -254,6 +255,7 @@ class TweetScraper(object):
                 print(resp.text)
                 print('Key error', url, self.page.pr)
                 raise LoadingError
+            del resp
 
             if not refreshCursor:
                 break
@@ -477,7 +479,7 @@ class TweetScraper(object):
 
     def get_user_profile(self, usernameTweet,  tweet):
         url = 'https://twitter.com/' + usernameTweet
-        j = self.get_s( url, '')  # query_string)
+        j = self.get_s( url, '',important=False)  # query_string)
         if j:
             if j['init_data']:
                 if j['init_data']['profile_user']:

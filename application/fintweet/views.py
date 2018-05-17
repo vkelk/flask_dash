@@ -5,13 +5,14 @@ import json
 from pprint import pprint
 from flask import request, render_template, jsonify, Markup, flash, send_file, make_response
 from flask_login import login_required
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from sqlalchemy.exc import IntegrityError
 from werkzeug.utils import secure_filename, CombinedMultiDict
 from application.config import Configuration
 from application.fintweet.helpers import slugify
 from application.fintweet import fintweet
-from application.fintweet.models import db, Tweet, TweetCashtag, DealNosFT, User, TweetHashtag
+from application.fintweet.models import db, Tweet, TweetCashtag, DealNosFT, User, TweetHashtag, TopCashtags, \
+     TopHashtags, TopUsers
 from application.fintweet.forms import EventStudyFileForm, EventStydyForm
 
 from .helpers import object_list
@@ -274,30 +275,58 @@ def eventstudy():
     return render_template('fintweet/eventstudy.html', form=form)
 
 
+@fintweet.route('/ajax_totaltweets')
+def ajax_totaltweets():
+    q = db.session.query(func.sum(TopUsers.tweets_count).label('count'))
+    # print(q)
+    return jsonify(q.one())
+
+
+@fintweet.route('/ajax_totalusers')
+def ajax_totalusers():
+    q = db.session.query(func.count(TopUsers.user_id).label('count'))
+    # print(q)
+    return jsonify(q.one())
+
+
 @fintweet.route('/ajax_topctags')
 def ajax_topctags():
-    q = db.session.query(TweetCashtag.cashtags, func.count(TweetCashtag.cashtags).label('count')) \
-        .group_by(TweetCashtag.cashtags).order_by('count desc').limit(25).all()
+    q = db.session.query(TopCashtags.cashtags, TopCashtags.tweets_count) \
+        .order_by(desc(TopCashtags.tweets_count)).limit(25).all()
     # return json.dumps(dict(q))
     return jsonify(q)
+
+
+@fintweet.route('/ajax_totalctags')
+def ajax_totalctags():
+    q = db.session.query(func.sum(TopCashtags.tweets_count).label('count'))
+    # print(q)
+    return jsonify(q.one())
 
 
 @fintweet.route('/ajax_tophtags')
 def ajax_tophtags():
-    q = db.session.query(TweetHashtag.hashtags, func.count(TweetHashtag.hashtags).label('count')) \
-        .group_by(TweetHashtag.hashtags).order_by('count desc').limit(25).all()
+    q = db.session.query(TopHashtags.hashtags, TopHashtags.tweets_count) \
+        .order_by(desc(TopHashtags.tweets_count)).limit(25).all()
     # return json.dumps(dict(q))
     return jsonify(q)
+
+
+@fintweet.route('/ajax_totalhtags')
+def ajax_totalhtags():
+    q = db.session.query(func.sum(TopHashtags.tweets_count).label('count'))
+    # print(q)
+    return jsonify(q.one())
 
 
 @fintweet.route('/ajax_topusers/<limit>')
 def ajax_topusers(limit=25):
-    q = db.session.query(Tweet.user_id, User.twitter_handle, User.date_joined,
-                         func.count(Tweet.tweet_id).label('count')) \
-        .select_from(User).join(Tweet).group_by(Tweet.user_id).group_by(User.twitter_handle).group_by(User.date_joined) \
-        .order_by('count desc').limit(limit).all()
+    q = db.session.query(TopUsers.user_id, TopUsers.twitter_handle, User.date_joined, TopUsers.tweets_count) \
+        .select_from(TopUsers).join(User, User.user_id == TopUsers.user_id) \
+        .order_by(desc(TopUsers.tweets_count)).limit(limit)
     # return json.dumps(dict(q))
-    return jsonify(q)
+    # print(q)
+    return jsonify(q.all())
 
 
 @fintweet.route('/ajax_ctags_by_user/<user_id>')

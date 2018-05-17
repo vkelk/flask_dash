@@ -126,7 +126,7 @@
 
                 $('#dt_top_users tbody').on('click', 'tr', function () {
                     var user_data = tblUsers.row(this).data();
-                    {#console.log(user_data);#}
+                    // console.log(user_data);
                     var user_id = user_data.user_id;
                     console.log(user_id);
                     getTweets(user_id);
@@ -147,13 +147,13 @@
                 var chart = c3.generate({
                     bindto: '#c3_top_users',
                     data: {
-                        {#url: 'ajaxtest',#}
-                        {#mimeType: 'json',#}
+                        // url: 'ajaxtest',
+                        // mimeType: 'json',
                         json: data,
                         type: 'bar',
                         keys: {
                             x: 'twitter_handle',
-                            value: ['count']
+                            value: ['tweets_count']
                         },
                         labels: true,
                         color: function (color, d) {
@@ -197,7 +197,7 @@
                 "data": jsonData,
                 "columns": [
                     {title: "Username", data: "twitter_handle"},
-                    {title: "Tweets count", data: "count"},
+                    {title: "Tweets count", data: "tweets_count"},
                     {
                         title: "Twitter age ", data: "date_joined",
                         render: function (d) {
@@ -263,7 +263,7 @@
             var url = "api/user/" + user_id + "/counts";
             $.ajax({
                 url: url,
-                {#data: {"q": JSON.stringify({"filters": filters})},#}
+                // data: {"q": JSON.stringify({"filters": filters})},
                 dataType: "json",
                 contentType: "application/json",
                 success: function (data) {
@@ -306,9 +306,9 @@
 
             loadTopUsers(25);
 
-            $.getJSON("api/user", function (data) {
-                num_results = data.num_results.toLocaleString('en', {useGrouping: true})
-                $('#total_users').html(num_results);
+            $.getJSON("ajax_totalusers", function (data) {
+                count = data.count.toLocaleString('en', {useGrouping: true})
+                $('#total_users').html(count);
             });
 
             $("#limit_top_users").on('change', function () {

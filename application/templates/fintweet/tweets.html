@@ -175,7 +175,7 @@
             var url = "api/user/" + user_id + "/counts";
             $.ajax({
                 url: url,
-                {#data: {"q": JSON.stringify({"filters": filters})},#}
+                // data: {"q": JSON.stringify({"filters": filters})},
                 dataType: "json",
                 contentType: "application/json",
                 success: function (data) {
@@ -217,24 +217,24 @@
 
         $(document).ready(function () {
 
-            $.getJSON("api/tweet", function (data) {
-                num_results = data.num_results.toLocaleString('en', {useGrouping: true})
-                $('#total_tweets').html(num_results);
+            $.getJSON("ajax_totaltweets", function (data) {
+                count = data.count.toLocaleString('en', {useGrouping: true})
+                $('#total_tweets').html(count);
             });
 
-            $.getJSON("api/user", function (data) {
-                num_results = data.num_results.toLocaleString('en', {useGrouping: true})
-                $('#total_users').html(num_results);
+            $.getJSON("ajax_totalusers", function (data) {
+                count = data.count.toLocaleString('en', {useGrouping: true})
+                $('#total_users').html(count);
             });
 
-            $.getJSON("api/cashtag", function (data) {
-                num_results = data.num_results.toLocaleString('en', {useGrouping: true})
-                $('#total_cashtags').html(num_results);
+            $.getJSON("ajax_totalctags", function (data) {
+                count = data.count.toLocaleString('en', {useGrouping: true})
+                $('#total_cashtags').html(count);
             });
 
-            $.getJSON("api/hashtag", function (data) {
-                num_results = data.num_results.toLocaleString('en', {useGrouping: true})
-                $('#total_hashtags').html(num_results);
+            $.getJSON("ajax_totalhtags", function (data) {
+                count = data.count.toLocaleString('en', {useGrouping: true})
+                $('#total_hashtags').html(count);
             });
 
             $.getJSON("ajax_topctags", function (data) {
@@ -243,7 +243,7 @@
                     "data": data,
                     "columns": [
                         {title: "Cashtag", "data": "cashtags"},
-                        {title: "count", "data": "count"},
+                        {title: "count", "data": "tweets_count"},
                     ],
                     "order": [[1, "desc"]],
                     "searching": false,
@@ -256,13 +256,13 @@
                 var chart = c3.generate({
                     bindto: '#c3_top_ctags',
                     data: {
-                        {#url: 'ajaxtest',#}
-                        {#mimeType: 'json',#}
+                        // url: 'ajaxtest',
+                        // mimeType: 'json',
                         json: data,
                         type: 'bar',
                         keys: {
                             x: 'cashtags',
-                            value: ['count']
+                            value: ['tweets_count']
                         },
                         labels: true,
                         color: function (color, d) {
@@ -284,7 +284,7 @@
                         show: false
                     }
                 });
-                {#$("#cashtags").show(1000);#}
+                // $("#cashtags").show(1000);
             });
 
             $.getJSON("ajax_tophtags", function (data) {
@@ -293,7 +293,7 @@
                     "data": data,
                     "columns": [
                         {title: "Hashtag", "data": "hashtags"},
-                        {title: "count", "data": "count"},
+                        {title: "count", "data": "tweets_count"},
                     ],
                     "order": [[1, "desc"]],
                     "searching": false,
@@ -306,13 +306,13 @@
                 var chart = c3.generate({
                     bindto: '#c3_top_htags',
                     data: {
-                        {#url: 'ajaxtest',#}
-                        {#mimeType: 'json',#}
+                        // url: 'ajaxtest',
+                        // mimeType: 'json',
                         json: data,
                         type: 'bar',
                         keys: {
                             x: 'hashtags',
-                            value: ['count']
+                            value: ['tweets_count']
                         },
                         labels: true,
                         color: function (color, d) {
@@ -334,17 +334,17 @@
                         show: false
                     }
                 });
-                {#$("#cashtags").show(1000);#}
+                // $("#cashtags").show(1000);
             });
 
             $.getJSON("ajax_tweetcount_timeline", function (data) {
                 var chart = c3.generate({
                     bindto: '#c3_timeline',
                     data: {
-                        {#url: 'ajaxtest',#}
-                        {#mimeType: 'json',#}
+                        // url: 'ajaxtest',
+                        // mimeType: 'json',
                         json: data,
-                        {#type: 'timeseries',#}
+                        // type: 'timeseries',
                         keys: {
                             x: 'month',
                             value: ['count']

@@ -232,7 +232,7 @@ class TweetScraper(object):
                 params['include_entities'] = '1'
                 params['reset_error_state'] = 'false'
                 params['vertical'] = 'default'
-                params['src'] = 'typd'
+                params['src'] = 'ctag'
                 params['f'] = 'tweets'
                 params['l'] = 'en'
                 params['q'] = '"' + query_string + '" since:' + data_begin + ' until:' + data_end
@@ -365,7 +365,7 @@ class TweetScraper(object):
                 tweet.emoji.append(str(PyQuery(em).attr('aria-label').replace('Emoji: ', '')))
 
             txt = re.sub(r"\s+", " ", t)
-            txt = re.sub(r'\$ (?P<s>[A-Za-z][A-Za-z0-9]{1,4}\b)', '$\g<s>', txt)
+            txt = re.sub(r'\$ (?P<s>[A-Za-z][A-Za-z0-9]{0,4}\b)', '$\g<s>', txt)
             txt = re.sub(r'\# (?P<s>\w*[a-zA-Z]+\w*)', '#\g<s>', txt)
             txt = re.sub(r'\@ (?P<s>[\w_]+)', '@\g<s>', txt)
 

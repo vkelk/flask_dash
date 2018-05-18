@@ -1,4 +1,4 @@
-# last updated on 2018-05-17 by Vasko
+#!/usr/bin/env python
 import os.path
 from multiprocessing.dummy import Pool as ThreadPool, Lock
 from multiprocessing import Process

@@ -8,7 +8,7 @@ from flask_login import login_required
 from sqlalchemy import func, desc
 from sqlalchemy.exc import IntegrityError
 from werkzeug.utils import secure_filename, CombinedMultiDict
-from application.config import Configuration
+# from application.config import Configuration
 from application.fintweet.helpers import slugify
 from application.fintweet import fintweet
 from application.fintweet.models import db, Tweet, TweetCashtag, DealNosFT, User, TweetHashtag, TopCashtags, \

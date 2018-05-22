@@ -10,7 +10,7 @@ from application.account import account
 from application.account.models import Account
 from .forms import *
 from .helpers import *
-from ..config import Configuration
+# from ..config import Configuration
 
 
 @login_manager.user_loader
@@ -83,7 +83,7 @@ def user_profile():
 @account.route('/confirm/<token>')
 def confirm_email(token):
     try:
-        confirm_serializer = URLSafeTimedSerializer(Configuration.SECRET_KEY)
+        confirm_serializer = URLSafeTimedSerializer(current_app.SECRET_KEY)
         email = confirm_serializer.loads(token, salt='email-confirmation-salt', max_age=86400)
         print(type(email), email)
     except:

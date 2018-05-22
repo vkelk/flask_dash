@@ -6,14 +6,14 @@ from flask_mail import Message
 from flask_login import current_user
 from itsdangerous import URLSafeTimedSerializer
 
-from ..config import Configuration
+# from ..config import Configuration
 from application.project.models import Project
 
 
 # HELPERS
 def send_mail(to_address, subject, html):
     r = requests.post("https://api.mailgun.net/v3/%s/messages" % Configuration.MAILGUN_DOMAIN,
-                      auth=("api", Configuration.MAILGUN_KEY),
+                      auth=("api", current_app.MAILGUN_KEY),
                       data={
                           "from": "Dashboard app <postmaster@sandboxe512714bb2924291ade762463fdedbdc.mailgun.org>",
                           "to": to_address,

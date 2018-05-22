@@ -3,7 +3,7 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 from wtforms import StringField, SelectField, DateField, RadioField, HiddenField, IntegerField, SubmitField
 from wtforms.validators import DataRequired, NumberRange
-from application.config import Configuration
+from application.config import base_config
 
 
 class EventStydyForm(FlaskForm):
@@ -47,7 +47,7 @@ class EventStudyFileForm(FlaskForm):
                                         validators=[DataRequired()])
 
     file_input = FileField(
-        validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text data files only!')])
+        validators=[FileRequired(), FileAllowed(base_config.ALLOWED_EXTENSIONS, 'Text data files only!')])
     file_name = HiddenField()
     file_csv = HiddenField()
 

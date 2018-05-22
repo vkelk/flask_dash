@@ -1,4 +1,5 @@
 from datetime import datetime
+from flask import current_app
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 from wtforms import StringField, DateField, SubmitField, SelectField, HiddenField, IntegerField, RadioField, \
@@ -6,7 +7,7 @@ from wtforms import StringField, DateField, SubmitField, SelectField, HiddenFiel
 from wtforms_components import TimeField
 from wtforms.validators import DataRequired, NumberRange
 from wtforms.widgets import TextArea
-from application.config import Configuration
+from application.config import base_config
 
 
 class NewProjectForm(FlaskForm):
@@ -71,7 +72,7 @@ class EventStudyFileForm(FlaskForm):
                                         validators=[DataRequired()])
 
     file_input = FileField(
-        validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text data files only!')])
+        validators=[FileRequired(), FileAllowed(base_config.ALLOWED_EXTENSIONS, 'Text data files only!')])
     file_name = HiddenField()
     output_file = HiddenField()
 
@@ -92,7 +93,7 @@ class CountsFileForm(FlaskForm):
         validators=[DataRequired()],
         choices=[('trading', 'Trading Days Only'), ('all', 'All Days')])
     file_input = FileField(
-        validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text data files only!')])
+        validators=[FileRequired(), FileAllowed(base_config.ALLOWED_EXTENSIONS, 'Text data files only!')])
     file_name = HiddenField()
     output_file = HiddenField()
 

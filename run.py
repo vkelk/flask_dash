@@ -1,6 +1,6 @@
-from application import create_app
-from application.config import Configuration
+from application import create_app, config
+
 
 if __name__ == '__main__':
-    app = create_app(config=Configuration)
+    app = create_app(config=config.dev_config)
     app.run()

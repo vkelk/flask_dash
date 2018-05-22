@@ -8,7 +8,7 @@ from sqlalchemy import func
 from flask import render_template, request, Markup, flash, redirect, url_for, session, jsonify, send_file
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename, CombinedMultiDict
-from application import db, Configuration
+from application import db, config
 from application.project import project
 from application.project.models import Project, Event, EventStats, Dataset
 from application.fintweet.models import *
@@ -99,7 +99,7 @@ def project_activate(uuid):
         flash(message, 'danger')
     return redirect(url_for('project.list'))
 
-
+@project.route('/')
 @project.route('/list')
 @login_required
 def list():
@@ -177,10 +177,10 @@ def events_upload():
                 str(uuid.uuid4()) +
                 os.path.splitext(form.file_input.data.filename)[-1])
             form.file_input.data.save(
-                os.path.join(Configuration.UPLOAD_FOLDER, file_input))
+                os.path.join(config.base_config.UPLOAD_FOLDER, file_input))
             form.file_name.data = file_input
             df_in = dataframe_from_file(
-                os.path.join(Configuration.UPLOAD_FOLDER, form.file_name.data))
+                os.path.join(config.base_config.UPLOAD_FOLDER, form.file_name.data))
             if df_in.empty:
                 return None
             for index, row in df_in.iterrows():
@@ -410,10 +410,10 @@ def events_upload():
             file_output = 'output_' + file_input
             project.file_output = file_output
             df_in.to_excel(
-                os.path.join(Configuration.UPLOAD_FOLDER, file_output),
+                os.path.join(config.base_config.UPLOAD_FOLDER, file_output),
                 index=False)
             # df_in.to_sql('table', db.engine)
-            # df_in.to_stata(os.path.join(Configuration.UPLOAD_FOLDER, 'output.dta'), index=False)
+            # df_in.to_stata(os.path.join(base_config.UPLOAD_FOLDER, 'output.dta'), index=False)
             # form.output_file.data = 'upload/output' + file_input
             form.output_file.data = file_output
             db.session.add(project)
@@ -428,9 +428,6 @@ def events_upload():
         pprint(form.errors)
     return render_template(
         'project/events_upload.html', form=form, project=project)
-
-
-
 
 
 @project.route('/ajax_event_tweets/<uuid>/<period>')

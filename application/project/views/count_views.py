@@ -4,12 +4,11 @@ import os
 import pandas as pd
 from pprint import pprint
 import uuid
-from flask import render_template, request, session
+from flask import current_app, render_template, request, session
 from flask_login import current_user, login_required
 from sqlalchemy import or_, and_
 from werkzeug.utils import secure_filename, CombinedMultiDict
-from application import db
-from application.config import Configuration
+from application import db, config
 from application.project import project
 from ..models import Project, Dataset, TradingDays
 from ..forms import CountsFileForm
@@ -159,10 +158,10 @@ def counts_upload():
                 str(uuid.uuid4()) +
                 os.path.splitext(form.file_input.data.filename)[-1])
             form.file_input.data.save(
-                os.path.join(Configuration.UPLOAD_FOLDER, file_input))
+                os.path.join(config.base_config.UPLOAD_FOLDER, file_input))
             form.file_name.data = file_input
             df_in = dataframe_from_file(
-                os.path.join(Configuration.UPLOAD_FOLDER, form.file_name.data))
+                os.path.join(config.base_config.UPLOAD_FOLDER, form.file_name.data))
             if df_in is None or df_in.empty:
                 return render_template(
                     'project/counts_upload.html',
@@ -195,7 +194,7 @@ def counts_upload():
 
             file_output = 'output_' + file_input
             file_output = file_output.replace('.xlsx', '.dta')
-            df_in.to_stata(os.path.join(Configuration.UPLOAD_FOLDER, file_output), write_index=False)
+            df_in.to_stata(os.path.join(config.base_config.UPLOAD_FOLDER, file_output), write_index=False)
             form.output_file.data = file_output
             project.file_output = file_output
             return render_template(

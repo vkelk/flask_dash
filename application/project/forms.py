@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, time
 from flask import current_app
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed
@@ -86,12 +86,20 @@ class CountsFileForm(FlaskForm):
         choices=[('fintweet', 'Fintweet'), ('stocktwits', 'Stocktwits')])
     date_start = DateField('Date start:', validators=[DataRequired()])
     date_end = DateField('Date end', validators=[DataRequired()])
-    time_start = TimeField('start')
-    time_end = TimeField('end')
+    time_start = TimeField('start', default=time(9, 30))
+    time_end = TimeField('end', default=time(16, 0))
     days_status = SelectField(
         "Select days",
         validators=[DataRequired()],
         choices=[('trading', 'Trading Days Only'), ('all', 'All Days')])
+    criteria = SelectField(
+        "Selection Criteria",
+        validators=[DataRequired()],
+        choices=[
+            ('none', 'None'),
+            ('join_date', 'Date of Joining'),
+            ('followers', 'Followers'),
+            ('following', 'Following')])
     file_input = FileField(
         validators=[FileRequired(), FileAllowed(base_config.ALLOWED_EXTENSIONS, 'Text data files only!')])
     file_name = HiddenField()

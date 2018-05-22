@@ -376,14 +376,23 @@ class TweetScraper(object):
                 except AttributeError:
                     print(str(tweetPQ))
                     print('Attribute error in ProfileTweet-action--retweet')
-
                     retweets = 0
 
-                favorites = int(tweetPQ("span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr(
-                    "data-tweet-stat-count").replace(",", ""))
+                try:
+                    favorites = int(tweetPQ("span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr(
+                        "data-tweet-stat-count").replace(",", ""))
+                except AttributeError:
+                    print(str(tweetPQ))
+                    print('Attribute error in ProfileTweet-action--retweet')
+                    favorites = 0
 
-                replyes = int(tweetPQ("span.ProfileTweet-action--reply span.ProfileTweet-actionCount").attr(
-                    "data-tweet-stat-count").replace(",", ""))
+                try:
+                    replyes = int(tweetPQ("span.ProfileTweet-action--reply span.ProfileTweet-actionCount").attr(
+                        "data-tweet-stat-count").replace(",", ""))
+                except AttributeError:
+                    print(str(tweetPQ))
+                    print('Attribute error in ProfileTweet-action--retweet')
+                    replyes = 0
 
             dateSec = int(tweetPQ("small.time span.js-short-timestamp").attr("data-time"))
 

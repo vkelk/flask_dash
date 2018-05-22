@@ -42,9 +42,34 @@
                     <div class="panel-heading"><h5>Active project: <strong>{{ project.name }}</strong></h5></div>
                     <div class="panel-body">
                         <div class="row">
-                            <div class="col-sm-6"><h6>Date range is inhereted from project settings:<br>
-                                {{ project.date_start }} - {{ project.date_end }}</h6>
+                            <div class="col-sm-3">
+                                <div class="input-group">
+                                    <span class="input-group-addon"><i class="icon-calendar"></i></span>
+                                    {{ render_field(
+                                        form.date_start, type="text", class="form-control datepicker", 
+                                        placeholder="Pick a start date") }}
+                                </div>
+                                <div class="input-group">
+                                    <span class="input-group-addon"><i class="icon-calendar"></i></span>
+                                    {{ render_field(
+                                        form.date_end, type="text", class="form-control datepicker", 
+                                        placeholder="Pick an end date") }}
+                                </div>
                             </div>
+                            <div class="col-sm-3">
+                                    <div class="input-group">
+                                        <span class="input-group-addon"><i class="glyphicon glyphicon-time"></i></span>
+                                        {{ render_field(
+                                            form.time_start, type="time", class="form-control", 
+                                            placeholder="Pick a start time") }}
+                                    </div>
+                                    <div class="input-group">
+                                        <span class="input-group-addon"><i class="glyphicon glyphicon-time"></i></span>
+                                        {{ render_field(
+                                            form.time_end, type="time", class="form-control", 
+                                            placeholder="Pick an end time") }}
+                                    </div>
+                                </div>
                             <div class="col-sm-3">
                                     {{ render_field(form.days_status.label) }}
                                     {{ render_field(form.days_status, class="form-control") }}

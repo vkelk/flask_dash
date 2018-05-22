@@ -10,7 +10,7 @@ from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename, CombinedMultiDict
 from application import db, Configuration
 from application.project import project
-from application.project.models import Project, Event, EventStats
+from application.project.models import Project, Event, EventStats, Dataset
 from application.fintweet.models import *
 from application.project.forms import NewProjectForm, EventStudyForm, EventStudyFileForm
 from application.project.helpers import dataframe_from_file, get_data_from_query, count_sentiment

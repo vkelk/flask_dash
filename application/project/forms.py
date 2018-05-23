@@ -83,7 +83,7 @@ class CountsFileForm(FlaskForm):
     dataset = SelectField(
         "Select dataset",
         validators=[DataRequired()],
-        choices=[('fintweet', 'Fintweet'), ('stocktwits', 'Stocktwits')])
+        choices=[('twitter', 'Twitter'), ('stocktwits', 'Stocktwits'), ('fintweet', 'Fintweet')])
     date_start = DateField('Date start:', validators=[DataRequired()])
     date_end = DateField('Date end', validators=[DataRequired()])
     time_start = TimeField('start', default=time(9, 30))
@@ -91,15 +91,18 @@ class CountsFileForm(FlaskForm):
     days_status = SelectField(
         "Select days",
         validators=[DataRequired()],
-        choices=[('trading', 'Trading Days Only'), ('all', 'All Days')])
+        choices=[('trading', 'Trading Days'), ('non-trading', 'Non-Trading Days'), ('all', 'All Days')])
     criteria = SelectField(
         "Selection Criteria",
         validators=[DataRequired()],
         choices=[
             ('none', 'None'),
-            ('join_date', 'Date of Joining'),
+            ('date_join', 'Date of Joining'),
             ('followers', 'Followers'),
             ('following', 'Following')])
+    date_joining = DateField('Date of user joining')
+    followers = IntegerField('Followers')
+    following = IntegerField('Following')
     file_input = FileField(
         validators=[FileRequired(), FileAllowed(base_config.ALLOWED_EXTENSIONS, 'Text data files only!')])
     file_name = HiddenField()

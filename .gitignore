@@ -9,6 +9,8 @@
 .idea/dictionaries
 .idea/
 application/uploads/
+uploads/
+*.pgsql
 
 
 # Sensitive or high-churn files:

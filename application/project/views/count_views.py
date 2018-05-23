@@ -125,7 +125,7 @@ def get_all_tweet_ids(cashtag, date_from, date_to, dates='all'):
         days_list = [d[0] for d in trading_days.all()]
     tweets = {'open': [], 'pre': [], 'post': []}
     for i in range(date_delta.days + 1):
-        date_input = (date_from + timedelta(days=i)).date()
+        date_input = (date_from + timedelta(days=i))
         if dates == 'trading' and date_input in days_list:
             open_period = get_tweets_in_period(cashtag, date_input, 0)
             tweets['open'].extend(open_period)
@@ -169,8 +169,10 @@ def counts_upload():
                     project=project,
                     df_in=df_in.to_html(classes='table table-striped'))
             for index, row in df_in.iterrows():
-                date_from = row['date_from'].to_pydatetime()
-                date_to = row['date_to'].to_pydatetime()
+                date_from = form.date_start.data
+                date_to = form.date_end.data
+                time_from = form.time_start.data
+                time_to = form.time_end.data
                 cashtag = row['cashtag']
                 tweets = get_all_tweet_ids(cashtag, date_from, date_to, form.days_status.data)
                 df_in.at[index, 'opent tweets'] = str(len(tweets['open']))

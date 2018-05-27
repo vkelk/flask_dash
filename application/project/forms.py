@@ -100,9 +100,9 @@ class CountsFileForm(FlaskForm):
             ('date_join', 'Date of Joining'),
             ('followers', 'Followers'),
             ('following', 'Following')])
-    date_joining = DateField('Date of user joining', validators=[Optional()])
-    followers = IntegerField('Followers', validators=[Optional()])
-    following = IntegerField('Following', validators=[Optional()])
+    date_joining = DateField('Date of user joining', default=None, validators=[Optional()])
+    followers = IntegerField('Followers', default=None, validators=[Optional()])
+    following = IntegerField('Following', default=None, validators=[Optional()])
     file_input = FileField(
         validators=[FileRequired(), FileAllowed(base_config.ALLOWED_EXTENSIONS, 'Text data files only!')])
     file_name = HiddenField()

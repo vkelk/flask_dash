@@ -176,7 +176,7 @@ if __name__ == '__main__':
     #     print(type(e), str(e))
     #     raise
     # exit()
-  
+
     tweets = page_query(session.query(Tweet))
     with cf.ThreadPoolExecutor(max_workers=16) as executor:
         try:

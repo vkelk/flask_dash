@@ -13,7 +13,7 @@ from application.project import project
 from ..models import Project, Dataset, TradingDays
 from ..forms import CountsFileForm
 from ..helpers import slugify
-from application.fintweet.models import Tweet, TweetCashtag, TweetHashtag, TweetMention
+from application.fintweet.models import Tweet, TweetCashtag, TweetHashtag, TweetMention, User, UserCount
 
 
 ZONE_NY = tz.gettz('America/New_York')
@@ -42,7 +42,7 @@ def get_period(date_input, period_type=0):
     return {'start': convert_date(period_start), 'end': convert_date(period_end)}
 
 
-def get_tweets_in_period(c_tag, date_input, period_type=0):
+def get_tweets_in_period(c_tag, date_input, period_type=0, date_joined=None, followers=None, following=None):
     period = get_period(date_input, period_type)
     if period_type in (0, -1):
         filter_period = and_(
@@ -53,9 +53,25 @@ def get_tweets_in_period(c_tag, date_input, period_type=0):
         start = and_(Tweet.date == period['start'].date(), Tweet.time >= period['start'].time()).self_group()
         end = and_(Tweet.date == period['end'].date(), Tweet.time < period['end'].time()).self_group()
         filter_period = or_(start, end)
-    tweets = db.session.query(TweetCashtag.tweet_id).join(Tweet) \
-        .filter(TweetCashtag.cashtags == c_tag) \
-        .filter(filter_period)
+    if date_joined:
+        tweets = db.session.query(TweetCashtag.tweet_id).join(Tweet).join(User) \
+            .filter(User.date_joined >= date_joined) \
+            .filter(TweetCashtag.cashtags == c_tag) \
+            .filter(filter_period)
+    elif followers:
+        tweets = db.session.query(TweetCashtag.tweet_id).join(Tweet).join(UserCount, Tweet.user_id == UserCount.user_id) \
+            .filter(UserCount.follower >= followers) \
+            .filter(TweetCashtag.cashtags == c_tag) \
+            .filter(filter_period)
+    elif following:
+        tweets = db.session.query(TweetCashtag.tweet_id).join(Tweet).join(UserCount, Tweet.user_id == UserCount.user_id) \
+            .filter(UserCount.following >= following) \
+            .filter(TweetCashtag.cashtags == c_tag) \
+            .filter(filter_period)
+    else:
+        tweets = db.session.query(TweetCashtag.tweet_id).join(Tweet) \
+            .filter(TweetCashtag.cashtags == c_tag) \
+            .filter(filter_period)
     return [t[0] for t in tweets.all()]
 
 
@@ -93,32 +109,14 @@ def dataframe_from_file(filename):
         df = pd.read_excel(filename)
         df.columns = [slugify(col) for col in df.columns]
         df["status"] = ""
-        # df["trading tweet count"] = ""
-        # df["trading user count"] = ""
-        # df["trading retweet count"] = ""
-        # df["trading hashtag count"] = ""
-        # df["trading reply count"] = ""
-        # df["trading mention count"] = ""
-        # df["pre-trading tweet count"] = ""
-        # df["pre-trading user count"] = ""
-        # df["pre-trading retweet count"] = ""
-        # df["pre-trading hashtag count"] = ""
-        # df["pre-trading reply count"] = ""
-        # df["pre-trading mention count"] = ""
-        # df["post-trading tweet count"] = ""
-        # df["post-trading user count"] = ""
-        # df["post-trading retweet count"] = ""
-        # df["post-trading hashtag count"] = ""
-        # df["post-trading reply count"] = ""
-        # df["post-trading mention count"] = ""
         return df
     # TODO: Create import from CSV
     return None
 
 
-def get_all_tweet_ids(cashtag, date_from, date_to, dates='all'):
+def get_all_tweet_ids(cashtag, date_from, date_to, dates='all', date_joined=None, followers=None, following=None):
     date_delta = date_to - date_from
-    if dates == 'trading':
+    if dates in ['trading', 'non-trading']:
         trading_days = db.session.query(TradingDays.date) \
             .filter(TradingDays.is_trading == True) \
             .filter(TradingDays.date.between(date_from, date_to))
@@ -126,19 +124,63 @@ def get_all_tweet_ids(cashtag, date_from, date_to, dates='all'):
     tweets = {'open': [], 'pre': [], 'post': []}
     for i in range(date_delta.days + 1):
         date_input = (date_from + timedelta(days=i))
-        if dates == 'trading' and date_input in days_list:
-            open_period = get_tweets_in_period(cashtag, date_input, 0)
-            tweets['open'].extend(open_period)
-            pre_open_period = get_tweets_in_period(cashtag, date_input, -1)
-            tweets['pre'].extend(pre_open_period)
-            post_open_period = get_tweets_in_period(cashtag, date_input, 1)
-            tweets['post'].extend(post_open_period)
+        if dates in ['trading', 'non-trading']:
+            if dates == 'trading' and date_input in days_list:
+                open_period = get_tweets_in_period(
+                    cashtag, date_input, 0,
+                    date_joined=date_joined,
+                    followers=followers,
+                    following=following)
+                tweets['open'].extend(open_period)
+                pre_open_period = get_tweets_in_period(
+                    cashtag, date_input, -1,
+                    date_joined=date_joined,
+                    followers=followers,
+                    following=following)
+                tweets['pre'].extend(pre_open_period)
+                post_open_period = get_tweets_in_period(
+                    cashtag, date_input, 1,
+                    date_joined=date_joined,
+                    followers=followers,
+                    following=following)
+                tweets['post'].extend(post_open_period)
+            elif dates == 'non-trading' and date_input not in days_list:
+                open_period = get_tweets_in_period(
+                    cashtag, date_input, 0,
+                    date_joined=date_joined,
+                    followers=followers,
+                    following=following)
+                tweets['open'].extend(open_period)
+                pre_open_period = get_tweets_in_period(
+                    cashtag, date_input, -1,
+                    date_joined=date_joined,
+                    followers=followers,
+                    following=following)
+                tweets['pre'].extend(pre_open_period)
+                post_open_period = get_tweets_in_period(
+                    cashtag, date_input, 1,
+                    date_joined=date_joined,
+                    followers=followers,
+                    following=following)
+                tweets['post'].extend(post_open_period)
         elif dates == 'all':
-            open_period = get_tweets_in_period(cashtag, date_input, 0)
+            open_period = get_tweets_in_period(
+                cashtag, date_input, 0,
+                date_joined=date_joined,
+                followers=followers,
+                following=following)
             tweets['open'].extend(open_period)
-            pre_open_period = get_tweets_in_period(cashtag, date_input, -1)
+            pre_open_period = get_tweets_in_period(
+                cashtag, date_input, -1,
+                date_joined=date_joined,
+                followers=followers,
+                following=following)
             tweets['pre'].extend(pre_open_period)
-            post_open_period = get_tweets_in_period(cashtag, date_input, 1)
+            post_open_period = get_tweets_in_period(
+                cashtag, date_input, 1,
+                date_joined=date_joined,
+                followers=followers,
+                following=following)
             tweets['post'].extend(post_open_period)
     return tweets
 
@@ -174,7 +216,11 @@ def counts_upload():
                 time_from = form.time_start.data
                 time_to = form.time_end.data
                 cashtag = row['cashtag']
-                tweets = get_all_tweet_ids(cashtag, date_from, date_to, form.days_status.data)
+                tweets = get_all_tweet_ids(
+                    cashtag, date_from, date_to, form.days_status.data,
+                    date_joined=form.date_joining.data,
+                    followers=form.followers.data,
+                    following=form.following.data)
                 df_in.at[index, 'opent tweets'] = str(len(tweets['open']))
                 df_in.at[index, 'opent users'] = str(get_users_count(tweets['open']))
                 df_in.at[index, 'opent retweets'] = str(get_retweet_count(tweets['open']))

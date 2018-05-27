@@ -5,7 +5,7 @@ from flask_wtf.file import FileField, FileRequired, FileAllowed
 from wtforms import StringField, DateField, SubmitField, SelectField, HiddenField, IntegerField, RadioField, \
     FieldList, FormField
 from wtforms_components import TimeField
-from wtforms.validators import DataRequired, NumberRange
+from wtforms.validators import DataRequired, NumberRange, Optional
 from wtforms.widgets import TextArea
 from application.config import base_config
 
@@ -100,9 +100,9 @@ class CountsFileForm(FlaskForm):
             ('date_join', 'Date of Joining'),
             ('followers', 'Followers'),
             ('following', 'Following')])
-    date_joining = DateField('Date of user joining')
-    followers = IntegerField('Followers')
-    following = IntegerField('Following')
+    date_joining = DateField('Date of user joining', validators=[Optional()])
+    followers = IntegerField('Followers', validators=[Optional()])
+    following = IntegerField('Following', validators=[Optional()])
     file_input = FileField(
         validators=[FileRequired(), FileAllowed(base_config.ALLOWED_EXTENSIONS, 'Text data files only!')])
     file_name = HiddenField()

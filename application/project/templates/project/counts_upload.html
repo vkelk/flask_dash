@@ -84,7 +84,7 @@
                             </div>
                         </div>
                         <div class="row">
-                            <div id="date_join" class="col-sm-2 col-sm-offset-10">
+                            <div id="date_join" class="col-sm-2 col-sm-offset-10" style="display: none;">
                                 <div class="input-group">
                                     <span class="input-group-addon"><i class="icon-calendar"></i></span>
                                     {{ render_field(
@@ -92,11 +92,11 @@
                                         placeholder="Pick a date") }}
                                 </div>
                             </div>
-                            <div id="followers" class="col-sm-2 col-sm-offset-10">
+                            <div id="followers" class="col-sm-2 col-sm-offset-10" style="display: none;">
                                 {{ render_field(form.followers.label) }}
                                 {{ render_field(form.followers, class="form-control") }}
                             </div>
-                            <div id="following" class="col-sm-2 col-sm-offset-10">
+                            <div id="following" class="col-sm-2 col-sm-offset-10" style="display: none;">
                                 {{ render_field(form.following.label) }}
                                 {{ render_field(form.following, class="form-control") }}
                             </div>
@@ -175,9 +175,24 @@
             });
 
             $("#criteria").change(function(){
-                console.log($(this).find(":selected").val());
+                // console.log($(this).find(":selected").val());
                 if ($(this).find(":selected").val() == 'date_join'){
                     $("#date_join").show();
+                    $("#followers").hide();
+                    $("#following").hide();
+                }
+                if ($(this).find(":selected").val() == 'followers'){
+                    $("#date_join").hide();
+                    $("#followers").show();
+                    $("#following").hide();
+                }
+                if ($(this).find(":selected").val() == 'following'){
+                    $("#date_join").hide();
+                    $("#followers").hide();
+                    $("#following").show();
+                }
+                if ($(this).find(":selected").val() == 'none'){
+                    $("#date_join").hide();
                     $("#followers").hide();
                     $("#following").hide();
                 }

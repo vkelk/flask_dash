@@ -71,6 +71,7 @@ def register_extensions(app):
     """Register extensions with the Flask application."""
     db.init_app(app)
     login_manager.init_app(app)
+    login_manager.login_view = 'account.login'
     bcrypt.init_app(app)
     toolbar.init_app(app)
     csrf.init_app(app)

@@ -18,7 +18,7 @@ class base_config(object):
     SITE_NAME = os.environ.get('SITE_NAME', 'Dashboard')
 
     SECRET_KEY = os.environ.get('SECRET_KEY', 'secrets')
-    SERVER_NAME = os.environ.get('SERVER_NAME', '127.0.0.1:5000')
+    SERVER_NAME = os.environ.get('SERVER_NAME', 'localhost')
 
     CSRF_SESSION_KEY = os.getenv("SECRET_KEY") or "secrets"
 
@@ -61,8 +61,10 @@ class dev_config(base_config):
     """Development configuration options."""
     ASSETS_DEBUG = True
     DEBUG = True
+    DEBUG_TB_INTERCEPT_REDIRECTS = False
     FLASK_ENV = 'development'
     ENV = 'development'
+    SERVER_NAME = 'localhost:5000'
     TESTING = True
     WTF_CSRF_ENABLED = False
 

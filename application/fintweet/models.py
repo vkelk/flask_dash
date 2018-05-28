@@ -27,8 +27,7 @@ class User(db.Model):
         "application.fintweet.models.UserCount", backref='user', uselist=False)
     mentions = db.relationship(
         'TweetMention',
-        primaryjoin=
-        "TweetMention.user_id==application.fintweet.models.User.user_id",
+        primaryjoin="TweetMention.user_id==application.fintweet.models.User.user_id",
         backref='user',
         lazy='dynamic')
 
@@ -207,3 +206,32 @@ class TweetSentiment(db.Model):
     sentiment = db.Column(db.String(255))
 
     tweets = db.relationship('Tweet', backref="sentiment")
+
+
+class TopCashtags(db.Model):
+    __tablename__ = 'top_cashtags'
+    __table_args__ = {"schema": "fintweet"}
+
+    cashtags = db.Column(db.String(60), primary_key=True)
+    tweets_count = db.Column(db.Integer)
+
+
+class TopHashtags(db.Model):
+    __tablename__ = 'top_hashtags'
+    __table_args__ = {"schema": "fintweet"}
+
+    hashtags = db.Column(db.String(60), primary_key=True)
+    tweets_count = db.Column(db.Integer)
+
+
+class TopUsers(db.Model):
+    __tablename__ = 'top_users'
+    __table_args__ = {"schema": "fintweet"}
+
+    user_id = db.Column(db.BigInteger, primary_key=True)
+    # user_id = db.relationship(User, backref=db.backref('User', uselist=False))
+    twitter_handle = db.Column(db.String(120))
+    tweets_count = db.Column(db.Integer)
+
+    # users = db.relationship('User', primaryjoin='foreign(TopUsers.user_id) == remote(User.user_id)')
+    # users = db.relationship("TopUsers", primaryjoin='TopUsers.user_id==User.user_id', viewonly=True)

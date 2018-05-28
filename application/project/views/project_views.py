@@ -1,20 +1,19 @@
 import hashlib
-import json
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 import pandas as pd
 from pprint import pprint
 from sqlalchemy import func
-from flask import render_template, request, Markup, flash, redirect, url_for, abort, session, jsonify, send_file
-from flask_login import login_user, current_user, login_required, logout_user
+from flask import render_template, request, Markup, flash, redirect, url_for, session, jsonify, send_file, current_app
+from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename, CombinedMultiDict
-from application import db, login_manager
+from application import db, config
 from application.project import project
-from .models import Project, ProjectDetais, Event, EventStats, EventTweets, Event
+from application.project.models import Project, Event, EventStats, Dataset
 from application.fintweet.models import *
-from application.project.forms import *
-from application.project.helpers import *
+from application.project.forms import NewProjectForm, EventStudyForm, EventStudyFileForm
+from application.project.helpers import dataframe_from_file, get_data_from_query, count_sentiment
 
 
 @project.route('/project_add', methods=['GET', 'POST'])
@@ -79,16 +78,16 @@ def project_activate(uuid):
     try:
         projects = Project.query.filter(
             Project.account_id == current_user.get_id()).all()
-        for project in projects:
-            if project.uuid == uuid:
-                project.active = True
-                db.session.add(project)
+        for p in projects:
+            if p.uuid == uuid:
+                p.active = True
+                db.session.add(p)
                 db.session.commit()
                 session['active_project'] = uuid
-                session['active_project_name'] = project.name
+                session['active_project_name'] = p.name
             else:
-                project.active = False
-                db.session.add(project)
+                p.active = False
+                db.session.add(p)
                 db.session.commit()
         message = Markup("<strong>Project activated!</strong>")
         flash(message, 'success')
@@ -100,7 +99,7 @@ def project_activate(uuid):
         flash(message, 'danger')
     return redirect(url_for('project.list'))
 
-
+@project.route('/')
 @project.route('/list')
 @login_required
 def list():
@@ -141,8 +140,8 @@ def event_users(uuid):
 @project.route('/event_new', methods=['GET', 'POST'])
 @login_required
 def event_new():
-    project = Project.query.filter(Project.account_id == current_user.get_id()
-                                   ).filter(Project.active == True).first()
+    project = Project.query.filter(Project.account_id == current_user.get_id()) \
+                            .filter(Project.active == True).first()
     if project:
         session['active_project'] = project.uuid
     datasets = Dataset.query.all()
@@ -178,10 +177,10 @@ def events_upload():
                 str(uuid.uuid4()) +
                 os.path.splitext(form.file_input.data.filename)[-1])
             form.file_input.data.save(
-                os.path.join(Configuration.UPLOAD_FOLDER, file_input))
+                os.path.join(config.base_config.UPLOAD_FOLDER, file_input))
             form.file_name.data = file_input
             df_in = dataframe_from_file(
-                os.path.join(Configuration.UPLOAD_FOLDER, form.file_name.data))
+                os.path.join(config.base_config.UPLOAD_FOLDER, form.file_name.data))
             if df_in.empty:
                 return None
             for index, row in df_in.iterrows():
@@ -411,10 +410,10 @@ def events_upload():
             file_output = 'output_' + file_input
             project.file_output = file_output
             df_in.to_excel(
-                os.path.join(Configuration.UPLOAD_FOLDER, file_output),
+                os.path.join(config.base_config.UPLOAD_FOLDER, file_output),
                 index=False)
             # df_in.to_sql('table', db.engine)
-            # df_in.to_stata(os.path.join(Configuration.UPLOAD_FOLDER, 'output.dta'), index=False)
+            # df_in.to_stata(os.path.join(base_config.UPLOAD_FOLDER, 'output.dta'), index=False)
             # form.output_file.data = 'upload/output' + file_input
             form.output_file.data = file_output
             db.session.add(project)
@@ -484,7 +483,7 @@ def getfile(filename):
     if not filename:
         return None
     return send_file(
-        'uploads/' + filename,
+        current_app.config['UPLOAD_FOLDER'] + filename,
         mimetype='text/csv',
         attachment_filename=filename,
         as_attachment=True)

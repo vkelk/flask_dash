@@ -1,16 +1,17 @@
 from datetime import datetime, timedelta
-from pprint import pprint
-from flask import render_template, request, Markup, flash, redirect, url_for, abort, session
+# from pprint import pprint
+from flask import render_template, request, Markup, flash, redirect, url_for, abort, session, current_app
 from flask_login import login_user, current_user, login_required, logout_user
 from sqlalchemy.exc import IntegrityError
 from itsdangerous import URLSafeTimedSerializer
 
-from application import db, login_manager
+# from application import db
+from application.extenstions import db, login_manager
 from application.account import account
 from application.account.models import Account
-from .forms import *
-from .helpers import *
-from ..config import Configuration
+from .forms import RegisterForm, LoginForm, EmailForm, PasswordForm
+from .helpers import send_confirmation_email, post_login, send_password_reset_email
+from ..config import base_config
 
 
 @login_manager.user_loader
@@ -66,7 +67,7 @@ def login():
                     message = Markup(
                         "<strong>Welcome back!</strong> You are now successfully logged in.")
                     flash(message, 'success')
-                    return redirect(url_for('main.home'))
+                    return redirect(request.args.get('next') or url_for('main.home'))
             else:
                 message = Markup(
                     "<strong>Error!</strong> Incorrect login credentials.")
@@ -83,10 +84,10 @@ def user_profile():
 @account.route('/confirm/<token>')
 def confirm_email(token):
     try:
-        confirm_serializer = URLSafeTimedSerializer(Configuration.SECRET_KEY)
+        confirm_serializer = URLSafeTimedSerializer(current_app.SECRET_KEY)
         email = confirm_serializer.loads(token, salt='email-confirmation-salt', max_age=86400)
         print(type(email), email)
-    except:
+    except Exception as e:
         message = Markup(
             "The confirmation link is invalid or has expired.")
         flash(message, 'danger')
@@ -116,7 +117,7 @@ def reset():
     if form.validate_on_submit():
         try:
             user = Account.query.filter_by(email=form.email.data).first_or_404()
-        except:
+        except Exception as e:
             message = Markup(
                 "Invalid email address!")
             flash(message, 'danger')
@@ -138,9 +139,9 @@ def reset():
 @account.route('/reset/<token>', methods=["GET", "POST"])
 def reset_with_token(token):
     try:
-        password_reset_serializer = URLSafeTimedSerializer(Configuration.SECRET_KEY)
+        password_reset_serializer = URLSafeTimedSerializer(base_config.SECRET_KEY)
         email = password_reset_serializer.loads(token, salt='password-reset-salt', max_age=3600)
-    except:
+    except Exception as e:
         message = Markup(
             "The password reset link is invalid or has expired.")
         flash(message, 'danger')
@@ -151,7 +152,7 @@ def reset_with_token(token):
     if form.validate_on_submit():
         try:
             user = Account.query.filter_by(email=email).first_or_404()
-        except:
+        except Exception as e:
             message = Markup(
                 "Invalid email address!")
             flash(message, 'danger')
@@ -278,5 +279,3 @@ def user_email_change():
                     "Sorry, that email already exists!")
                 flash(message, 'danger')
     return render_template('account/email_change.html', form=form)
-
-

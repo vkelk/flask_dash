@@ -1,8 +1,8 @@
-from datetime import datetime
+# from datetime import datetime
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, DateField, SubmitField, SelectField
+from wtforms import StringField, PasswordField
 from wtforms.validators import DataRequired, Length, EqualTo, Email
-from wtforms.widgets import TextArea
+# from wtforms.widgets import TextArea
 
 
 class RegisterForm(FlaskForm):
@@ -29,6 +29,3 @@ class EmailForm(FlaskForm):
 
 class PasswordForm(FlaskForm):
     password = PasswordField('Password', validators=[DataRequired()])
-
-
-

@@ -1,11 +1,13 @@
-from datetime import datetime
+from datetime import datetime, time
+from flask import current_app
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed
-from wtforms import StringField, DateField, SubmitField, SelectField, HiddenField, IntegerField, RadioField, FieldList, \
-    FormField
-from wtforms.validators import DataRequired, NumberRange
+from wtforms import StringField, DateField, SubmitField, SelectField, HiddenField, IntegerField, RadioField, \
+    FieldList, FormField
+from wtforms_components import TimeField
+from wtforms.validators import DataRequired, NumberRange, Optional
 from wtforms.widgets import TextArea
-from application.config import Configuration
+from application.config import base_config
 
 
 class NewProjectForm(FlaskForm):
@@ -35,8 +37,8 @@ class EventForm(FlaskForm):
     days_grace = IntegerField('Grace period', default=0)
     code_type_radio = SelectField('Select code type', validators=[DataRequired()],
                                   choices=[('permno', 'PermNo'), ('ticker', 'Ticker'), ('hashtag', 'Hashtag'),
-                                          ('cashtag', 'Cashtag'), ('mentions', 'Mentions'),
-                                          ('user_names', 'User Names')])
+                                           ('cashtag', 'Cashtag'), ('mentions', 'Mentions'),
+                                           ('user_names', 'User Names')])
     code_text = StringField('Tag text', validators=[DataRequired()])
 
 
@@ -70,7 +72,39 @@ class EventStudyFileForm(FlaskForm):
                                         validators=[DataRequired()])
 
     file_input = FileField(
-        validators=[FileRequired(), FileAllowed(Configuration.ALLOWED_EXTENSIONS, 'Text data files only!')])
+        validators=[FileRequired(), FileAllowed(base_config.ALLOWED_EXTENSIONS, 'Text data files only!')])
+    file_name = HiddenField()
+    output_file = HiddenField()
+
+    create_study = SubmitField('Process study')
+
+
+class CountsFileForm(FlaskForm):
+    dataset = SelectField(
+        "Select dataset",
+        validators=[DataRequired()],
+        choices=[('twitter', 'Twitter'), ('stocktwits', 'Stocktwits'), ('fintweet', 'Fintweet')])
+    date_start = DateField('Date start:', validators=[DataRequired()])
+    date_end = DateField('Date end', validators=[DataRequired()])
+    time_start = TimeField('start', default=time(9, 30))
+    time_end = TimeField('end', default=time(16, 0))
+    days_status = SelectField(
+        "Select days",
+        validators=[DataRequired()],
+        choices=[('trading', 'Trading Days'), ('non-trading', 'Non-Trading Days'), ('all', 'All Days')])
+    criteria = SelectField(
+        "Selection Criteria",
+        validators=[DataRequired()],
+        choices=[
+            ('none', 'None'),
+            ('date_join', 'Date of Joining'),
+            ('followers', 'Followers'),
+            ('following', 'Following')])
+    date_joining = DateField('Date of user joining', default=None, validators=[Optional()])
+    followers = IntegerField('Followers', default=None, validators=[Optional()])
+    following = IntegerField('Following', default=None, validators=[Optional()])
+    file_input = FileField(
+        validators=[FileRequired(), FileAllowed(base_config.ALLOWED_EXTENSIONS, 'Text data files only!')])
     file_name = HiddenField()
     output_file = HiddenField()
 

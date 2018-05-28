@@ -1,65 +1,86 @@
 from datetime import datetime, timedelta
 from dateutil import tz
 
-from sqlalchemy import func, or_
+from sqlalchemy import or_, and_
 
-from fintweet.models import Session, Tweet, TweetCashtags
+from fintweet.models import Session, Tweet, TweetCashtags, TweetHashtags, TweetMentions
 
 session = Session()
 
-from_zone = tz.gettz('America/New_York')
-to_zone = tz.gettz('UTC')
+ZONE_NY = tz.gettz('America/New_York')
+ZONE_UTC = tz.gettz('UTC')
 
-nyse_open = datetime.strptime('2017-02-01 09:30:00', '%Y-%m-%d %H:%M:%S')
-nyse_close = datetime.strptime('2017-02-01 16:00:00', '%Y-%m-%d %H:%M:%S')
-nyse_pre_open = nyse_open - timedelta(hours=9.5)
-nyse_post_close = nyse_close + timedelta(hours=8)
 
-# Tell the datetime object that it's in NY time zone since datetime objects are 'naive' by default
-nyse_open = nyse_open.replace(tzinfo=from_zone)
-nyse_close = nyse_close.replace(tzinfo=from_zone)
-nyse_pre_open = nyse_pre_open.replace(tzinfo=from_zone)
-nyse_post_close = nyse_post_close.replace(tzinfo=from_zone)
+def convert_date(input_dt, zone_from=ZONE_NY, zone_to=ZONE_UTC):
+    utc_datetime = datetime.strptime(input_dt, '%Y-%m-%d %H:%M:%S')
+    # Tell the datetime object that it's in NY time zone since datetime objects are 'naive' by default
+    utc_datetime = utc_datetime.replace(tzinfo=zone_from)
+    return utc_datetime.astimezone(zone_to)
 
-# Convert time zone to UTC
-utc_open = nyse_open.astimezone(to_zone)
-utc_close = nyse_close.astimezone(to_zone)
-utc_pre_open = nyse_pre_open.astimezone(to_zone)
-utc_post_close = nyse_post_close.astimezone(to_zone)
-print(utc_pre_open, utc_open, utc_close, utc_post_close)
 
-date_open = utc_open.date()
-time_open = utc_open.time()
-date_close = utc_close.date()
-time_close = utc_close.time()
-date_pre_open = utc_pre_open.date()
-time_pre_open = utc_pre_open.time()
-date_post_close = utc_post_close.date()
-time_post_close = utc_post_close.time()
+def get_period(date, period_type=0):
+    if period_type == 0:
+        period_start = date + ' 09:30:00'
+        period_end = date + ' 16:00:00'
+    elif period_type == -1:
+        period_start = date + ' 00:00:00'
+        period_end = date + ' 09:30:00'
+    elif period_type == 1:
+        period_start = date + ' 16:00:00'
+        period_end = (datetime.strptime(date, '%Y-%m-%d') + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+    return {'start': convert_date(period_start), 'end': convert_date(period_end)}
 
-# q = session.query(Tweet) \
-#     .filter(Tweet.date == date_open) \
-#     .filter(Tweet.time >= time_open) \
-#     .filter(Tweet.time <= time_close)
 
-c_tag = '$AAPL'
+def get_tweets_in_period(c_tag, date, period_type=0):
+    period = get_period(date, period_type)
+    if period_type in (0, -1):
+        filter_period = and_(
+            Tweet.date == period['start'].date(),
+            Tweet.time >= period['start'].time(),
+            Tweet.time < period['end'].time())
+    elif period_type == 1:
+        start = and_(Tweet.date == period['start'].date(), Tweet.time >= period['start'].time()).self_group()
+        end = and_(Tweet.date == period['end'].date(), Tweet.time < period['end'].time()).self_group()
+        filter_period = or_(start, end)
+    tweets = session.query(TweetCashtags.tweet_id).join(Tweet) \
+        .filter(TweetCashtags.cashtags == c_tag) \
+        .filter(filter_period)
+    return [t[0] for t in tweets.all()]
 
-def count_period(c_tag, date):
-    pass
 
-q1 = session \
-            .query(Tweet.tweet_id) \
-            .join(TweetCashtags) \
-            .filter(TweetCashtags.cashtags == c_tag) \
-            .filter(Tweet.date == date_open) \
-            .filter(Tweet.time >= time_open) \
-            .filter(Tweet.time <= time_close)
+def get_users_count(tweet_list):
+    q = session.query(Tweet.user_id).filter(Tweet.tweet_id.in_(tweet_list)).group_by(Tweet.user_id)
+    return q.count()
 
-q2 = session \
-            .query(Tweet.tweet_id, Tweet.date, Tweet.time) \
-            .join(TweetCashtags) \
-            .filter(((Tweet.date == date_open) & (Tweet.time > time_close)) | ((Tweet.date == date_post_close) & (Tweet.time < time_post_close))) \
-            .order_by(Tweet.tweet_id)
-print(q2)
-for t in q2.all():
-    print(t.tweet_id, t.date, t.time)
+
+def get_retweet_count(tweet_list):
+    q = session.query(Tweet.tweet_id).filter(Tweet.tweet_id.in_(tweet_list)).filter(Tweet.retweet_status is True)
+    return q.count()
+
+
+def get_hashtag_count(tweet_list):
+    q = session.query(TweetHashtags.hashtags).filter(TweetHashtags.tweet_id.in_(tweet_list))
+    return q.count()
+
+
+def get_replys_count(tweet_list):
+    q = session.query(Tweet.tweet_id).filter(Tweet.tweet_id.in_(tweet_list)).filter(Tweet.reply_to > 0)
+    return q.count()
+
+
+def get_mentions_count(tweet_list):
+    q = session.query(TweetMentions.user_id).filter(TweetMentions.tweet_id.in_(tweet_list))
+    return q.count()
+
+
+date = '2016-12-29'
+# get_tweets_in_period('$AAPL', date, -1)
+tweets_count_list = get_tweets_in_period('$AAPL', date, 0)
+# get_tweets_in_period('$AAPL', date, 1)
+print(tweets_count_list)
+print(len(tweets_count_list))
+print(get_users_count(tweets_count_list))
+print(get_retweet_count(tweets_count_list))
+print(get_hashtag_count(tweets_count_list))
+print(get_replys_count(tweets_count_list))
+print(get_mentions_count(tweets_count_list))

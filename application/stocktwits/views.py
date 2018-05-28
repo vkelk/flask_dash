@@ -3,7 +3,7 @@ from flask_login import login_required
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from werkzeug.utils import secure_filename, CombinedMultiDict
-from application.config import Configuration
+from application.config import base_config
 from application.stocktwits import stocktwit
 from application.stocktwits.models import db, IdeaCashtags, IdeaHashtags, Ideas, User
 # from .forms import *

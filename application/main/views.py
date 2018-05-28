@@ -1,10 +1,12 @@
 from flask import render_template, url_for, current_app
-
+from flask_login import current_user
 from application.main import main
 
 
 @main.route('/')
 def home():
+    if current_user.is_authenticated:
+        print(current_user)
     return render_template('home.html')
 
 

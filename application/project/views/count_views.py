@@ -8,7 +8,7 @@ from flask import current_app, render_template, request, session
 from flask_login import current_user, login_required
 from sqlalchemy import or_, and_
 from werkzeug.utils import secure_filename, CombinedMultiDict
-from application import db, config
+from application import db
 from application.project import project
 from ..models import Project, Dataset, TradingDays
 from ..forms import CountsFileForm
@@ -59,12 +59,14 @@ def get_tweets_in_period(c_tag, date_input, period_type=0, date_joined=None, fol
             .filter(TweetCashtag.cashtags == c_tag) \
             .filter(filter_period)
     elif followers:
-        tweets = db.session.query(TweetCashtag.tweet_id).join(Tweet).join(UserCount, Tweet.user_id == UserCount.user_id) \
+        tweets = db.session.query(TweetCashtag.tweet_id) \
+            .join(Tweet).join(UserCount, Tweet.user_id == UserCount.user_id) \
             .filter(UserCount.follower >= followers) \
             .filter(TweetCashtag.cashtags == c_tag) \
             .filter(filter_period)
     elif following:
-        tweets = db.session.query(TweetCashtag.tweet_id).join(Tweet).join(UserCount, Tweet.user_id == UserCount.user_id) \
+        tweets = db.session.query(TweetCashtag.tweet_id) \
+            .join(Tweet).join(UserCount, Tweet.user_id == UserCount.user_id) \
             .filter(UserCount.following >= following) \
             .filter(TweetCashtag.cashtags == c_tag) \
             .filter(filter_period)
@@ -200,10 +202,10 @@ def counts_upload():
                 str(uuid.uuid4()) +
                 os.path.splitext(form.file_input.data.filename)[-1])
             form.file_input.data.save(
-                os.path.join(config.base_config.UPLOAD_FOLDER, file_input))
+                os.path.join(current_app.config['UPLOAD_FOLDER'], file_input))
             form.file_name.data = file_input
             df_in = dataframe_from_file(
-                os.path.join(config.base_config.UPLOAD_FOLDER, form.file_name.data))
+                os.path.join(current_app.config['UPLOAD_FOLDER'], form.file_name.data))
             if df_in is None or df_in.empty:
                 return render_template(
                     'project/counts_upload.html',
@@ -221,6 +223,8 @@ def counts_upload():
                     date_joined=form.date_joining.data,
                     followers=form.followers.data,
                     following=form.following.data)
+                df_in.at[index, 'database'] = form.dataset.data
+                df_in.at[index, 'day_status'] = form.days_status.data
                 df_in.at[index, 'opent tweets'] = str(len(tweets['open']))
                 df_in.at[index, 'opent users'] = str(get_users_count(tweets['open']))
                 df_in.at[index, 'opent retweets'] = str(get_retweet_count(tweets['open']))
@@ -242,7 +246,7 @@ def counts_upload():
 
             file_output = 'output_' + file_input
             file_output = file_output.replace('.xlsx', '.dta')
-            df_in.to_stata(os.path.join(config.base_config.UPLOAD_FOLDER, file_output), write_index=False)
+            df_in.to_stata(os.path.join(current_app.config['UPLOAD_FOLDER'], file_output), write_index=False)
             form.output_file.data = file_output
             project.file_output = file_output
             return render_template(

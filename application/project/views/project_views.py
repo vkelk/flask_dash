@@ -5,7 +5,7 @@ from datetime import timedelta
 import pandas as pd
 from pprint import pprint
 from sqlalchemy import func
-from flask import render_template, request, Markup, flash, redirect, url_for, session, jsonify, send_file
+from flask import render_template, request, Markup, flash, redirect, url_for, session, jsonify, send_file, current_app
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename, CombinedMultiDict
 from application import db, config
@@ -483,7 +483,7 @@ def getfile(filename):
     if not filename:
         return None
     return send_file(
-        'uploads/' + filename,
+        current_app.config['UPLOAD_FOLDER'] + filename,
         mimetype='text/csv',
         attachment_filename=filename,
         as_attachment=True)

@@ -91,7 +91,6 @@ def get_retweet_count(tweet_list):
 
 
 def get_hashtag_count(tweet_list):
-    pprint(tweet_list)
     q = db.session.query(TweetHashtag.hashtags).filter(TweetHashtag.tweet_id.in_(tweet_list))
     return q.count()
 
@@ -305,7 +304,6 @@ def counts_upload():
                 }
                 tweet_list = get_tweet_list(conditions)
                 for t in tweet_list:
-                    pprint(t)
                     df_output.at[index2, 'gvkey'] = str(row['gvkey'])
                     df_output.at[index2, 'database'] = 'twitter'
                     df_output.at[index2, 'day_status'] = t['day_status']

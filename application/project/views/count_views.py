@@ -292,7 +292,6 @@ def counts_upload():
             df_output = pd.DataFrame()
             index2 = 0
             for index, row in df_in.iterrows():
-                pprint(row)
                 conditions = {
                     'cashtag': row['cashtag'],
                     'date_from': form.date_start.data,

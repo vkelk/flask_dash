@@ -91,6 +91,7 @@ def get_retweet_count(tweet_list):
 
 
 def get_hashtag_count(tweet_list):
+    pprint(tweet_list)
     q = db.session.query(TweetHashtag.hashtags).filter(TweetHashtag.tweet_id.in_(tweet_list))
     return q.count()
 
@@ -114,21 +115,6 @@ def dataframe_from_file(filename):
         return df
     # TODO: Create import from CSV
     return None
-
-
-def get_tweet_ids(c):
-    datetime_start = convert_date(c['date_from'] + ' ' + c['time_from'])
-    datetime_end = convert_date(c['date_to'] + ' ' + c['time_to'])
-    filter_period = text(
-        "fintweet.tweet.date + fintweet.tweet.time between timestamp '"
-        + str(datetime_start)
-        + "' and timestamp '"
-        + str(datetime_end)
-        + "'")
-    tweets = session.query(TweetCashtag.tweet_id).join(Tweet) \
-        .filter(TweetCashtag.cashtags == c['cashtag']) \
-        .filter(filter_period)
-    return [t[0] for t in tweets.all()]
 
 
 def get_all_tweet_ids(cashtag, date_from, date_to, dates='all', date_joined=None, followers=None, following=None):
@@ -202,6 +188,82 @@ def get_all_tweet_ids(cashtag, date_from, date_to, dates='all', date_joined=None
     return tweets
 
 
+def get_tweet_list(c):
+    '''
+    Input dict should follow this format
+    conditions = {
+        'cashtag': string,
+        'date_from': date_string,
+        'date_to': date_string,
+        'time_from': time_string,
+        'time_to': time_string,
+        'day_status': string: 'all', 'trading', 'non-trading'
+        'date_joined': date_string,
+        'followers': integer,
+        'following': integer,
+    }
+    '''
+    date_delta = c['date_to'] - c['date_from']
+    trading_days = db.session.query(TradingDays.date) \
+        .filter(TradingDays.is_trading == True) \
+        .filter(TradingDays.date.between(c['date_from'], c['date_to']))
+    days_list = [d[0] for d in trading_days.all()]
+    result = []
+    for i in range(date_delta.days + 1):
+        date_input = (c['date_from'] + timedelta(days=i))
+        c['date_input'] = date_input
+        day = {}
+        if c['day_status'] in ['trading', 'all'] and date_input in days_list:
+            day['date'] = date_input
+            day['day_status'] = 'trading'
+            day['cashtag'] = c['cashtag']
+            day['tweet_ids'] = get_tweet_ids(c)
+            day['tweets_count'] = len(day['tweet_ids'])
+            result.append(day)
+        elif c['day_status'] in ['non-trading', 'all'] and date_input not in days_list:
+            day['date'] = date_input
+            day['day_status'] = 'non-trading'
+            day['cashtag'] = c['cashtag']
+            day['tweet_ids'] = get_tweet_ids(c)
+            day['tweets_count'] = len(day['tweet_ids'])
+            result.append(day)
+    return result
+
+
+def get_tweet_ids(c):
+    date_input = c['date_input'].strftime("%Y-%m-%d")
+    if c['date_from'] == c['date_to']:
+        datetime_start = convert_date(c['date_from'] + ' ' + c['time_from'])
+        datetime_end = convert_date(c['date_to'] + ' ' + c['time_to'])
+    elif c['date_from'] == date_input:
+        datetime_start = convert_date(c['date_from'] + ' ' + c['time_from'])
+        datetime_end = convert_date(c['date_from'] + ' ' + '23:59:59')
+    elif c['date_to'] == date_input:
+        datetime_start = convert_date(c['date_to'] + ' ' + '00:00:00')
+        datetime_end = convert_date(c['date_to'] + ' ' + c['time_to'])
+    else:
+        datetime_start = convert_date(date_input + ' ' + '00:00:00')
+        datetime_end = convert_date(date_input + ' ' + '23:59:59')
+    filter_period = text(
+        "fintweet.tweet.date + fintweet.tweet.time between timestamp '"
+        + str(datetime_start)
+        + "' and timestamp '"
+        + str(datetime_end)
+        + "'")
+    tweets = db.session.query(TweetCashtag.tweet_id).join(Tweet) \
+        .filter(TweetCashtag.cashtags == c['cashtag']) \
+        .filter(filter_period)
+    if 'date_joined' in c and c['date_joined']:
+        tweets = tweets.join(User).filter(User.date_joined >= c['date_joined'])
+    if 'following' in c and c['following']:
+        tweets = tweets.join(UserCount, Tweet.user_id == UserCount.user_id) \
+            .filter(UserCount.following >= c['following'])
+    if 'followers' in c and c['followers']:
+        tweets = tweets.join(UserCount, Tweet.user_id == UserCount.user_id) \
+            .filter(UserCount.follower >= c['followers'])
+    return [t[0] for t in tweets.all()]
+
+
 @project.route('/counts_upload', methods=['GET', 'POST'])
 @login_required
 def counts_upload():
@@ -227,48 +289,47 @@ def counts_upload():
                     form=form,
                     project=project,
                     df_in=df_in.to_html(classes='table table-striped'))
+            df_output = pd.DataFrame()
+            index2 = 0
             for index, row in df_in.iterrows():
-                date_from = form.date_start.data
-                date_to = form.date_end.data
-                time_from = form.time_start.data
-                time_to = form.time_end.data
-                cashtag = row['cashtag']
-                tweets = get_all_tweet_ids(
-                    cashtag, date_from, date_to, form.days_status.data,
-                    date_joined=form.date_joining.data,
-                    followers=form.followers.data,
-                    following=form.following.data)
-                df_in.at[index, 'database'] = form.dataset.data
-                df_in.at[index, 'day_status'] = form.days_status.data
-                df_in.at[index, 'opent tweets'] = str(len(tweets['open']))
-                df_in.at[index, 'opent users'] = str(get_users_count(tweets['open']))
-                df_in.at[index, 'opent retweets'] = str(get_retweet_count(tweets['open']))
-                df_in.at[index, 'opent hashtags'] = str(get_hashtag_count(tweets['open']))
-                df_in.at[index, 'opent replys'] = str(get_replys_count(tweets['open']))
-                df_in.at[index, 'opent mentions'] = str(get_mentions_count(tweets['open']))
-                df_in.at[index, 'pret tweets'] = str(len(tweets['pre']))
-                df_in.at[index, 'pret users'] = str(get_users_count(tweets['pre']))
-                df_in.at[index, 'pret retweets'] = str(get_retweet_count(tweets['pre']))
-                df_in.at[index, 'pret hashtags'] = str(get_hashtag_count(tweets['pre']))
-                df_in.at[index, 'pret replys'] = str(get_replys_count(tweets['pre']))
-                df_in.at[index, 'pret mentions'] = str(get_mentions_count(tweets['pre']))
-                df_in.at[index, 'postt tc'] = str(len(tweets['post']))
-                df_in.at[index, 'postt users'] = str(get_users_count(tweets['post']))
-                df_in.at[index, 'postt retweets'] = str(get_retweet_count(tweets['post']))
-                df_in.at[index, 'postt hashtags'] = str(get_hashtag_count(tweets['post']))
-                df_in.at[index, 'postt replys'] = str(get_replys_count(tweets['post']))
-                df_in.at[index, 'postt mentions'] = str(get_mentions_count(tweets['post']))
-
+                pprint(row)
+                conditions = {
+                    'cashtag': row['cashtag'],
+                    'date_from': form.date_start.data,
+                    'date_to': form.date_end.data,
+                    'time_from': form.time_start.data,
+                    'time_to': form.time_end.data,
+                    'day_status': form.days_status.data,
+                    'date_joined': form.date_joining.data,
+                    'followers': form.followers.data,
+                    'following': form.following.data,
+                }
+                tweet_list = get_tweet_list(conditions)
+                for t in tweet_list:
+                    pprint(t)
+                    df_output.at[index2, 'gvkey'] = str(row['gvkey'])
+                    df_output.at[index2, 'database'] = 'twitter'
+                    df_output.at[index2, 'day_status'] = t['day_status']
+                    df_output.at[index2, 'date'] = str(t['date'])
+                    df_output.at[index2, 'cashtag'] = row['cashtag']
+                    df_output.at[index2, 'tweets'] = str(t['tweets_count'])
+                    df_output.at[index2, 'retweets'] = str(get_retweet_count(t['tweet_ids']))
+                    df_output.at[index2, 'replies'] = str(get_replys_count(t['tweet_ids']))
+                    df_output.at[index2, 'users'] = str(get_users_count(t['tweet_ids']))
+                    df_output.at[index2, 'mentions'] = str(get_mentions_count(t['tweet_ids']))
+                    df_output.at[index2, 'hashtags'] = str(get_hashtag_count(t['tweet_ids']))
+                    index2 += 1
             file_output = 'output_' + file_input
             file_output = file_output.replace('.xlsx', '.dta')
-            df_in.to_stata(os.path.join(current_app.config['UPLOAD_FOLDER'], file_output), write_index=False)
+            df_output.to_stata(os.path.join(current_app.config['UPLOAD_FOLDER'], file_output), write_index=False)
             form.output_file.data = file_output
             project.file_output = file_output
             return render_template(
                 'project/counts_upload.html',
                 form=form,
                 project=project,
-                df_in=df_in.to_html(classes='table table-striped'))
+                df_in=df_output.to_html(classes='table table-striped')
+                )
 
     if len(form.errors) > 0:
         pprint(form.errors)

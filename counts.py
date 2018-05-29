@@ -4,7 +4,7 @@ from pprint import pprint
 
 from sqlalchemy import or_, and_, text
 
-from fintweet.models import Session, Tweet, TweetCashtags, TweetHashtags, TweetMentions
+from fintweet.models import Session, Tweet, TweetCashtags, TweetHashtags, TweetMentions, User, UserCount
 from application.project.models import TradingDays
 
 session = Session()
@@ -93,29 +93,42 @@ def get_tweet_list(c):
         .filter(TradingDays.is_trading == True) \
         .filter(TradingDays.date.between(c['date_from'], c['date_to']))
     days_list = [d[0] for d in trading_days.all()]
+    result = []
     for i in range(date_delta.days + 1):
         date_input = (datetime.strptime(c['date_from'], '%Y-%m-%d') + timedelta(days=i)).date()
         c['date_input'] = date_input
-        if c['day_status'] in ['trading', 'non-trading']:
-            if c['day_status'] == 'trading' and date_input in days_list:
-                ll = get_tweet_ids(c)
-    return ll
+        day = {}
+        # if c['day_status'] in ['trading', 'non-trading']:
+        if c['day_status'] in ['trading', 'all'] and date_input in days_list:
+            day['date'] = date_input
+            day['day_status'] = 'trading'
+            day['tweet_ids'] = get_tweet_ids(c)
+            result.append(day)
+        elif c['day_status'] in ['non-trading', 'all'] and date_input not in days_list:
+            day['date'] = date_input
+            day['day_status'] = 'non-trading'
+            day['tweet_ids'] = get_tweet_ids(c)
+            result.append(day)
+        else:
+            print('Skipping date', date_input)
+    return result
 
 
 def get_tweet_ids(c):
+    date_input = c['date_input'].strftime("%Y-%m-%d")
     if c['date_from'] == c['date_to']:
         print('same day')
         datetime_start = convert_date(c['date_from'] + ' ' + c['time_from'])
         datetime_end = convert_date(c['date_to'] + ' ' + c['time_to'])
-    elif c['date_from'] == c['date_input'].strftime("%Y-%m-%d"):
+    elif c['date_from'] == date_input:
         datetime_start = convert_date(c['date_from'] + ' ' + c['time_from'])
         datetime_end = convert_date(c['date_from'] + ' ' + '23:59:59')
-    elif c['date_to'] == c['date_input'].strftime("%Y-%m-%d"):
+    elif c['date_to'] == date_input:
         datetime_start = convert_date(c['date_to'] + ' ' + '00:00:00')
         datetime_end = convert_date(c['date_to'] + ' ' + c['time_to'])
     else:
-        datetime_start = convert_date(c['date_from'] + ' ' + '00:00:00')
-        datetime_end = convert_date(c['date_to'] + ' ' + '23:59:59')
+        datetime_start = convert_date(date_input + ' ' + '00:00:00')
+        datetime_end = convert_date(date_input + ' ' + '23:59:59')
     print(datetime_start, datetime_end)
     filter_period = text(
         "fintweet.tweet.date + fintweet.tweet.time between timestamp '"
@@ -126,17 +139,27 @@ def get_tweet_ids(c):
     tweets = session.query(TweetCashtags.tweet_id).join(Tweet) \
         .filter(TweetCashtags.cashtags == c['cashtag']) \
         .filter(filter_period)
+    if 'date_joined' in c:
+        tweets = tweets.join(User).filter(User.date_joined >= c['date_joined'])
+    if 'following' in c:
+        tweets = tweets.join(UserCount, Tweet.user_id == UserCount.user_id).filter(UserCount.following >= c['following'])
+    if 'followers' in c:
+        tweets = tweets.join(UserCount, Tweet.user_id == UserCount.user_id).filter(UserCount.follower >= c['followers'])
     # print(tweets)
+    # print([[t[0] for t in tweets.all()]])
     return [t[0] for t in tweets.all()]
 
 
 conditions = {
     'cashtag': '$AAPL',
-    'date_from': '2016-12-01',
-    'date_to': '2016-12-05',
-    'time_from': '09:00:00',
-    'time_to': '10:30:00',
-    'day_status': 'trading',
+    'date_from': '2016-12-09',
+    'date_to': '2016-12-12',
+    'time_from': '09:30:00',
+    'time_to': '16:00:00',
+    'day_status': 'all',
+    'date_joined': '2015-01-01',
+    'followers': 100,
+    'following': 1000
 }
 
 # date = '2016-12-01'
@@ -144,10 +167,12 @@ conditions = {
 # tweets_count_list = get_tweets_in_period('$AAPL', date, 0)
 tweets_count_list = get_tweet_list(conditions)
 # get_tweets_in_period('$AAPL', date, 1)
-print(tweets_count_list)
-print('tweets', len(tweets_count_list))
-print('users', get_users_count(tweets_count_list))
-print('retweet', get_retweet_count(tweets_count_list))
-print('hashtags', get_hashtag_count(tweets_count_list))
-print('replys', get_replys_count(tweets_count_list))
-print('mentions', get_mentions_count(tweets_count_list))
+# pprint(tweets_count_list)
+for d in tweets_count_list:
+    print(str(d['date']), len(d['tweet_ids']))
+# print('tweets', len(tweets_count_list))
+# print('users', get_users_count(tweets_count_list))
+# print('retweet', get_retweet_count(tweets_count_list))
+# print('hashtags', get_hashtag_count(tweets_count_list))
+# print('replys', get_replys_count(tweets_count_list))
+# print('mentions', get_mentions_count(tweets_count_list))

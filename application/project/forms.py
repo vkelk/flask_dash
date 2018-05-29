@@ -1,5 +1,4 @@
 from datetime import datetime, time
-from flask import current_app
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 from wtforms import StringField, DateField, SubmitField, SelectField, HiddenField, IntegerField, RadioField, \
@@ -86,8 +85,8 @@ class CountsFileForm(FlaskForm):
         choices=[('twitter', 'Twitter'), ('stocktwits', 'Stocktwits'), ('fintweet', 'Fintweet')])
     date_start = DateField('Date start:', validators=[DataRequired()])
     date_end = DateField('Date end', validators=[DataRequired()])
-    time_start = TimeField('start', default=time(9, 30))
-    time_end = TimeField('end', default=time(16, 0))
+    time_start = TimeField('start', default=time(9, 30, 0))
+    time_end = TimeField('end', default=time(16, 0, 0))
     days_status = SelectField(
         "Select days",
         validators=[DataRequired()],

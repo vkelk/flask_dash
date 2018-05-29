@@ -6,7 +6,7 @@ from pprint import pprint
 import uuid
 from flask import current_app, render_template, request, session
 from flask_login import current_user, login_required
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, text
 from werkzeug.utils import secure_filename, CombinedMultiDict
 from application import db
 from application.project import project
@@ -114,6 +114,21 @@ def dataframe_from_file(filename):
         return df
     # TODO: Create import from CSV
     return None
+
+
+def get_tweet_ids(c):
+    datetime_start = convert_date(c['date_from'] + ' ' + c['time_from'])
+    datetime_end = convert_date(c['date_to'] + ' ' + c['time_to'])
+    filter_period = text(
+        "fintweet.tweet.date + fintweet.tweet.time between timestamp '"
+        + str(datetime_start)
+        + "' and timestamp '"
+        + str(datetime_end)
+        + "'")
+    tweets = session.query(TweetCashtag.tweet_id).join(Tweet) \
+        .filter(TweetCashtag.cashtags == c['cashtag']) \
+        .filter(filter_period)
+    return [t[0] for t in tweets.all()]
 
 
 def get_all_tweet_ids(cashtag, date_from, date_to, dates='all', date_joined=None, followers=None, following=None):

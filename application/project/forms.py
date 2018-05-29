@@ -7,7 +7,7 @@ from wtforms import StringField, DateField, SubmitField, SelectField, HiddenFiel
 from wtforms_components import TimeField
 from wtforms.validators import DataRequired, NumberRange, Optional
 from wtforms.widgets import TextArea
-# from application.config import base_config
+from application.config import base_config
 
 
 class NewProjectForm(FlaskForm):
@@ -72,7 +72,7 @@ class EventStudyFileForm(FlaskForm):
                                         validators=[DataRequired()])
 
     file_input = FileField(
-        validators=[FileRequired(), FileAllowed(current_app.config['ALLOWED_EXTENSIONS'], 'Text data files only!')])
+        validators=[FileRequired(), FileAllowed(base_config.ALLOWED_EXTENSIONS, 'Text data files only!')])
     file_name = HiddenField()
     output_file = HiddenField()
 
@@ -104,7 +104,7 @@ class CountsFileForm(FlaskForm):
     followers = IntegerField('Followers', default=None, validators=[Optional()])
     following = IntegerField('Following', default=None, validators=[Optional()])
     file_input = FileField(
-        validators=[FileRequired(), FileAllowed(current_app.config['ALLOWED_EXTENSIONS'], 'Text data files only!')])
+        validators=[FileRequired(), FileAllowed(base_config.ALLOWED_EXTENSIONS, 'Text data files only!')])
     file_name = HiddenField()
     output_file = HiddenField()
 

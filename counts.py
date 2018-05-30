@@ -162,14 +162,15 @@ conditions = {
     'following': 1000
 }
 
-# date = '2016-12-01'
+date1 = '2012-01-01 00:00:00'
+print(convert_date(date1))
 # get_tweets_in_period('$AAPL', date, -1)
 # tweets_count_list = get_tweets_in_period('$AAPL', date, 0)
-tweets_count_list = get_tweet_list(conditions)
+# tweets_count_list = get_tweet_list(conditions)
 # get_tweets_in_period('$AAPL', date, 1)
 # pprint(tweets_count_list)
-for d in tweets_count_list:
-    print(str(d['date']), len(d['tweet_ids']))
+# for d in tweets_count_list:
+    # print(str(d['date']), len(d['tweet_ids']))
 # print('tweets', len(tweets_count_list))
 # print('users', get_users_count(tweets_count_list))
 # print('retweet', get_retweet_count(tweets_count_list))

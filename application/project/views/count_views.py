@@ -232,14 +232,14 @@ def get_tweet_list(c):
 def get_tweet_ids(c):
     date_input = c['date_input'].strftime("%Y-%m-%d")
     if c['date_from'] == c['date_to']:
-        datetime_start = convert_date(c['date_from'] + ' ' + c['time_from'])
-        datetime_end = convert_date(c['date_to'] + ' ' + c['time_to'])
-    elif c['date_from'] == date_input:
-        datetime_start = convert_date(c['date_from'] + ' ' + c['time_from'])
-        datetime_end = convert_date(c['date_from'] + ' ' + '23:59:59')
-    elif c['date_to'] == date_input:
-        datetime_start = convert_date(c['date_to'] + ' ' + '00:00:00')
-        datetime_end = convert_date(c['date_to'] + ' ' + c['time_to'])
+        datetime_start = convert_date(c['date_from'].strftime("%Y-%m-%d") + ' ' + c['time_from'].strftime("%H:%M:%S"))
+        datetime_end = convert_date(c['date_to'].strftime("%Y-%m-%d") + ' ' + c['time_to'].strftime("%H:%M:%S"))
+    elif c['date_from'].strftime("%Y-%m-%d") == date_input:
+        datetime_start = convert_date(c['date_from'].strftime("%Y-%m-%d") + ' ' + c['time_from'].strftime("%H:%M:%S"))
+        datetime_end = convert_date(c['date_from'].strftime("%Y-%m-%d") + ' ' + '23:59:59')
+    elif c['date_to'].strftime("%Y-%m-%d") == date_input:
+        datetime_start = convert_date(c['date_to'].strftime("%Y-%m-%d") + ' ' + '00:00:00')
+        datetime_end = convert_date(c['date_to'].strftime("%Y-%m-%d") + ' ' + c['time_to'].strftime("%H:%M:%S"))
     else:
         datetime_start = convert_date(date_input + ' ' + '00:00:00')
         datetime_end = convert_date(date_input + ' ' + '23:59:59')

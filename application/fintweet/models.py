@@ -229,9 +229,16 @@ class TopUsers(db.Model):
     __table_args__ = {"schema": "fintweet"}
 
     user_id = db.Column(db.BigInteger, primary_key=True)
-    # user_id = db.relationship(User, backref=db.backref('User', uselist=False))
     twitter_handle = db.Column(db.String(120))
     tweets_count = db.Column(db.Integer)
 
-    # users = db.relationship('User', primaryjoin='foreign(TopUsers.user_id) == remote(User.user_id)')
-    # users = db.relationship("TopUsers", primaryjoin='TopUsers.user_id==User.user_id', viewonly=True)
+
+class mvCashtags(db.Model):
+    __tablename__ = 'mv_cashtags'
+    __table_args__ = {"schema": "fintweet"}
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    tweet_id = db.Column(db.BigInteger)
+    user_id = db.Column(db.BigInteger)
+    cashtags = db.Column(db.String(120))
+    datetime = db.Column(db.DateTime)

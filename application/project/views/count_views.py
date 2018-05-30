@@ -6,14 +6,14 @@ from pprint import pprint
 import uuid
 from flask import current_app, render_template, request, session
 from flask_login import current_user, login_required
-from sqlalchemy import or_, and_, text
+from sqlalchemy import or_, and_, text, func
 from werkzeug.utils import secure_filename, CombinedMultiDict
 from application import db
 from application.project import project
 from ..models import Project, Dataset, TradingDays
 from ..forms import CountsFileForm
 from ..helpers import slugify
-from application.fintweet.models import Tweet, TweetCashtag, TweetHashtag, TweetMention, User, UserCount
+from application.fintweet.models import Tweet, TweetCashtag, TweetHashtag, TweetMention, User, UserCount, mvCashtags
 
 
 ZONE_NY = tz.gettz('America/New_York')
@@ -78,31 +78,31 @@ def get_tweets_in_period(c_tag, date_input, period_type=0, date_joined=None, fol
 
 
 def get_users_count(tweet_list):
-    q = db.session.query(Tweet.user_id).filter(Tweet.tweet_id.in_(tweet_list)).group_by(Tweet.user_id)
-    return q.count()
+    q = db.session.query(mvCashtags.user_id).filter(mvCashtags.tweet_id.in_(tweet_list)).group_by(mvCashtags.user_id)
+    return len(q.all())
 
 
 def get_retweet_count(tweet_list):
     true_list = ['1', 'True', 'true']
-    q = db.session.query(Tweet.tweet_id) \
+    q = db.session.query(func.count(Tweet.tweet_id)) \
         .filter(Tweet.tweet_id.in_(tweet_list)) \
         .filter(Tweet.retweet_status.in_(true_list))
-    return q.count()
+    return q.scalar()
 
 
 def get_hashtag_count(tweet_list):
-    q = db.session.query(TweetHashtag.hashtags).filter(TweetHashtag.tweet_id.in_(tweet_list))
-    return q.count()
+    q = db.session.query(func.count(TweetHashtag.hashtags)).filter(TweetHashtag.tweet_id.in_(tweet_list))
+    return q.scalar()
 
 
 def get_replys_count(tweet_list):
-    q = db.session.query(Tweet.tweet_id).filter(Tweet.tweet_id.in_(tweet_list)).filter(Tweet.reply_to > 0)
-    return q.count()
+    q = db.session.query(func.count(Tweet.tweet_id)).filter(Tweet.tweet_id.in_(tweet_list)).filter(Tweet.reply_to > 0)
+    return q.scalar()
 
 
 def get_mentions_count(tweet_list):
-    q = db.session.query(TweetMention.user_id).filter(TweetMention.tweet_id.in_(tweet_list))
-    return q.count()
+    q = db.session.query(func.count(TweetMention.user_id)).filter(TweetMention.tweet_id.in_(tweet_list))
+    return q.scalar()
 
 
 def dataframe_from_file(filename):
@@ -249,16 +249,16 @@ def get_tweet_ids(c):
         + "' and timestamp '"
         + str(datetime_end)
         + "'")
-    tweets = db.session.query(TweetCashtag.tweet_id).join(Tweet) \
-        .filter(TweetCashtag.cashtags == c['cashtag']) \
-        .filter(filter_period)
+    tweets = db.session.query(mvCashtags.tweet_id) \
+        .filter(mvCashtags.cashtags == c['cashtag']) \
+        .filter(mvCashtags.datetime.between(datetime_start, datetime_end))
     if 'date_joined' in c and c['date_joined']:
-        tweets = tweets.join(User).filter(User.date_joined >= c['date_joined'])
+        tweets = tweets.join(User, mvCashtags.user_id == User.user_id).filter(User.date_joined >= c['date_joined'])
     if 'following' in c and c['following']:
-        tweets = tweets.join(UserCount, Tweet.user_id == UserCount.user_id) \
+        tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
             .filter(UserCount.following >= c['following'])
     if 'followers' in c and c['followers']:
-        tweets = tweets.join(UserCount, Tweet.user_id == UserCount.user_id) \
+        tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
             .filter(UserCount.follower >= c['followers'])
     return [t[0] for t in tweets.all()]
 

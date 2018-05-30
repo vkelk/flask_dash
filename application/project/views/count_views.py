@@ -84,8 +84,9 @@ def get_users_count(tweet_list):
 
 def get_retweet_count(tweet_list):
     true_list = ['1', 'True', 'true']
-    q = db.session.query(func.count(Tweet.tweet_id)) \
-        .filter(Tweet.tweet_id.in_(tweet_list)) \
+    q = db.session.query(func.count(mvCashtags.tweet_id)) \
+        .join(Tweet, mvCashtags.tweet_id == Tweet.tweet_id) \
+        .filter(mvCashtags.tweet_id.in_(tweet_list)) \
         .filter(Tweet.retweet_status.in_(true_list))
     return q.scalar()
 

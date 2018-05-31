@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta, date
 from dateutil import tz
+from multiprocessing import Pool
 import os
 import pandas as pd
 from pprint import pprint
 import uuid
-from flask import current_app, render_template, request, session
+from flask import current_app, render_template, request, session, Markup, flash
 from flask_login import current_user, login_required
 from sqlalchemy import or_, and_, text, func
 from werkzeug.utils import secure_filename, CombinedMultiDict
@@ -18,6 +19,8 @@ from application.fintweet.models import Tweet, TweetCashtag, TweetHashtag, Tweet
 
 ZONE_NY = tz.gettz('America/New_York')
 ZONE_UTC = tz.gettz('UTC')
+
+_pool = None
 
 
 def convert_date(input_dt, zone_from=ZONE_NY, zone_to=ZONE_UTC):
@@ -110,9 +113,9 @@ def dataframe_from_file(filename):
     ext = os.path.splitext(filename)[1]
     if ext in ['.xls', '.xlsx']:
         df = pd.read_excel(filename)
-        df.columns = [slugify(col) for col in df.columns]
-        df["status"] = ""
-        return df
+        df.columns = [slugify(col.strip()) for col in df.columns]
+        if 'cashtag' in df.columns and 'gvkey' in df.columns:
+            return df
     # TODO: Create import from CSV
     return None
 
@@ -284,11 +287,13 @@ def counts_upload():
             df_in = dataframe_from_file(
                 os.path.join(current_app.config['UPLOAD_FOLDER'], form.file_name.data))
             if df_in is None or df_in.empty:
+                message = Markup(
+                    "<strong>Error!</strong> Incorrect input file format. <br>The input file should only contain two columns: 'gvkey' and 'cashtag'")
+                flash(message, 'danger')
                 return render_template(
                     'project/counts_upload.html',
                     form=form,
-                    project=project,
-                    df_in=df_in.to_html(classes='table table-striped'))
+                    project=project)
             df_output = pd.DataFrame()
             index2 = 0
             for index, row in df_in.iterrows():

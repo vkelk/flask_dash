@@ -17,7 +17,7 @@ pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".fo
 db_engine = create_engine(pg_dsn, pool_size=100, max_overflow=0)
 fintweet_meta = MetaData(bind=db_engine, schema="fintweet")
 Session = sessionmaker(bind=db_engine, autoflush=False)
-ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+# ScopedSession = scoped_session(sessionmaker(bind=db_engine))
 # ScopedSession = scoped_session(sessionmaker(bind=db_engine, autoflush=False))
 ScopedSessionAuto = scoped_session(sessionmaker(bind=db_engine, autocommit=True, autoflush=False))
 ZONE_NY = tz.gettz('America/New_York')
@@ -63,43 +63,50 @@ class mvCashtags(Base):
     datetime = Column(DateTime)
 
 
-def get_users_count(tweet_list):
-    q = ScopedSession.query(mvCashtags.user_id).filter(mvCashtags.tweet_id.in_(tweet_list)).group_by(mvCashtags.user_id)
+def get_users_count(tweet_list, sess):
+    session = sess()
+    q = session.query(mvCashtags.user_id).filter(mvCashtags.tweet_id.in_(tweet_list)).group_by(mvCashtags.user_id)
     return len(q.all())
 
 
-def get_retweet_count(tweet_list):
+def get_retweet_count(tweet_list, sess):
     true_list = ['1', 'True', 'true']
-    q = ScopedSession.query(func.count(mvCashtags.tweet_id)) \
+    session = sess()
+    q = session.query(func.count(mvCashtags.tweet_id)) \
         .join(Tweet, mvCashtags.tweet_id == Tweet.tweet_id) \
         .filter(mvCashtags.tweet_id.in_(tweet_list)) \
         .filter(Tweet.retweet_status.in_(true_list))
     return q.scalar()
 
 
-def get_hashtag_count(tweet_list):
-    q = ScopedSession.query(func.count(TweetHashtag.hashtags)).filter(TweetHashtag.tweet_id.in_(tweet_list))
+def get_hashtag_count(tweet_list, sess):
+    session = sess()
+    q = session.query(func.count(TweetHashtag.hashtags)).filter(TweetHashtag.tweet_id.in_(tweet_list))
     return q.scalar()
 
 
-def get_replys_count(tweet_list):
-    q = ScopedSession.query(func.count(Tweet.tweet_id)).filter(Tweet.tweet_id.in_(tweet_list)) \
+def get_replys_count(tweet_list, sess):
+    session = sess()
+    q = session.query(func.count(Tweet.tweet_id)).filter(Tweet.tweet_id.in_(tweet_list)) \
         .filter(Tweet.reply_to > 0)
     return q.scalar()
 
 
-def get_mentions_count(tweet_list):
-    q = ScopedSession.query(func.count(TweetMention.user_id)).filter(TweetMention.tweet_id.in_(tweet_list))
+def get_mentions_count(tweet_list, sess):
+    session = sess()
+    q = session.query(func.count(TweetMention.user_id)).filter(TweetMention.tweet_id.in_(tweet_list))
     return q.scalar()
 
 
 def load_counts(t):
     try:
-        t['retweets'] = get_retweet_count(t['tweet_ids'])
-        t['replies'] = get_replys_count(t['tweet_ids'])
-        t['users'] = get_users_count(t['tweet_ids'])
-        t['mentions'] = get_mentions_count(t['tweet_ids'])
-        t['hashtags'] = get_hashtag_count(t['tweet_ids'])
+        ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+        t['retweets'] = get_retweet_count(t['tweet_ids'], ScopedSession)
+        t['replies'] = get_replys_count(t['tweet_ids'], ScopedSession)
+        t['users'] = get_users_count(t['tweet_ids'], ScopedSession)
+        t['mentions'] = get_mentions_count(t['tweet_ids'], ScopedSession)
+        t['hashtags'] = get_hashtag_count(t['tweet_ids'], ScopedSession)
+        ScopedSession.remove()
     except Exception as e:
         fname = sys._getframe().f_code.co_name
         print(fname, type(e), str(e))
@@ -108,6 +115,7 @@ def load_counts(t):
 
 
 def get_tweet_ids(c):
+    ScopedSession = scoped_session(sessionmaker(bind=db_engine))
     date_input = c['date_input'].strftime("%Y-%m-%d")
     if c['date_from'] == c['date_to']:
         datetime_start = convert_date(c['date_from'].strftime("%Y-%m-%d") + ' ' + c['time_from'].strftime("%H:%M:%S"))
@@ -139,6 +147,7 @@ def get_tweet_ids(c):
             'day_status': c['day_status'],
             'cashtag': c['cashtag']
             }
+        ScopedSession.remove()
     except Exception as e:
         fname = sys._getframe().f_code.co_name
         print(fname, type(e), str(e))

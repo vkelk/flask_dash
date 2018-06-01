@@ -196,9 +196,9 @@ def counts_upload():
             file_output = file_output.replace('.xlsx', '.dta')
             file_hashtags = 'hashtags_' + file_input
             file_hashtags = file_hashtags.replace('.xlsx', '.dta')
-            file_mentions = 'hashtags_' + file_input
+            file_mentions = 'mentions_' + file_input
             file_mentions = file_mentions.replace('.xlsx', '.dta')
-            file_users = 'hashtags_' + file_input
+            file_users = 'users_' + file_input
             file_users = file_users.replace('.xlsx', '.dta')
             df_output.to_stata(os.path.join(current_app.config['UPLOAD_FOLDER'], file_output), write_index=False)
             df_hashtags.to_stata(os.path.join(current_app.config['UPLOAD_FOLDER'], file_hashtags), write_index=False)

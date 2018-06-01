@@ -72,17 +72,19 @@ def get_tweet_list(c):
             cn['day_status'] = 'non-trading'
         result.append(cn)
     res_list = []
+    full_list = []
     with cf.ThreadPoolExecutor(max_workers=32) as executor:
         future_to_tweet = {executor.submit(get_tweet_ids, i): i for i in result}
         for future in cf.as_completed(future_to_tweet):
             try:
                 tw = future.result()
                 tw['tweets_count'] = len(tw['tweet_ids'])
+                full_list.extend(tw['tweet_ids'])
                 res_list.append(tw)
             except Exception as e:
                 fname = sys._getframe().f_code.co_name
                 print(fname, type(e), str(e))
-    return res_list
+    return res_list, full_list
 
 
 @project.route('/counts_upload', methods=['GET', 'POST'])
@@ -115,7 +117,14 @@ def counts_upload():
                     project=project)
             df_output = pd.DataFrame()
             index2 = 0
+            user_listodf = []
+            mentions_listodf = []
+            hashtags_listodf = []
+            
             for index, row in df_in.iterrows():
+                users = {}
+                mentions = {}
+                hashtags = {}
                 conditions = {
                     'cashtag': row['cashtag'],
                     'date_from': form.date_start.data,
@@ -127,7 +136,9 @@ def counts_upload():
                     'followers': form.followers.data,
                     'following': form.following.data,
                 }
-                tweet_list = get_tweet_list(conditions)
+                tweet_list, full_tweet_list = get_tweet_list(conditions)
+
+                # pprint(full_tweet_list)
                 with cf.ThreadPoolExecutor(max_workers=32) as executor:
                     future_to_tweet = {executor.submit(load_counts, t): t for t in tweet_list}
                     for future in cf.as_completed(future_to_tweet):
@@ -145,9 +156,34 @@ def counts_upload():
                             df_output.at[index2, 'mentions'] = str(t['mentions'])
                             df_output.at[index2, 'hashtags'] = str(t['hashtags'])
                             index2 += 1
+                            # print(t['users_list'])
+                            for di in t['users_list']:
+                                if di['user_id'] in users.keys():
+                                    users[di['user_id']] = users[di['user_id']] + di['counts']
+                                else:
+                                    users[di['user_id']] = di['counts']
+                            for di in t['mentions_list']:
+                                if di['mention'] in mentions.keys():
+                                    mentions[di['mention']] = mentions[di['mention']] + di['counts']
+                                else:
+                                    mentions[di['mention']] = di['counts']
+                            for di in t['hashtags_list']:
+                                if di['hashtag'] in hashtags.keys():
+                                    hashtags[di['hashtag']] = hashtags[di['hashtag']] + di['counts']
+                                else:
+                                    hashtags[di['hashtag']] = di['counts']
+                                
                         except Exception as e:
                             fname = sys._getframe().f_code.co_name
                             print(fname, type(e), str(e))
+                user_map = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'users': users}
+                user_listodf.append(user_map)
+                mentions_map = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'mentions': mentions}
+                mentions_listodf.append(mentions_map)
+                hashtags_map = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'hashtags': hashtags}
+                hashtags_listodf.append(hashtags_map)
+            print(user_listodf)
+            print(mentions_listodf)
             df_output.sort_values(by=['cashtag', 'date'])
             file_output = 'output_' + file_input
             file_output = file_output.replace('.xlsx', '.dta')

@@ -1,9 +1,10 @@
 from datetime import datetime
 from dateutil import tz
 import sys
-from sqlalchemy import Table, create_engine, MetaData, func, Column, BigInteger, String, DateTime
+from sqlalchemy import Table, create_engine, MetaData, func, Column, BigInteger, String, DateTime, distinct
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.sql.expression import literal_column
 
 from application.config import base_config
 
@@ -65,8 +66,11 @@ class mvCashtags(Base):
 
 def get_users_count(tweet_list, sess):
     session = sess()
-    q = session.query(mvCashtags.user_id).filter(mvCashtags.tweet_id.in_(tweet_list)).group_by(mvCashtags.user_id)
-    return len(q.all())
+    q = session.query(mvCashtags.user_id, func.count(distinct(mvCashtags.tweet_id))) \
+        .filter(mvCashtags.tweet_id.in_(tweet_list)) \
+        .group_by(mvCashtags.user_id)
+    fields = ['user_id', 'counts']
+    return [dict(zip(fields, d)) for d in q.all()]
 
 
 def get_retweet_count(tweet_list, sess):
@@ -81,8 +85,11 @@ def get_retweet_count(tweet_list, sess):
 
 def get_hashtag_count(tweet_list, sess):
     session = sess()
-    q = session.query(func.count(TweetHashtag.hashtags)).filter(TweetHashtag.tweet_id.in_(tweet_list))
-    return q.scalar()
+    q = session.query(TweetHashtag.hashtags, func.count(distinct(TweetHashtag.tweet_id))) \
+        .filter(TweetHashtag.tweet_id.in_(tweet_list)) \
+        .group_by(TweetHashtag.hashtags)
+    fields = ['hashtag', 'counts']
+    return [dict(zip(fields, d)) for d in q.all()]
 
 
 def get_replys_count(tweet_list, sess):
@@ -94,8 +101,11 @@ def get_replys_count(tweet_list, sess):
 
 def get_mentions_count(tweet_list, sess):
     session = sess()
-    q = session.query(func.count(TweetMention.user_id)).filter(TweetMention.tweet_id.in_(tweet_list))
-    return q.scalar()
+    q = session.query(TweetMention.mentions, func.count(distinct(TweetMention.tweet_id))) \
+        .filter(TweetMention.tweet_id.in_(tweet_list)) \
+        .group_by(TweetMention.mentions)
+    fields = ['mention', 'counts']
+    return [dict(zip(fields, d)) for d in q.all()]
 
 
 def load_counts(t):
@@ -103,9 +113,12 @@ def load_counts(t):
         ScopedSession = scoped_session(sessionmaker(bind=db_engine))
         t['retweets'] = get_retweet_count(t['tweet_ids'], ScopedSession)
         t['replies'] = get_replys_count(t['tweet_ids'], ScopedSession)
-        t['users'] = get_users_count(t['tweet_ids'], ScopedSession)
-        t['mentions'] = get_mentions_count(t['tweet_ids'], ScopedSession)
-        t['hashtags'] = get_hashtag_count(t['tweet_ids'], ScopedSession)
+        t['users_list'] = get_users_count(t['tweet_ids'], ScopedSession)
+        t['users'] = len(t['users_list'])
+        t['mentions_list'] = get_mentions_count(t['tweet_ids'], ScopedSession)
+        t['mentions'] = len(t['mentions_list'])
+        t['hashtags_list'] = get_hashtag_count(t['tweet_ids'], ScopedSession)
+        t['hashtags'] = len(t['hashtags_list'])
         ScopedSession.remove()
     except Exception as e:
         fname = sys._getframe().f_code.co_name

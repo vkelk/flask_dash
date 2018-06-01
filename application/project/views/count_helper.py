@@ -83,7 +83,8 @@ def get_hashtag_count(tweet_list):
 
 
 def get_replys_count(tweet_list):
-    q = ScopedSession.query(func.count(Tweet.tweet_id)).filter(Tweet.tweet_id.in_(tweet_list)).filter(Tweet.reply_to > 0)
+    q = ScopedSession.query(func.count(Tweet.tweet_id)).filter(Tweet.tweet_id.in_(tweet_list)) \
+        .filter(Tweet.reply_to > 0)
     return q.scalar()
 
 
@@ -132,6 +133,7 @@ def get_tweet_ids(c):
         tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
             .filter(UserCount.follower >= c['followers'])
     try:
+        print(tweets)
         data = {
             'tweet_ids': [t[0] for t in tweets.all()],
             'date': date_input,

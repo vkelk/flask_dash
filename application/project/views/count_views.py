@@ -1,14 +1,14 @@
 import concurrent.futures as cf
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from dateutil import tz
 import os
 import pandas as pd
 from pprint import pprint
 import sys
 import uuid
+from sqlalchemy.sql.expression import true
 from flask import current_app, render_template, request, session, Markup, flash
 from flask_login import current_user, login_required
-from sqlalchemy import or_, and_, text, func
 from werkzeug.utils import secure_filename, CombinedMultiDict
 from application import db
 from application.project import project
@@ -16,7 +16,6 @@ from ..models import Project, Dataset, TradingDays
 from ..forms import CountsFileForm
 from ..helpers import slugify
 from .count_helper import load_counts, get_tweet_ids
-from application.fintweet.models import Tweet, TweetCashtag, TweetHashtag, TweetMention, User, UserCount, mvCashtags
 
 
 ZONE_NY = tz.gettz('America/New_York')
@@ -58,7 +57,7 @@ def get_tweet_list(c):
     '''
     date_delta = c['date_to'] - c['date_from']
     trading_days = db.session.query(TradingDays.date) \
-        .filter(TradingDays.is_trading == True) \
+        .filter(TradingDays.is_trading == true()) \
         .filter(TradingDays.date.between(c['date_from'], c['date_to']))
     days_list = [d[0] for d in trading_days.all()]
     result = []
@@ -90,7 +89,7 @@ def get_tweet_list(c):
 @login_required
 def counts_upload():
     project = Project.query.filter(Project.account_id == current_user.get_id()) \
-        .filter(Project.active == True).first()
+        .filter(Project.active == true()).first()
     if project:
         session['active_project'] = project.uuid
     datasets = Dataset.query.all()

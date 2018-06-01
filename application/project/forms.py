@@ -106,5 +106,8 @@ class CountsFileForm(FlaskForm):
         validators=[FileRequired(), FileAllowed(base_config.ALLOWED_EXTENSIONS, 'Text data files only!')])
     file_name = HiddenField()
     output_file = HiddenField()
+    hashtags_file = HiddenField()
+    mentions_file = HiddenField()
+    users_file = HiddenField()
 
     create_study = SubmitField('Process study')

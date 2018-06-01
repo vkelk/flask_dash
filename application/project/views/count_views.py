@@ -117,10 +117,10 @@ def counts_upload():
                     project=project)
             df_output = pd.DataFrame()
             index2 = 0
-            user_listodf = []
-            mentions_listodf = []
-            hashtags_listodf = []
-            
+            users_map = []
+            mentions_map = []
+            hashtags_map = []
+
             for index, row in df_in.iterrows():
                 users = {}
                 mentions = {}
@@ -172,23 +172,42 @@ def counts_upload():
                                     hashtags[di['hashtag']] = hashtags[di['hashtag']] + di['counts']
                                 else:
                                     hashtags[di['hashtag']] = di['counts']
-                                
+
                         except Exception as e:
                             fname = sys._getframe().f_code.co_name
                             print(fname, type(e), str(e))
-                user_map = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'users': users}
-                user_listodf.append(user_map)
-                mentions_map = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'mentions': mentions}
-                mentions_listodf.append(mentions_map)
-                hashtags_map = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'hashtags': hashtags}
-                hashtags_listodf.append(hashtags_map)
-            print(user_listodf)
-            print(mentions_listodf)
-            df_output.sort_values(by=['cashtag', 'date'])
+                for k, v in hashtags.items():
+                    d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'hashtag': k, 'count': v}
+                    hashtags_map.append(d)
+                for k, v in mentions.items():
+                    d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'mention': k, 'count': v}
+                    mentions_map.append(d)
+                for k, v in users.items():
+                    d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'user': k, 'count': v}
+                    users_map.append(d)
+            df_hashtags = pd.DataFrame(hashtags_map)
+            df_mentions = pd.DataFrame(mentions_map)
+            df_users = pd.DataFrame(users_map)
+            df_output.sort_values(by=['cashtag', 'date'], ascending=[True, True], inplace=True)
+            df_hashtags.sort_values(by=['cashtag', 'count'], ascending=[True, False], inplace=True)
+            df_mentions.sort_values(by=['cashtag', 'count'], ascending=[True, False], inplace=True)
+            df_users.sort_values(by=['cashtag', 'count'], ascending=[True, False], inplace=True)
             file_output = 'output_' + file_input
             file_output = file_output.replace('.xlsx', '.dta')
+            file_hashtags = 'hashtags_' + file_input
+            file_hashtags = file_hashtags.replace('.xlsx', '.dta')
+            file_mentions = 'hashtags_' + file_input
+            file_mentions = file_mentions.replace('.xlsx', '.dta')
+            file_users = 'hashtags_' + file_input
+            file_users = file_users.replace('.xlsx', '.dta')
             df_output.to_stata(os.path.join(current_app.config['UPLOAD_FOLDER'], file_output), write_index=False)
+            df_hashtags.to_stata(os.path.join(current_app.config['UPLOAD_FOLDER'], file_hashtags), write_index=False)
+            df_mentions.to_stata(os.path.join(current_app.config['UPLOAD_FOLDER'], file_mentions), write_index=False)
+            df_users.to_stata(os.path.join(current_app.config['UPLOAD_FOLDER'], file_users), write_index=False)
             form.output_file.data = file_output
+            form.hashtags_file.data = file_hashtags
+            form.mentions_file.data = file_mentions
+            form.users_file.data = file_users
             project.file_output = file_output
             return render_template(
                 'project/counts_upload.html',

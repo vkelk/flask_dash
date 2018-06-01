@@ -127,14 +127,29 @@
                     <div class="panel panel-default">
                         <div class="panel-heading">
                             <div class="row">
-                                <div class="col-sm-6">
+                                <div class="col-sm-4">
                                     <a data-toggle="collapse" href="#df_in_collapse">Input data (click here to
                                         collapse)</a>
                                 </div>
-                                <div class="col-sm-3 col-sm-offset-3">
+                                <div class="col-sm-2">
                                     <a id="download"
                                        href="{{ url_for('project.getfile', filename=form.output_file.data) }}"
                                        target="_blank">Download data</a>
+                                </div>
+                                <div class="col-sm-2">
+                                    <a id="download"
+                                       href="{{ url_for('project.getfile', filename=form.hashtags_file.data) }}"
+                                       target="_blank">Download hashtags</a>
+                                </div>
+                                <div class="col-sm-2">
+                                    <a id="download"
+                                       href="{{ url_for('project.getfile', filename=form.mentions_file.data) }}"
+                                       target="_blank">Download mentions</a>
+                                </div>
+                                <div class="col-sm-2">
+                                    <a id="download"
+                                       href="{{ url_for('project.getfile', filename=form.users_file.data) }}"
+                                       target="_blank">Download users</a>
                                 </div>
                             </div>
                         </div>

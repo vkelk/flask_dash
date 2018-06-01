@@ -133,7 +133,6 @@ def get_tweet_ids(c):
         tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
             .filter(UserCount.follower >= c['followers'])
     try:
-        print(tweets)
         data = {
             'tweet_ids': [t[0] for t in tweets.all()],
             'date': date_input,

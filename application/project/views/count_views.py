@@ -15,7 +15,7 @@ from application.project import project
 from ..models import Project, Dataset, TradingDays
 from ..forms import CountsFileForm
 from ..helpers import slugify
-from .count_helper import load_counts, get_tweet_ids, get_user_info
+from .count_helper import load_counts, get_tweet_ids
 
 
 ZONE_NY = tz.gettz('America/New_York')

@@ -1,5 +1,6 @@
 from datetime import datetime
 from dateutil import tz
+from pprint import pprint
 import sys
 from sqlalchemy import Table, create_engine, MetaData, func, Column, BigInteger, String, DateTime, distinct
 from sqlalchemy.ext.declarative import declarative_base
@@ -66,10 +67,17 @@ class mvCashtags(Base):
 
 def get_users_count(tweet_list, sess):
     session = sess()
-    q = session.query(mvCashtags.user_id, func.count(distinct(mvCashtags.tweet_id))) \
+    q = session.query(
+        mvCashtags.user_id,
+        User.twitter_handle,
+        User.date_joined,
+        User.location,
+        func.count(distinct(mvCashtags.tweet_id))
+        ) \
+        .join(User, User.user_id == mvCashtags.user_id) \
         .filter(mvCashtags.tweet_id.in_(tweet_list)) \
-        .group_by(mvCashtags.user_id)
-    fields = ['user_id', 'counts']
+        .group_by(mvCashtags.user_id, User.twitter_handle, User.date_joined, User.location)
+    fields = ['user_id', 'twiiter_handle', 'date_joined', 'location', 'counts']
     return [dict(zip(fields, d)) for d in q.all()]
 
 
@@ -89,6 +97,7 @@ def get_hashtag_count(tweet_list, sess):
         .filter(TweetHashtag.tweet_id.in_(tweet_list)) \
         .group_by(TweetHashtag.hashtags)
     fields = ['hashtag', 'counts']
+    # print(q.all())
     return [dict(zip(fields, d)) for d in q.all()]
 
 
@@ -166,3 +175,17 @@ def get_tweet_ids(c):
         print(fname, type(e), str(e))
         raise
     return data
+
+
+def get_user_info(d):
+    try:
+        ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+        session = ScopedSession()
+        q = session.query(User.date_joined, User.location).filter(User.user_id == d['user'])
+        print(q.all())
+        ScopedSession.remove()
+    except Exception as e:
+        fname = sys._getframe().f_code.co_name
+        print(fname, type(e), str(e))
+        raise
+    return d

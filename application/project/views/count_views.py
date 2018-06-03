@@ -15,7 +15,7 @@ from application.project import project
 from ..models import Project, Dataset, TradingDays
 from ..forms import CountsFileForm
 from ..helpers import slugify
-from .count_helper import load_counts, get_tweet_ids
+from .count_helper import load_counts, get_tweet_ids, get_user_info
 
 
 ZONE_NY = tz.gettz('America/New_York')
@@ -158,58 +158,92 @@ def counts_upload():
                             df_output.at[index2, 'mentions'] = str(t['mentions'])
                             df_output.at[index2, 'hashtags'] = str(t['hashtags'])
                             index2 += 1
-                            # print(t['users_list'])
                             for di in t['users_list']:
                                 if di['user_id'] in users.keys():
-                                    users[di['user_id']] = users[di['user_id']] + di['counts']
+                                    users[di['user_id']]['tweet_counts'] = users[di['user_id']]['tweet_counts'] + di['counts']
                                 else:
-                                    users[di['user_id']] = di['counts']
+                                    users[di['user_id']] = {
+                                        'twitter_handle': di['twiiter_handle'],
+                                        'tweet_counts': di['counts'],
+                                        'date_joined': di['date_joined'],
+                                        'location': di['location']
+                                    }
                             for di in t['mentions_list']:
                                 if di['mention'] in mentions.keys():
                                     mentions[di['mention']] = mentions[di['mention']] + di['counts']
                                 else:
                                     mentions[di['mention']] = di['counts']
-                            for di in t['hashtags_list']:
-                                if di['hashtag'] in hashtags.keys():
-                                    hashtags[di['hashtag']] = hashtags[di['hashtag']] + di['counts']
-                                else:
-                                    hashtags[di['hashtag']] = di['counts']
-
+                            if len(t['hashtags_list']) > 0:
+                                for di in t['hashtags_list']:
+                                    if di['hashtag'] in hashtags.keys():
+                                        hashtags[di['hashtag']] = hashtags[di['hashtag']] + di['counts']
+                                    else:
+                                        hashtags[di['hashtag']] = di['counts']
                         except Exception as e:
                             fname = sys._getframe().f_code.co_name
-                            print(fname, type(e), str(e))
+                            print(fname, 'future loop', type(e), str(e))
                 for k, v in hashtags.items():
-                    d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'hashtag': k, 'count': v}
+                    d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'],
+                        'hashtag': k.encode('latin-1', 'ignore').decode('latin-1'), 'count': v}
                     hashtags_map.append(d)
                 for k, v in mentions.items():
                     d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'mention': k, 'count': v}
                     mentions_map.append(d)
                 for k, v in users.items():
-                    d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'user': k, 'count': v}
+                    d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'user': k,
+                        'twitter_handle': str(v['twitter_handle']).encode('latin-1', 'ignore').decode('latin-1'),
+                        'tweet_counts': v['tweet_counts'],
+                        'date_joined': str(v['date_joined']),
+                        'location': str(v['location']).encode('latin-1', 'ignore').decode('latin-1')}
                     users_map.append(d)
-            df_hashtags = pd.DataFrame(hashtags_map)
-            df_mentions = pd.DataFrame(mentions_map)
-            df_users = pd.DataFrame(users_map)
             df_output.sort_values(by=['cashtag', 'date'], ascending=[True, True], inplace=True)
-            df_hashtags.sort_values(by=['cashtag', 'count'], ascending=[True, False], inplace=True)
-            df_mentions.sort_values(by=['cashtag', 'count'], ascending=[True, False], inplace=True)
-            df_users.sort_values(by=['cashtag', 'count'], ascending=[True, False], inplace=True)
+            try:
+                df_hashtags = pd.DataFrame(hashtags_map)
+                df_hashtags.sort_values(by=['cashtag', 'count'], ascending=[True, False], inplace=True)
+                file_hashtags = 'hashtags_' + file_input
+                file_hashtags = file_hashtags.replace('.xlsx', '.dta')
+                df_hashtags.to_stata(
+                    os.path.join(current_app.config['UPLOAD_FOLDER'], file_hashtags),
+                    write_index=False)
+                form.hashtags_file.data = file_hashtags
+                # pprint(df_hashtags)
+            except Exception as e:
+                fname = sys._getframe().f_code.co_name
+                print(fname, 'df_hashtags', type(e), str(e))
+                # raise
+            try:
+                df_mentions = pd.DataFrame(mentions_map)
+                df_mentions.sort_values(by=['cashtag', 'count'], ascending=[True, False], inplace=True)
+                file_mentions = 'mentions_' + file_input
+                file_mentions = file_mentions.replace('.xlsx', '.dta')
+                df_mentions.to_stata(
+                    os.path.join(current_app.config['UPLOAD_FOLDER'], file_mentions),
+                    write_index=False)
+                form.mentions_file.data = file_mentions
+                # pprint(df_mentions)
+            except Exception as e:
+                fname = sys._getframe().f_code.co_name
+                print(fname, 'df_mentions', type(e), str(e))
+                # raise
+            try:
+                df_users = pd.DataFrame(users_map)
+                df_users.sort_values(by=['cashtag', 'tweet_counts'], ascending=[True, False], inplace=True)
+                file_users = 'users_' + file_input
+                file_users = file_users.replace('.xlsx', '.dta')
+                df_users.to_stata(
+                    os.path.join(current_app.config['UPLOAD_FOLDER'], file_users),
+                    write_index=False)
+                form.users_file.data = file_users
+                # pprint(df_users)
+            except Exception as e:
+                fname = sys._getframe().f_code.co_name
+                print(fname, 'df_users', type(e), str(e))
+                print(sys.exc_info())
+                # raise
             file_output = 'output_' + file_input
             file_output = file_output.replace('.xlsx', '.dta')
-            file_hashtags = 'hashtags_' + file_input
-            file_hashtags = file_hashtags.replace('.xlsx', '.dta')
-            file_mentions = 'mentions_' + file_input
-            file_mentions = file_mentions.replace('.xlsx', '.dta')
-            file_users = 'users_' + file_input
-            file_users = file_users.replace('.xlsx', '.dta')
             df_output.to_stata(os.path.join(current_app.config['UPLOAD_FOLDER'], file_output), write_index=False)
-            df_hashtags.to_stata(os.path.join(current_app.config['UPLOAD_FOLDER'], file_hashtags), write_index=False)
-            df_mentions.to_stata(os.path.join(current_app.config['UPLOAD_FOLDER'], file_mentions), write_index=False)
-            df_users.to_stata(os.path.join(current_app.config['UPLOAD_FOLDER'], file_users), write_index=False)
             form.output_file.data = file_output
-            form.hashtags_file.data = file_hashtags
-            form.mentions_file.data = file_mentions
-            form.users_file.data = file_users
             project.file_output = file_output
             return render_template(
                 'project/counts_upload.html',

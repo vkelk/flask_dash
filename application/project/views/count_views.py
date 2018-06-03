@@ -32,7 +32,7 @@ def convert_date(input_dt, zone_from=ZONE_NY, zone_to=ZONE_UTC):
 def dataframe_from_file(filename):
     ext = os.path.splitext(filename)[1]
     if ext in ['.xls', '.xlsx']:
-        df = pd.read_excel(filename)
+        df = pd.read_excel(filename, encoding='utf-8')
         df.columns = [slugify(col.strip()) for col in df.columns]
         if 'cashtag' in df.columns and 'gvkey' in df.columns:
             return df

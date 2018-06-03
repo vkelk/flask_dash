@@ -10,7 +10,7 @@ from fintweet.models import Session, ScopedSession, Tweet, TweetCashtags, TweetH
 
 regex_str = [
     r'(?:@[\w_]+)',  # @-mentions
-    r"(?:\#\w+)",  # hash-tags
+    r"(?:\#[a-zA-Z0-9]\w+)",  # hash-tags
     r"(?:\B\$[A-Za-z][A-Za-z0-9]{0,4}\b)",  # cash-tags
     r'(?:(?:(?:http[s?]?:\/\/)?(?:pic\.twitter\.com\/\w+)))',  # pics
     r'(?:http[s]?:\/\/(?:\w+|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+)',  # URLs

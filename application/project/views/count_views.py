@@ -70,6 +70,8 @@ def get_tweet_list(c):
             cn['day_status'] = 'trading'
         elif c['day_status'] in ['non-trading', 'all'] and date_input not in days_list:
             cn['day_status'] = 'non-trading'
+        else:
+            continue
         result.append(cn)
     res_list = []
     full_list = []

@@ -128,11 +128,11 @@ def load_counts(t):
         t['mentions'] = len(t['mentions_list'])
         t['hashtags_list'] = get_hashtag_count(t['tweet_ids'], ScopedSession)
         t['hashtags'] = len(t['hashtags_list'])
-        ScopedSession.remove()
     except Exception as e:
         fname = sys._getframe().f_code.co_name
         print(fname, type(e), str(e))
-        raise
+    finally:
+        ScopedSession.remove()
     return t
 
 
@@ -169,23 +169,10 @@ def get_tweet_ids(c):
             'day_status': c['day_status'],
             'cashtag': c['cashtag']
             }
-        ScopedSession.remove()
     except Exception as e:
         fname = sys._getframe().f_code.co_name
         print(fname, type(e), str(e))
-        raise
+    finally:
+        ScopedSession.remove()
     return data
 
-
-def get_user_info(d):
-    try:
-        ScopedSession = scoped_session(sessionmaker(bind=db_engine))
-        session = ScopedSession()
-        q = session.query(User.date_joined, User.location).filter(User.user_id == d['user'])
-        print(q.all())
-        ScopedSession.remove()
-    except Exception as e:
-        fname = sys._getframe().f_code.co_name
-        print(fname, type(e), str(e))
-        raise
-    return d

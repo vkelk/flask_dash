@@ -1,12 +1,14 @@
 import re
 import concurrent.futures as cf
+import sys
 # from pprint import pprint
 # import time
 
 from sqlalchemy import or_
+from sqlalchemy.orm import sessionmaker, scoped_session
 # from sqlalchemy.sql.expression import func
 
-from fintweet.models import Session, ScopedSession, Tweet, TweetCashtags, TweetHashtags, TweetMentions, User, TweetUrl
+from fintweet.models import db_engine, Session, Tweet, TweetCashtags, TweetHashtags, TweetMentions, User, TweetUrl
 
 regex_str = [
     r'(?:@[\w_]+)',  # @-mentions
@@ -30,31 +32,36 @@ def tokenize(s):
 
 
 def extract(tweet):
-    # subsession = ScopedSession()
-    # tweet = subsession.query(Tweet).filter_by(tweet_id=tweet_id).first()
-    # print(tweet.tweet_id)
-    tokens = tokenize(tweet.text)
-    cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 1])
-    hashtags = set([term.upper() for term in tokens if term.startswith('#') and len(term) > 1])
-    mentions = set([term for term in tokens if term.startswith('@') and len(term) > 1])
-    urls = set([term for term in tokens if term.startswith('http') and len(term) > 4])
-    for cashtag in cashtags:
-        if cashtag and len(cashtag) > 1 and len(cashtag) <= 120:
-            process_cashtag(tweet.tweet_id, cashtag)
-    for hashtag in hashtags:
-        if hashtag and len(hashtag) > 1 and len(hashtag) <= 120:
-            process_hashtag(tweet.tweet_id, hashtag)
-    for mention in mentions:
-        if mention and len(mention) > 1 and len(mention) <= 120:
-            process_mention(tweet.tweet_id, mention)
-    for url in urls:
-        if url and len(url) > 4 and len(url) <= 255:
-            process_url(tweet.tweet_id, url)
+    print(tweet)
+    try:
+        ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+        tokens = tokenize(tweet.text)
+        cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 1])
+        hashtags = set([term.upper() for term in tokens if term.startswith('#') and len(term) > 1])
+        mentions = set([term for term in tokens if term.startswith('@') and len(term) > 1])
+        urls = set([term for term in tokens if term.startswith('http') and len(term) > 4])
+        for cashtag in cashtags:
+            if cashtag and len(cashtag) > 1 and len(cashtag) <= 120:
+                process_cashtag(tweet.tweet_id, cashtag, ScopedSession)
+        for hashtag in hashtags:
+            if hashtag and len(hashtag) > 1 and len(hashtag) <= 120:
+                process_hashtag(tweet.tweet_id, hashtag, ScopedSession)
+        for mention in mentions:
+            if mention and len(mention) > 1 and len(mention) <= 120:
+                process_mention(tweet.tweet_id, mention, ScopedSession)
+        for url in urls:
+            if url and len(url) > 4 and len(url) <= 255:
+                process_url(tweet.tweet_id, url, ScopedSession)
+    except Exception as e:
+        fname = sys._getframe().f_code.co_name
+        print(fname, type(e), str(e))
+    finally:
+        ScopedSession.remove()
     # ScopedSession.remove()
 
 
-def process_cashtag(tweet_id, cashtag):
-    subsession = ScopedSession()
+def process_cashtag(tweet_id, cashtag, subsession):
+    # subsession = ScopedSession()
     pg_cashtags = subsession.query(TweetCashtags) \
         .filter_by(tweet_id=tweet_id).all()
     if pg_cashtags is None:
@@ -83,8 +90,8 @@ def process_cashtag(tweet_id, cashtag):
     # ScopedSession.remove()
 
 
-def process_hashtag(tweet_id, hashtag):
-    subsession = ScopedSession()
+def process_hashtag(tweet_id, hashtag, subsession):
+    # subsession = ScopedSession()
     pg_hashtags = subsession.query(TweetHashtags) \
         .filter_by(tweet_id=tweet_id).all()
     if pg_hashtags is None:
@@ -113,9 +120,9 @@ def process_hashtag(tweet_id, hashtag):
     # ScopedSession.remove()
 
 
-def process_mention(tweet_id, mention):
+def process_mention(tweet_id, mention, subsession):
     mention = mention.replace('@', '')
-    subsession = ScopedSession()
+    # subsession = ScopedSession()
     pg_mention = subsession.query(TweetMentions) \
         .filter_by(tweet_id=tweet_id) \
         .filter_by(mentions=mention).first()
@@ -137,8 +144,8 @@ def process_mention(tweet_id, mention):
     # ScopedSession.remove()
 
 
-def process_url(tweet_id, url):
-    subsession = ScopedSession()
+def process_url(tweet_id, url, subsession):
+    # subsession = ScopedSession()
     pg_url = subsession.query(TweetUrl).filter_by(tweet_id=tweet_id).filter_by(url=url).first()
     if pg_url is None:
         try:

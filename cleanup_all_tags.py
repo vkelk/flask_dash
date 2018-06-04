@@ -32,7 +32,6 @@ def tokenize(s):
 
 
 def extract(tweet):
-    print(tweet)
     try:
         ScopedSession = scoped_session(sessionmaker(bind=db_engine))
         tokens = tokenize(tweet.text)
@@ -57,11 +56,9 @@ def extract(tweet):
         print(fname, type(e), str(e))
     finally:
         ScopedSession.remove()
-    # ScopedSession.remove()
 
 
 def process_cashtag(tweet_id, cashtag, subsession):
-    # subsession = ScopedSession()
     pg_cashtags = subsession.query(TweetCashtags) \
         .filter_by(tweet_id=tweet_id).all()
     if pg_cashtags is None:
@@ -70,7 +67,6 @@ def process_cashtag(tweet_id, cashtag, subsession):
             subsession.add(item)
             subsession.commit()
             print(tweet_id, "-> Inserted cashtag", cashtag)
-            # ScopedSession.remove()
             return item.tweet_id
         except Exception as e:
             print(type(e), str(e))
@@ -85,9 +81,7 @@ def process_cashtag(tweet_id, cashtag, subsession):
             subsession.add(item)
             subsession.commit()
             print(tweet_id, "-> Updated cashtag", cashtag)
-            # ScopedSession.remove()
             return item.tweet_id
-    # ScopedSession.remove()
 
 
 def process_hashtag(tweet_id, hashtag, subsession):
@@ -184,7 +178,8 @@ if __name__ == '__main__':
     #     raise
     # exit()
 
-    tweets = page_query(session.query(Tweet))
+    tweets = page_query(session.query(Tweet.tweet_id, Tweet.text) \
+        .filter(Tweet.tweet_id > 0).order_by(Tweet.tweet_id))
     with cf.ThreadPoolExecutor(max_workers=16) as executor:
         try:
             executor.map(extract, tweets)

@@ -1,20 +1,18 @@
 #!/usr/bin/env python
 import os.path
 from multiprocessing.dummy import Pool as ThreadPool, Lock
-from multiprocessing import Process
+# from multiprocessing import Process
 import csv
-
 import multiprocessing.dummy
 import re
-
 import sys
 import time
 from dateutil import parser as dateparser
-from openpyxl import load_workbook
+# from openpyxl import load_workbook
 
 from datetime import datetime
 import settings
-from sqlalchemy import *
+from sqlalchemy import create_engine, MetaData, Table, func, Column, BigInteger, String, DateTime
 from sqlalchemy import event, exc
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
@@ -26,31 +24,12 @@ from pprint import pprint
 import tweet_api
 import random
 
-# from pympler import summary, muppy
-# import psutil
-
-
-# def get_virtual_memory_usage_kb():
-#     """
-#     The process's current virtual memory size in Kb, as a float.
-
-#     """
-#     return float(psutil.Process().memory_info().vms) / 1024.0
-
-
-# def memory_usage(where):
-#     """
-#     Print out a basic summary of memory usage.
-
-#     """
-#     mem_summary = summary.summarize(muppy.get_objects())
-#     print("Memory summary:", where)
-#     summary.print_(mem_summary, limit=3)
-#     print("VM: %.2fMb" % (get_virtual_memory_usage_kb() / 1024.0))
-
 
 IS_PROFILE_SEARCH = False
 ISUSERPROFILE = True
+CASHTAGS_MIN_COUNT = 500
+CASHTAGS_MAX_COUNT = 5000
+FREQUENCY = 1
 time_wait = 0
 flag1 = False
 
@@ -77,12 +56,8 @@ tokens_re = re.compile(r'(' + '|'.join(regex_str) + ')', re.VERBOSE | re.IGNOREC
 emoticon_re = re.compile(r'^' + emoticons_str + '$', re.VERBOSE | re.IGNORECASE)
 
 
-def tokenize(s):
-    return tokens_re.findall(s)
-
-
-def preprocess(s, lowercase=False):
-    tokens = tokenize(s)
+def tokenize(s, lowercase=False):
+    tokens = tokens_re.findall(s)
     if lowercase:
         tokens = [token if emoticon_re.search(token) else token.lower() for token in tokens]
     return tokens
@@ -124,11 +99,7 @@ def get_symbols(s):
 
 def scra(query, i, proxy, lock, session=None):
     twitter_scraper = tweet_api.TweetScraper(proxy, IS_PROFILE_SEARCH=IS_PROFILE_SEARCH, logname='awam')
-    permno = query[4]
     count = 0
-
-    # ttm = time.time()
-    # tweet_list = []
 
     # Receiving random credentials from the settings file
     credential = settings.twitter_logins[random.randrange(0, len(settings.twitter_logins))]
@@ -143,7 +114,6 @@ def scra(query, i, proxy, lock, session=None):
         twit = session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first()
         # if twit and ISUSERPROFILE:
         if twit and twit.user_id:
-            # print(twit)
             Session.remove()
             continue
         print(query, count, t.date)
@@ -155,11 +125,12 @@ def scra(query, i, proxy, lock, session=None):
                 session.commit()
                 print('Updated tweet_id {} with user_id {}'.format(data['tweet_id'], data['UserID']))
             except Exception as e:
-                print(type(e), str(e))
+                fname = sys._getframe().f_code.co_name
+                print(fname, type(e), str(e))
                 raise
             Session.remove()
             continue
-        data['permno'] = permno
+        # data['permno'] = permno
         data['user_location'] = t.user_location
         data['LikesCount'] = t.likes
         data['Website'] = t.website
@@ -208,7 +179,7 @@ def scra(query, i, proxy, lock, session=None):
         else:
             data['TimeZoneUTC'] = None
 
-        tokens = preprocess(t.text)
+        tokens = tokenize(t.text)
         cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 1])
         if len(cashtags) == 0:
             # print('Skipping, does not contain cashtags', t.text)
@@ -271,7 +242,8 @@ def scra(query, i, proxy, lock, session=None):
                     print('ROLLBACK USER')
                     session.rollback()
             except Exception as e:
-                print(type(e), str(e))
+                fname = sys._getframe().f_code.co_name
+                print(fname, type(e), str(e))
                 raise
         # twit = session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first()
         # if not twit:
@@ -330,7 +302,8 @@ def scra(query, i, proxy, lock, session=None):
                 print('ROLLBACK common')
                 session.rollback()
         except Exception as e:
-            print(e)
+            fname = sys._getframe().f_code.co_name
+            print(fname, type(e), str(e))
             raise
         finally:
             Session.remove()
@@ -389,7 +362,8 @@ def scrape_query(user_queue, proxy, lock, pg_dsn):
             print('LoadingError except')
             return False
         except Exception as e:
-            print(type(e), str(e))
+            fname = sys._getframe().f_code.co_name
+            print(fname, type(e), str(e))
             raise
         if not res:
             print('     SCRAP_USER Error in', query, i)
@@ -422,6 +396,14 @@ def add_engine_pidguard(engine):
                 "attempting to check out in pid %s" %
                 (connection_record.info['pid'], pid)
             )
+
+
+def get_cashtags_list():
+    q = Session.query(mvCashtags.cashtags) \
+        .group_by(mvCashtags.cashtags) \
+        .having(func.count(mvCashtags.cashtags).between(CASHTAGS_MIN_COUNT, CASHTAGS_MAX_COUNT))
+    fields = ['cashtag', 'count']
+    return [dict(zip(fields, d)) for d in q.all()]
 
 
 if __name__ == '__main__':
@@ -464,48 +446,69 @@ if __name__ == '__main__':
         hash_s = relationship('TweetHashtags')
         url_s = relationship('TweetUrl')
 
+    class mvCashtags(Base):
+        # __table__ = Table('mv_cashtags', fintweet_meta, autoload=True)
+        __tablename__ = 'mv_cashtags'
+        __table_args__ = {"schema": "fintweet"}
+
+        id = Column(BigInteger, primary_key=True)
+        tweet_id = Column(BigInteger)
+        user_id = Column(BigInteger)
+        cashtags = Column(String(120))
+        datetime = Column(DateTime)
+
     DstSession = sessionmaker(bind=db_engine, autoflush=False)
     # dstssn = DstSession()
     session_factory = sessionmaker(bind=db_engine, autoflush=False)
     Session = scoped_session(session_factory)
 
-    if True:  # settings.tweets:
-        try:
-            command = sys.argv[1]
-        except IndexError:
-            command = ''
+    try:
+        command = sys.argv[1]
+    except IndexError:
+        command = ''
 
-        if command == 'nolocation':
-            ISLOCATION = False
-        else:
-            ISLOCATION = True
+    if command == 'nolocation':
+        ISLOCATION = False
+    else:
+        ISLOCATION = True
 
-        user_queue = multiprocessing.dummy.Queue()
+    user_queue = multiprocessing.dummy.Queue()
 
-        fname = 'word_list_3.xlsx'
-        wb = load_workbook(fname)
-        ws = wb.active
-        ii = i = 2
-        while True:
-            if not ws.cell(row=i, column=1).value:
-                break
-            t1 = str(ws.cell(row=i, column=4).value).lower().strip(' ')
-            t2 = str(ws.cell(row=i, column=5).value).lower().strip(' ')
-            t1 = re.sub(' 00:00:00', '', t1)
-            t2 = re.sub(' 00:00:00', '', t2)
-            permno = str(ws.cell(row=i, column=1).value).lower().strip(' ')
-            query = str(ws.cell(row=i, column=2).value).lower().strip(' '), \
-                str(ws.cell(row=i, column=3).value).lower().strip(' '), \
-                t1, t2, permno
-            print(query)
+    working_ctags = get_cashtags_list()
+    # print(working_ctags)
+    # exit()
+    # fname = 'word_list_3.xlsx'
+    # wb = load_workbook(fname)
+    # ws = wb.active
+    ii = i = 2
+    t1 = '2016-01-01'
+    t2 = '2017-01-01'
+    for ticker in working_ctags:
+        query = ticker['cashtag'].lower().strip('$'), \
+            ticker['cashtag'].lower().strip(' '), t1, t2
+        print(query)
+        user_queue.put((query, i))
+        i += 1
+    # while True:
+    #     if not ws.cell(row=i, column=1).value:
+    #         break
+    #     t1 = str(ws.cell(row=i, column=4).value).lower().strip(' ')
+    #     t2 = str(ws.cell(row=i, column=5).value).lower().strip(' ')
+    #     t1 = re.sub(' 00:00:00', '', t1)
+    #     t2 = re.sub(' 00:00:00', '', t2)
+    #     permno = str(ws.cell(row=i, column=1).value).lower().strip(' ')
+    #     query = str(ws.cell(row=i, column=2).value).lower().strip(' '), \
+    #         str(ws.cell(row=i, column=3).value).lower().strip(' '), \
+    #         t1, t2, permno
+    #     print(query)
 
-            user_queue.put((query, i))
-            i += 1
+    #     user_queue.put((query, i))
+    #     i += 1
 
-        pool = ThreadPool(len(settings.proxy_list))
-        # pool = ThreadPool(4)
-        lock = Lock()
-        # Single process for testings
-        # scrape_query(user_queue, '207.150.166.171:8800', lock, pg_dsn)
-        # exit()
-        pool.map(lambda x: (scrape_query(user_queue, x, lock, pg_dsn)), settings.proxy_list)
+    pool = ThreadPool(len(settings.proxy_list))
+    # pool = ThreadPool(4)
+    lock = Lock()
+    # Single process for testings
+    # scrape_query(user_queue, '207.150.166.171:8800', lock, pg_dsn)
+    # exit()
+    pool.map(lambda x: (scrape_query(user_queue, x, lock, pg_dsn)), settings.proxy_list)

@@ -4,6 +4,7 @@ import time
 import re
 from pprint import pprint
 from pyquery import PyQuery
+import sys
 import json
 
 from datetime import datetime
@@ -69,6 +70,12 @@ class Page(object):
                     raise LoadingError
                 else:
                     return None
+            elif resp.status_code == 403:
+                print('Error 403', url, resp.text, resp.status_code)
+                if resp.text == '{"message":"Sorry, that user is suspended."}':
+                    return resp.text
+                raise
+                return None
             elif resp.status_code == 429:
                 print('Rate limit. Sleep 3 min')
                 time.sleep(3 * 60)
@@ -244,7 +251,8 @@ class TweetScraper(object):
             except Exception as e:
                 print(resp.text)
                 print('JSON error', url, self.page.pr)
-                print(type(e), str(e))
+                fname = sys._getframe().f_code.co_name
+                print(fname, type(e), str(e))
                 raise LoadingError
 
             if not r.get('inner', False):

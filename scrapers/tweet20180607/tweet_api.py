@@ -248,6 +248,7 @@ class TweetScraper(object):
             resp = self.page.load(url, params=params, headers=h)
             try:
                 r = json.loads(resp)
+                # pprint(r.keys())
             except Exception as e:
                 print(resp.text)
                 print('JSON error', url, self.page.pr)
@@ -257,7 +258,7 @@ class TweetScraper(object):
 
             if not r.get('inner', False):
                 r['inner'] = r
-
+            # pprint(r.keys())
             try:
                 refreshCursor = r['inner']['min_position']
             except KeyError:

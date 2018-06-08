@@ -10,7 +10,7 @@ import time
 from dateutil import parser as dateparser
 # from openpyxl import load_workbook
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import settings
 from sqlalchemy import create_engine, MetaData, Table, func, Column, BigInteger, String, DateTime
 from sqlalchemy import event, exc
@@ -27,9 +27,7 @@ import random
 
 IS_PROFILE_SEARCH = False
 ISUSERPROFILE = True
-CASHTAGS_MIN_COUNT = 500
-CASHTAGS_MAX_COUNT = 5000
-FREQUENCY = 1
+
 time_wait = 0
 flag1 = False
 
@@ -312,8 +310,7 @@ def scra(query, i, proxy, lock, session=None):
     lock.acquire()
     date_begin = query[2]
     date_end = query[3]
-    if count > 0:
-
+    if count >= 0:
         with open('report.csv', 'a') as f:
             data = {}
             fdnames = ['time', 'query_name', 'number', 'date_from', 'date_to']
@@ -401,7 +398,7 @@ def add_engine_pidguard(engine):
 def get_cashtags_list():
     q = Session.query(mvCashtags.cashtags) \
         .group_by(mvCashtags.cashtags) \
-        .having(func.count(mvCashtags.cashtags).between(CASHTAGS_MIN_COUNT, CASHTAGS_MAX_COUNT))
+        .having(func.count(mvCashtags.cashtags).between(settings.CASHTAGS_MIN_COUNT, settings.CASHTAGS_MAX_COUNT))
     fields = ['cashtag', 'count']
     return [dict(zip(fields, d)) for d in q.all()]
 
@@ -473,37 +470,20 @@ if __name__ == '__main__':
         ISLOCATION = True
 
     user_queue = multiprocessing.dummy.Queue()
-
     working_ctags = get_cashtags_list()
-    # print(working_ctags)
-    # exit()
-    # fname = 'word_list_3.xlsx'
-    # wb = load_workbook(fname)
-    # ws = wb.active
     ii = i = 2
     t1 = '2016-01-01'
-    t2 = '2017-01-01'
-    for ticker in working_ctags:
-        query = ticker['cashtag'].lower().strip('$'), \
-            ticker['cashtag'].lower().strip(' '), t1, t2
-        print(query)
-        user_queue.put((query, i))
-        i += 1
-    # while True:
-    #     if not ws.cell(row=i, column=1).value:
-    #         break
-    #     t1 = str(ws.cell(row=i, column=4).value).lower().strip(' ')
-    #     t2 = str(ws.cell(row=i, column=5).value).lower().strip(' ')
-    #     t1 = re.sub(' 00:00:00', '', t1)
-    #     t2 = re.sub(' 00:00:00', '', t2)
-    #     permno = str(ws.cell(row=i, column=1).value).lower().strip(' ')
-    #     query = str(ws.cell(row=i, column=2).value).lower().strip(' '), \
-    #         str(ws.cell(row=i, column=3).value).lower().strip(' '), \
-    #         t1, t2, permno
-    #     print(query)
-
-    #     user_queue.put((query, i))
-    #     i += 1
+    t2 = '2016-12-31'
+    date_delta = datetime.strptime(t2, '%Y-%m-%d') - datetime.strptime(t1, '%Y-%m-%d')
+    for days in range(0, date_delta.days + 1, settings.FREQUENCY):
+        date_start = datetime.strptime(t2, '%Y-%m-%d') - timedelta(days=settings.FREQUENCY)
+        date_end = date_start + timedelta(days=settings.FREQUENCY)
+        for ticker in working_ctags:
+            query = ticker['cashtag'].lower().strip('$'), \
+                ticker['cashtag'].lower().strip(' '), date_start.strftime("%Y-%m-%d"), date_end.strftime("%Y-%m-%d")
+            # print(query)
+            user_queue.put((query, i))
+            i += 1
 
     pool = ThreadPool(len(settings.proxy_list))
     # pool = ThreadPool(4)

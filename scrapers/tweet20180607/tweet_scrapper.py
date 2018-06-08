@@ -3,6 +3,8 @@ import os.path
 from multiprocessing.dummy import Pool as ThreadPool, Lock
 # from multiprocessing import Process
 import csv
+import logging
+import logging.config
 import multiprocessing.dummy
 import re
 import sys
@@ -351,19 +353,21 @@ def scrape_query(user_queue, proxy, lock, pg_dsn):
     while not user_queue.empty():
         query, i = user_queue.get()
 
-        print('START', i, proxy, query)
+        logging.info('START %s %s %s', i, proxy, query)
         # TODO filter:nativeretweets
         try:
             res = scra(query, i, proxy, lock)
         except tweet_api.LoadingError:
             print('LoadingError except')
             return False
-        except Exception as e:
-            fname = sys._getframe().f_code.co_name
-            print(fname, type(e), str(e))
+        except Exception:
+            logger.exception('message')
+            # fname = sys._getframe().f_code.co_name
+            # print(fname, type(e), str(e))
             raise
         if not res:
-            print('     SCRAP_USER Error in', query, i)
+            logger.warning('SCRAP_USER %s %s', query, i)
+            # print('     SCRAP_USER Error in', query, i)
             with open('error_list.txt', 'a') as f:
                 f.write(query[0] + '\n')
         else:
@@ -403,57 +407,75 @@ def get_cashtags_list():
     return [dict(zip(fields, d)) for d in q.all()]
 
 
+Base = declarative_base()
+pg_config = {'username': settings.PG_USER, 'password': settings.PG_PASSWORD, 'database': settings.PG_DBNAME,
+                'host': settings.DB_HOST}
+pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
+db_engine = create_engine(pg_dsn)
+add_engine_pidguard(db_engine)
+pg_meta = MetaData(bind=db_engine, schema="fintweet")
+
+
+class User(Base):
+    __table__ = Table('user', pg_meta, autoload=True)
+    tweets = relationship('Tweet')
+    counts = relationship('UserCount')
+
+
+class UserCount(Base):
+    __table__ = Table('user_count', pg_meta, autoload=True)
+
+
+class TweetCount(Base):
+    __table__ = Table('tweet_count', pg_meta, autoload=True)
+
+
+class TweetMentions(Base):
+    __table__ = Table('tweet_mentions', pg_meta, autoload=True)
+
+
+class TweetCashtags(Base):
+    __table__ = Table('tweet_cashtags', pg_meta, autoload=True)
+
+
+class TweetHashtags(Base):
+    __table__ = Table('tweet_hashtags', pg_meta, autoload=True)
+
+
+class TweetUrl(Base):
+    __table__ = Table('tweet_url', pg_meta, autoload=True)
+
+
+class Tweet(Base):
+    __table__ = Table('tweet', pg_meta, autoload=True)
+    counts = relationship('TweetCount')
+    ment_s = relationship('TweetMentions')
+    cash_s = relationship('TweetCashtags')
+    hash_s = relationship('TweetHashtags')
+    url_s = relationship('TweetUrl')
+
+
+class mvCashtags(Base):
+    # __table__ = Table('mv_cashtags', fintweet_meta, autoload=True)
+    __tablename__ = 'mv_cashtags'
+    __table_args__ = {"schema": "fintweet"}
+
+    id = Column(BigInteger, primary_key=True)
+    tweet_id = Column(BigInteger)
+    user_id = Column(BigInteger)
+    cashtags = Column(String(120))
+    datetime = Column(DateTime)
+
+
+def create_logger():
+    log_file = 'tweet_scrapper_' + str(datetime.now().strftime('%Y-%m-%d')) + '.log'
+    logging.config.fileConfig('log.ini', defaults={'logfilename': log_file})
+    return logging.getLogger(__name__)
+
+
+logger = create_logger()
+
 if __name__ == '__main__':
-    Base = declarative_base()
-    pg_config = {'username': settings.PG_USER, 'password': settings.PG_PASSWORD, 'database': settings.PG_DBNAME,
-                 'host': settings.DB_HOST}
-    pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
-    db_engine = create_engine(pg_dsn)
-    add_engine_pidguard(db_engine)
-    pg_meta = MetaData(bind=db_engine, schema="fintweet")
-
-    class User(Base):
-        __table__ = Table('user', pg_meta, autoload=True)
-        tweets = relationship('Tweet')
-        counts = relationship('UserCount')
-
-    class UserCount(Base):
-        __table__ = Table('user_count', pg_meta, autoload=True)
-
-    class TweetCount(Base):
-        __table__ = Table('tweet_count', pg_meta, autoload=True)
-
-    class TweetMentions(Base):
-        __table__ = Table('tweet_mentions', pg_meta, autoload=True)
-
-    class TweetCashtags(Base):
-        __table__ = Table('tweet_cashtags', pg_meta, autoload=True)
-
-    class TweetHashtags(Base):
-        __table__ = Table('tweet_hashtags', pg_meta, autoload=True)
-
-    class TweetUrl(Base):
-        __table__ = Table('tweet_url', pg_meta, autoload=True)
-
-    class Tweet(Base):
-        __table__ = Table('tweet', pg_meta, autoload=True)
-        counts = relationship('TweetCount')
-        ment_s = relationship('TweetMentions')
-        cash_s = relationship('TweetCashtags')
-        hash_s = relationship('TweetHashtags')
-        url_s = relationship('TweetUrl')
-
-    class mvCashtags(Base):
-        # __table__ = Table('mv_cashtags', fintweet_meta, autoload=True)
-        __tablename__ = 'mv_cashtags'
-        __table_args__ = {"schema": "fintweet"}
-
-        id = Column(BigInteger, primary_key=True)
-        tweet_id = Column(BigInteger)
-        user_id = Column(BigInteger)
-        cashtags = Column(String(120))
-        datetime = Column(DateTime)
-
     DstSession = sessionmaker(bind=db_engine, autoflush=False)
     # dstssn = DstSession()
     session_factory = sessionmaker(bind=db_engine, autoflush=False)

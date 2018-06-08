@@ -10,6 +10,15 @@ import json
 from datetime import datetime
 
 
+# def create_logger():
+#     log_file = 'tweet_api_' + str(datetime.now().strftime('%Y-%m-%d')) + '.log'
+#     logging.config.fileConfig('log.ini', defaults={'logfilename': log_file})
+#     return logging.getLogger(__name__)
+
+
+# logger = create_logger()
+
+
 class LoadingError(Exception):
     pass
 
@@ -20,6 +29,7 @@ class Twit():
 
 class Page(object):
     def __init__(self, proxy=None):
+        self.logger = logging.getLogger(__name__)
         self.pr = {'http': proxy, 'https': proxy}
         self.timeout = 30
         self.ses = requests.Session()
@@ -44,7 +54,7 @@ class Page(object):
     def close(self):
         self.ses.close()
 
-    def load(self, url, params=None, headers=None, important=True):
+    def load(self, url, params=None, headers=None, important=False):
         error_count = 0
         while True:
             try:
@@ -65,68 +75,94 @@ class Page(object):
             if resp.status_code == requests.codes.ok:
                 return resp.text
             elif resp.status_code == 404:
-                print('Error 404', url, resp.text, resp.status_code)
+                self.logger.warning('%s %s %s', url, resp.status_code, resp.text)
+                # print('tweet_api:Page.load Error 404', url, resp.text, resp.status_code)
+                err_response = self.handle_err_response(resp.text)
+                if err_response:
+                    return err_response
+                print('tweet_api:Page.load Error 404', url, resp.text, resp.status_code)
                 if important:
                     raise LoadingError
                 else:
                     return None
             elif resp.status_code == 403:
-                print('Error 403', url, resp.text, resp.status_code)
+                self.logger.warning('%s %s %s', url, resp.status_code, resp.text)
+                err_response = self.handle_err_response(resp.text)
+                if err_response:
+                    return err_response
+                print('tweet_api:Page.load Error 403', url, resp.text, resp.status_code)
                 if resp.text == '{"message":"Sorry, that user is suspended."}':
                     return resp.text
                 raise
                 return None
             elif resp.status_code == 429:
-                print('Rate limit. Sleep 3 min')
+                self.logger.warn('%s Rate limit. Sleep 3 min %s', resp.status_code, url)
+                # print('tweet_api:Page.load Rate limit. Sleep 3 min')
                 time.sleep(3 * 60)
                 continue
             elif resp.status_code == 503:
+                self.logger.warn('%s Error waiting 2 min %s', resp.status_code, url)
                 # print('503 Error waiting 2 min', screen_name, proxy, url, resp.text, resp.status_code)
                 error_count += 1
                 if error_count > 5:
-                    print('AWAM: Requestes 503 error', url, self.pr)
+                    self.logger.error('%s %s', resp.status_code, url)
+                    # print('tweet_api:Page.load AWAM: Requestes 503 error', url, self.pr)
                     if important:
                         raise LoadingError
                     else:
                         return None
 
-                print(' Requestes 503 error', error_count, url, self.pr)
+                # print('tweet_api:Page.load Requestes 503 error', error_count, url, self.pr)
                 time.sleep(120)
                 continue
             else:
-                print('Error', url, resp.text, resp.status_code)
                 error_count += 1
-                print('Loading error', error_count)
+                self.logger.warn('%s %s Count: %s', resp.status_code, url, error_count)
+                # print('tweet_api:Page.load Error', url, resp.text, resp.status_code)
+                # print('tweet_api:Page.load Loading error', error_count)
                 if error_count > 5:
-                    print('Error limit exceeded Requestes error ', url, self.pr, resp.status_code)
+                    self.logger.error('%s %s %s Error limit exceeded Requests error Count: %s', resp.status_code, url, self.pr, error_count)
+                    # print('tweet_api:Page.load Error limit exceeded Requests error ', url, self.pr, resp.status_code)
                     if important:
                         raise LoadingError
                     else:
                         return None
-                print('Error waiting 1 min', url, resp.text, resp.status_code)
+                self.logger.warn('%s %s waiting 1 min', resp.status_code, url)
+                # print('tweet_api:Page.load Error waiting 1 min', url, resp.text, resp.status_code)
                 time.sleep(60)
                 continue
+
+    def handle_err_response(self, err_msg):
+        try:
+            msg = json.loads(err_msg)
+            if 'message' in msg:
+                return err_msg
+        except Exception as e:
+            self.logger.error('%s %s %s', type(e), str(e), err_msg)
+        self.logger.error('Could not handle %s', err_msg)
+        return None
 
 
 class TweetScraper(object):
     def __init__(self, proxy=None, IS_PROFILE_SEARCH=None, logname=None):
-        if logname:
-            self.logger = logging.getLogger(logname)
-            self.logger.setLevel(logging.DEBUG)
+        self.logger = logging.getLogger(__name__)
+        # if logname:
+        #     self.logger = logging.getLogger(logname)
+        #     self.logger.setLevel(logging.DEBUG)
 
-            self.fh = logging.FileHandler(logname + '.log')
-            self.fh.setLevel(logging.DEBUG)
+        #     self.fh = logging.FileHandler(logname + '.log')
+        #     self.fh.setLevel(logging.DEBUG)
 
-            self.ch = logging.StreamHandler()
-            self.ch.setLevel(logging.DEBUG)
-            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        #     self.ch = logging.StreamHandler()
+        #     self.ch.setLevel(logging.DEBUG)
+        #     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-            # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            self.fh.setFormatter(formatter)
-            self.ch.setFormatter(formatter)
+        #     # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        #     self.fh.setFormatter(formatter)
+        #     self.ch.setFormatter(formatter)
 
-            self.logger.addHandler(self.fh)
-            self.logger.addHandler(self.ch)
+        #     self.logger.addHandler(self.fh)
+        #     self.logger.addHandler(self.ch)
         self.IS_PROFILE_SEARCH = IS_PROFILE_SEARCH
         self.page = Page(proxy)
         self.ISUSERPROFILE = True
@@ -275,7 +311,8 @@ class TweetScraper(object):
                 empty_count += 1
                 if empty_count > 3:
                     if data_current > data_begin:
-                        print('Reduce date range')
+                        self.logger.warning('Reduce date range %s', query_string)
+                        # print('Reduce date range')
                         date_range_change_count += 1
                         if date_range_change_count < 3:
                             data_end = data_current
@@ -284,7 +321,8 @@ class TweetScraper(object):
                     break
                 else:
                     # print(r['inner']['new_latent_count'])
-                    print('Twitter server stopped. sleep 3 sec')
+                    self.logger.warning('Twitter server stopped. sleep 3 sec %s', query_string)
+                    # print('Twitter server stopped. sleep 3 sec')
                     time.sleep(3)
                     continue
             empty_count = 0
@@ -507,10 +545,16 @@ class TweetScraper(object):
 
     def get_user_profile(self, usernameTweet,  tweet):
         url = 'https://twitter.com/' + usernameTweet
-        j = self.get_s(url, '', important=False)  # query_string)
-        if j:
-            if j['init_data']:
-                if j['init_data']['profile_user']:
+        try:
+            j = self.get_s(url, '', important=False)  # query_string)
+        except Exception as e:
+            self.logger.error('%s %s', type(e), str(e))
+            # fname = sys._getframe().f_code.co_name
+            # print(fname, type(e), str(e))
+            raise
+        if j and ('init_data' in j or 'message' in j):
+            if 'init_data' in j:
+                if 'profile_user' in j['init_data']:
                     tweet.user_id = int(j['init_data']['profile_user']['id'])
                     tweet.likes = j['init_data']['profile_user']['favourites_count']
                     tweet.user_tweet_count = j['init_data']['profile_user']['statuses_count']
@@ -530,6 +574,16 @@ class TweetScraper(object):
                     else:
                         tweet.user_location = ''
                     return tweet
+            if 'message' in j:
+                if j['message'].strip() == 'This user does not exist.':
+                    tweet.user_status = 'not_exists'
+                    return tweet
+                elif j['message'].strip() == 'Sorry, that user is suspended.':
+                    tweet.user_status = 'suspended'
+                    return tweet
+                else:
+                    self.logger.warning('Unhandeled error message: "%s"', j['message'])
+        self.logger.warning('Unhandeled error response: "%s"', j)
         return None
 
     def get_s(self, url, screen_name, important=True):

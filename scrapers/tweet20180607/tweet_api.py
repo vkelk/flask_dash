@@ -2,21 +2,11 @@ import logging
 import requests
 import time
 import re
-from pprint import pprint
 from pyquery import PyQuery
 import sys
 import json
 
 from datetime import datetime
-
-
-# def create_logger():
-#     log_file = 'tweet_api_' + str(datetime.now().strftime('%Y-%m-%d')) + '.log'
-#     logging.config.fileConfig('log.ini', defaults={'logfilename': log_file})
-#     return logging.getLogger(__name__)
-
-
-# logger = create_logger()
 
 
 class LoadingError(Exception):
@@ -63,10 +53,10 @@ class Page(object):
                 error_count += 1
                 # print('Loading error', error_count, pr, e)
                 if error_count < 3:
-                    print('Loading error', error_count, url, self.pr, e)
+                    # self.logger.warning('Loading error %s %s %s', error_count, url, self.pr, e)
                     time.sleep(60)
                     continue
-                print('Error limit exceeded Loading error', url, self.pr, e)
+                self.logger.error('HTTP limit exceeded Loading error %s %s %s', url, self.pr, e)
                 if important:
                     raise LoadingError
                 else:
@@ -75,60 +65,52 @@ class Page(object):
             if resp.status_code == requests.codes.ok:
                 return resp.text
             elif resp.status_code == 404:
-                self.logger.warning('%s %s %s', url, resp.status_code, resp.text)
-                # print('tweet_api:Page.load Error 404', url, resp.text, resp.status_code)
+                self.logger.warning('HTTP %s %s %s', url, resp.status_code, resp.text)
                 err_response = self.handle_err_response(resp.text)
                 if err_response:
                     return err_response
-                print('tweet_api:Page.load Error 404', url, resp.text, resp.status_code)
+                self.logger.error('%s %s %s', resp.staus_code, resp.text, url)
                 if important:
                     raise LoadingError
                 else:
                     return None
             elif resp.status_code == 403:
-                self.logger.warning('%s %s %s', url, resp.status_code, resp.text)
+                self.logger.warning('HTTP %s %s %s', url, resp.status_code, resp.text)
                 err_response = self.handle_err_response(resp.text)
                 if err_response:
                     return err_response
-                print('tweet_api:Page.load Error 403', url, resp.text, resp.status_code)
+                self.logger.error('HTTP %s %s %s', resp.staus_code, resp.text, url)
                 if resp.text == '{"message":"Sorry, that user is suspended."}':
                     return resp.text
                 raise
                 return None
             elif resp.status_code == 429:
-                self.logger.warn('%s Rate limit. Sleep 3 min %s', resp.status_code, url)
-                # print('tweet_api:Page.load Rate limit. Sleep 3 min')
+                self.logger.warn('HTTP %s Rate limit. Sleep 3 min %s', resp.status_code, url)
                 time.sleep(3 * 60)
                 continue
             elif resp.status_code == 503:
-                self.logger.warn('%s Error waiting 2 min %s', resp.status_code, url)
-                # print('503 Error waiting 2 min', screen_name, proxy, url, resp.text, resp.status_code)
+                self.logger.warn('HTTP %s Error waiting 2 min %s', resp.status_code, url)
                 error_count += 1
                 if error_count > 5:
-                    self.logger.error('%s %s', resp.status_code, url)
-                    # print('tweet_api:Page.load AWAM: Requestes 503 error', url, self.pr)
+                    self.logger.error('HTTP %s %s', resp.status_code, url)
                     if important:
                         raise LoadingError
                     else:
                         return None
-
-                # print('tweet_api:Page.load Requestes 503 error', error_count, url, self.pr)
                 time.sleep(120)
                 continue
             else:
                 error_count += 1
-                self.logger.warn('%s %s Count: %s', resp.status_code, url, error_count)
-                # print('tweet_api:Page.load Error', url, resp.text, resp.status_code)
-                # print('tweet_api:Page.load Loading error', error_count)
+                self.logger.warn('HTTP %s %s Count: %s', resp.status_code, url, error_count)
                 if error_count > 5:
-                    self.logger.error('%s %s %s Error limit exceeded Requests error Count: %s', resp.status_code, url, self.pr, error_count)
-                    # print('tweet_api:Page.load Error limit exceeded Requests error ', url, self.pr, resp.status_code)
+                    self.logger.error(
+                        'HTTP %s %s %s Error limit exceeded Requests error Count: %s',
+                        resp.status_code, url, self.pr, error_count)
                     if important:
                         raise LoadingError
                     else:
                         return None
-                self.logger.warn('%s %s waiting 1 min', resp.status_code, url)
-                # print('tweet_api:Page.load Error waiting 1 min', url, resp.text, resp.status_code)
+                self.logger.warn('HTTP %s %s waiting 1 min', resp.status_code, url)
                 time.sleep(60)
                 continue
 
@@ -138,7 +120,7 @@ class Page(object):
             if 'message' in msg:
                 return err_msg
         except Exception as e:
-            self.logger.error('%s %s %s', type(e), str(e), err_msg)
+            self.logger.exception('message')
         self.logger.error('Could not handle %s', err_msg)
         return None
 
@@ -146,23 +128,6 @@ class Page(object):
 class TweetScraper(object):
     def __init__(self, proxy=None, IS_PROFILE_SEARCH=None, logname=None):
         self.logger = logging.getLogger(__name__)
-        # if logname:
-        #     self.logger = logging.getLogger(logname)
-        #     self.logger.setLevel(logging.DEBUG)
-
-        #     self.fh = logging.FileHandler(logname + '.log')
-        #     self.fh.setLevel(logging.DEBUG)
-
-        #     self.ch = logging.StreamHandler()
-        #     self.ch.setLevel(logging.DEBUG)
-        #     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-
-        #     # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        #     self.fh.setFormatter(formatter)
-        #     self.ch.setFormatter(formatter)
-
-        #     self.logger.addHandler(self.fh)
-        #     self.logger.addHandler(self.ch)
         self.IS_PROFILE_SEARCH = IS_PROFILE_SEARCH
         self.page = Page(proxy)
         self.ISUSERPROFILE = True
@@ -186,14 +151,14 @@ class TweetScraper(object):
             resp = self.page.ses.post(url, data=params, timeout=10)
             if resp.status_code == requests.codes.ok:
                 if re.search('action="/logout" method="POST">', resp.text):
-                    print('Logged as', login)
+                    self.logger.info('Logged as %s', login)
 
                     res = re.findall('<input type="hidden" value="(.+?)" name="authenticity_token', resp.text)
                     token = res[0]
                     return token
                 elif re.search('Your account appears to have exhibited automated behavior that violates', resp.text):
-                    print('Your account appears to have exhibited automated behavior that violates')
-                    print('Pass a Google reCAPTCHA challenge.Verify your phone number')
+                    self.logger.warning('Your account appears to have exhibited automated behavior that violates')
+                    self.logger.warning('Pass a Google reCAPTCHA challenge.Verify your phone number')
                     return False
 
                 elif re.search('id="login-challenge-form"', resp.text):
@@ -212,7 +177,7 @@ class TweetScraper(object):
                             print(challenge_type)
                             return None
                     else:
-                        print('Challenge type:{}'.format(challenge_type))
+                        self.logger.error('Challenge type: %s', challenge_type)
                         exit()
                     params = {
                         'authenticity_token': authenticity_token,
@@ -227,15 +192,15 @@ class TweetScraper(object):
                     print(challenge_type)
                     continue
                 elif re.search('You have initiated too many login verification requests', resp.text, re.S):
-                    print('You have initiated too many login verification requests')
+                    self.logger.error('You have initiated too many login verification requests')
                     raise LoadingError
 
                 else:
-                    print('Not logged as', login)
+                    self.logger.warning('Not logged as %s', login)
                     return False
                 break
             else:
-                print('Login Error', resp.status_code)
+                self.logger.error('Login Error %s', resp.status_code)
                 return False
 
     def get_new_search(self, query, login=None, password=None, nativeretweets=False):
@@ -255,7 +220,7 @@ class TweetScraper(object):
 
             token = self.twitter_login(login, password)
             if not token:
-                print('UNABLE LOGIN')
+                self.logger.error('UNABLE TO LOGIN')
                 return False
 
         empty_count = 0
@@ -286,10 +251,9 @@ class TweetScraper(object):
                 r = json.loads(resp)
                 # pprint(r.keys())
             except Exception as e:
-                print(resp.text)
-                print('JSON error', url, self.page.pr)
-                fname = sys._getframe().f_code.co_name
-                print(fname, type(e), str(e))
+                # print(resp.text)
+                self.logger.error('JSON error %s %s %s', url, self.page.pr, resp.text)
+                self.logger.exception('message')
                 raise LoadingError
 
             if not r.get('inner', False):
@@ -298,8 +262,9 @@ class TweetScraper(object):
             try:
                 refreshCursor = r['inner']['min_position']
             except KeyError:
-                print(resp.text)
-                print('Key error', url, self.page.pr)
+                self.logger.warning('KeyError %s %s %s', url, self.page.pr, resp.text)
+                # print(resp.text)
+                # print('Key error', url, self.page.pr)
                 raise LoadingError
             del resp
 
@@ -321,7 +286,7 @@ class TweetScraper(object):
                     break
                 else:
                     # print(r['inner']['new_latent_count'])
-                    self.logger.warning('Twitter server stopped. sleep 3 sec %s', query_string)
+                    # self.logger.warning('Twitter server stopped. sleep 3 sec %s', query_string)
                     # print('Twitter server stopped. sleep 3 sec')
                     time.sleep(3)
                     continue
@@ -341,8 +306,8 @@ class TweetScraper(object):
             tweets = PyQuery(r)('div.js-stream-tweet')
             # print(tweets.html())
         except Exception as e:
-            print('no div.js-stream-tweet')
-            print(type(e), str(e))
+            self.logger.warning('no div.js-stream-tweet')
+            self.logger.exception('message')
             return None
         for tweetHTML in tweets:
             # pprint(tweetHTML)
@@ -421,24 +386,27 @@ class TweetScraper(object):
                     retweets = int(tweetPQ("span.ProfileTweet-action--retweet span.ProfileTweet-actionCount").attr(
                         "data-tweet-stat-count").replace(",", ""))
                 except AttributeError:
-                    print(str(tweetPQ))
-                    print('Attribute error in ProfileTweet-action--retweet')
+                    self.logger.warning('AttributeError in ProfileTweet-action--retweet %s', str(tweetPQ))
+                    # print(str(tweetPQ))
+                    # print('Attribute error in ProfileTweet-action--retweet')
                     retweets = 0
 
                 try:
                     favorites = int(tweetPQ("span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr(
                         "data-tweet-stat-count").replace(",", ""))
                 except AttributeError:
-                    print(str(tweetPQ))
-                    print('Attribute error in ProfileTweet-action--retweet')
+                    self.logger.warning('AttributeError in ProfileTweet-action--retweet %s', str(tweetPQ))
+                    # print(str(tweetPQ))
+                    # print('Attribute error in ProfileTweet-action--retweet')
                     favorites = 0
 
                 try:
                     replyes = int(tweetPQ("span.ProfileTweet-action--reply span.ProfileTweet-actionCount").attr(
                         "data-tweet-stat-count").replace(",", ""))
                 except AttributeError:
-                    print(str(tweetPQ))
-                    print('Attribute error in ProfileTweet-action--retweet')
+                    self.logger.warning('AttributeError in ProfileTweet-action--retweet %s', str(tweetPQ))
+                    # print(str(tweetPQ))
+                    # print('Attribute error in ProfileTweet-action--retweet')
                     replyes = 0
 
             dateSec = int(tweetPQ("small.time span.js-short-timestamp").attr("data-time"))
@@ -499,8 +467,12 @@ class TweetScraper(object):
                     try:
                         tweet.is_reply_username = re.findall('<b>(.+?)</b>', tt[0])[0]
                     except IndexError:
-                        print('ERROR', tweetPQ('a.js-user-profile-link'))
-                        print(tt, tweet.is_reply_id, tweet.permalink)
+                        self.logger.warning(
+                            'IndexError %s %s %s %s',
+                            tweetPQ('a.js-user-profile-link'),
+                            tt, tweet.is_reply_id, tweet.permalink)
+                        # print('ERROR', tweetPQ('a.js-user-profile-link'))
+                        # print(tt, tweet.is_reply_id, tweet.permalink)
                         raise LoadingError
                         # print(tweet.is_reply_username)
 
@@ -533,13 +505,16 @@ class TweetScraper(object):
                     tweet.data_conversation_id) + '?conversation_id=' + str(tweet.data_conversation_id)
                 j = self.get_s(url, tweet.screen_name, important=False)
 
-                if j:
+                if j and 'page' in j:
                     tweet_status = PyQuery(j['page'])('a.js-geo-pivot-link')
                     if tweet_status:
                         # print(tweet_status.text(), tweet_status.attr('data-place-id'))
                         tweet.location_name = tweet_status.text()
                         tweet.location_id = tweet_status.attr('data-place-id') if tweet_status.attr(
                             'data-place-id') else ''
+                else:
+                    self.logger.warning('Key "page" does not exists %s', url)
+                    continue
             yield tweet
         return None
 
@@ -594,9 +569,8 @@ class TweetScraper(object):
             try:
                 j = json.loads(resp)
             except Exception as e:
-                print(url, resp)
-                print('Json decode error ')
-                print(type(e), str(e))
+                self.logger.error('Json decode error %s %s', url, resp)
+                self.logger.exception('message')
                 if important:
                     raise LoadingError
                 else:

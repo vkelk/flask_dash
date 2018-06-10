@@ -22,7 +22,6 @@ from sqlalchemy.orm import relationship
 import warnings
 import os
 import sqlalchemy.exc
-from pprint import pprint
 import tweet_api
 import random
 
@@ -116,17 +115,16 @@ def scra(query, i, proxy, lock, session=None):
         if twit and twit.user_id:
             Session.remove()
             continue
-        print(query, count, t.date)
+        # print(query, count, t.date)
         if twit and twit.user_id is None:
             try:
                 twit.user_id = data['UserID']
                 session.add(twit)
                 session.flush()
                 session.commit()
-                print('Updated tweet_id {} with user_id {}'.format(data['tweet_id'], data['UserID']))
+                logger.info('Updated tweet_id %s with user_id %s', data['tweet_id'], data['UserID'])
             except Exception as e:
-                fname = sys._getframe().f_code.co_name
-                print(fname, type(e), str(e))
+                logger.exception('message')
                 raise
             Session.remove()
             continue
@@ -236,14 +234,14 @@ def scra(query, i, proxy, lock, session=None):
                 session.add(user)
                 session.flush()
                 session.commit()
-                print('Inserted new user:', data['UserID'])
+                logger.info('Inserted new user: %s', data['UserID'])
             except sqlalchemy.exc.IntegrityError as err:
                 if re.search("duplicate key value violates unique constraint", err.args[0]):
-                    print('ROLLBACK USER')
+                    logger.warning('ROLLBACK USER %s', data['UserID'])
+                    # print('ROLLBACK USER')
                     session.rollback()
             except Exception as e:
-                fname = sys._getframe().f_code.co_name
-                print(fname, type(e), str(e))
+                logger.exception('message')
                 raise
         # twit = session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first()
         # if not twit:
@@ -296,14 +294,13 @@ def scra(query, i, proxy, lock, session=None):
             session.add(twit)
             session.flush()
             session.commit()
-            print('Inserted new Tweet:', data['tweet_id'])
+            logger.info('Inserted new Tweet: %s', data['tweet_id'])
         except sqlalchemy.exc.IntegrityError as err:
             if re.search('duplicate key value violates unique constraint', err.args[0]):
-                print('ROLLBACK common')
+                logger.warning('ROLLBACK duplicate entry')
                 session.rollback()
         except Exception as e:
-            fname = sys._getframe().f_code.co_name
-            print(fname, type(e), str(e))
+            logger.exception('message')
             raise
         finally:
             Session.remove()
@@ -358,20 +355,18 @@ def scrape_query(user_queue, proxy, lock, pg_dsn):
         try:
             res = scra(query, i, proxy, lock)
         except tweet_api.LoadingError:
-            print('LoadingError except')
+            logger.warning('LoadingError except')
             return False
         except Exception:
             logger.exception('message')
-            # fname = sys._getframe().f_code.co_name
-            # print(fname, type(e), str(e))
             raise
         if not res:
-            logger.warning('SCRAP_USER %s %s', query, i)
+            logger.warning('Empty scrape result %s %s', query, i)
             # print('     SCRAP_USER Error in', query, i)
             with open('error_list.txt', 'a') as f:
                 f.write(query[0] + '\n')
         else:
-            print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ' ENDED', i, proxy, query, res)
+            logger.info('ENDED %s, %s, %s, %s', i, proxy, query, res)
     # session.close()
     return True
 

@@ -85,15 +85,15 @@ class Twit:
         return self.text
 
 
-def get_symbols(s):
-    s = s.upper()
-    res = re.findall('(\$[A-Z]{1,6}([._][A-Z]{1,2})?)', s, re.M)
-    if res:
-        r = list(map(lambda x: x[0], res))
-        r = list(set(r))
-        return r
-    else:
-        return []
+# def get_symbols(s):
+#     s = s.upper()
+#     res = re.findall('(\$[A-Z]{1,6}([._][A-Z]{1,2})?)', s, re.M)
+#     if res:
+#         r = list(map(lambda x: x[0], res))
+#         r = list(set(r))
+#         return r
+#     else:
+#         return []
 
 
 def scra(query, i, proxy, lock, session=None):
@@ -180,18 +180,13 @@ def scra(query, i, proxy, lock, session=None):
         tokens = tokenize(t.text)
         cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 1])
         if len(cashtags) == 0:
-            # print('Skipping, does not contain cashtags', t.text)
+            logger.info('Skipping %s does not contain cashtags', data['tweet_id'])
             Session.remove()
             continue
         hashtags = set([term.upper() for term in tokens if term.startswith('#') and len(term) > 1])
         # mentions = [term for term in tokens if term.startswith('@') and len(term) > 1]
         urls = set([term for term in tokens if term.startswith('http') and len(term) > 4])
 
-        # tweet_list.append(data)
-        # pprint(data)
-
-        # print(query, count, t.date)
-        # print(data)
         if ISUSERPROFILE:
             pass
             # dd = re.findall('\w+ (\w+) (\d+) \d+:\d+:\d+ \+\d+ (\d+)', data['DateJoined'])
@@ -209,8 +204,6 @@ def scra(query, i, proxy, lock, session=None):
             data['Website'] = None
             data['is_verified'] = None
 
-        # if session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first():
-        #     continue
         user = session.query(User).filter_by(user_id=data['UserID']).first()
         if not user:
             user = User(user_id=data['UserID'],

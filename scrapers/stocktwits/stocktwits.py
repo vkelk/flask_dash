@@ -1,8 +1,8 @@
 import os.path
 import csv
-import datetime
 import json
-from pprint import pprint
+import logging
+import logging.config
 from multiprocessing.dummy import Process, Lock, Queue
 from multiprocessing.dummy import Pool as ThreadPool
 import re
@@ -57,7 +57,6 @@ def add_engine_pidguard(engine):
 
 
 Base = declarative_base()
-murl = 'mysql+pymysql://{}:{}@{}:{}/?charset=utf8mb4&use_unicode=1'
 db_engine = create_engine(pg_dsn, pool_size=1)
 add_engine_pidguard(db_engine)
 pg_meta = MetaData(bind=db_engine, schema="stocktwits")
@@ -153,23 +152,23 @@ class Page(object):
         self.ses.headers = {
             'user-agent':
             'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36',
-        # 'Connection': 'keep-alive',
-        # 'Cache-Control': 'max-age=0',
+            # 'Connection': 'keep-alive',
+            # 'Cache-Control': 'max-age=0',
             'Accept-Encoding':
             'gzip, deflate, br',
             'Origin':
             'https://stocktwits.com',
-        # 'accept': 'application/json, text/javascript, */*; q=0.01',
+            # 'accept': 'application/json, text/javascript, */*; q=0.01',
             'Accept':
             '*/*',
             'Accept-Language':
             'en-US;q=0.6,en;q=0.4',
             'x-compress':
             None,
-        # 'Upgrade-Insecure-Requests': '1',
-        # 'x-requested-with': 'XMLHttpRequest',
-        # 'x-twitter-active-user': 'yes',
-        # 'host': 'stocktwits.com'
+            # 'Upgrade-Insecure-Requests': '1',
+            # 'x-requested-with': 'XMLHttpRequest',
+            # 'x-twitter-active-user': 'yes',
+            # 'host': 'stocktwits.com'
         }
 
     # def __del__(self):
@@ -198,32 +197,26 @@ class Page(object):
                 error_count += 1
                 # print('Loading error', error_count, pr, e)
                 if error_count < 3:
-                    print(n, 'Loading error', error_count, url, self.pr, e)
+                    logger.debug('%s Loading error %s %s %s %s', n, error_count, url, self.pr, e)
                     time.sleep(60)
                     continue
-                print(n, 'Error limit exceeded Loading error', url, self.pr, e)
+                logger.error('%s Error limit exceeded Loading error %s %s %s', n, url, self.pr, e)
                 raise LoadingError
 
             if resp.status_code == requests.codes.ok:
                 return resp.text
             elif resp.status_code == 429:
-                print(n, 'Rate limit. Sleep 3 min')
+                logger.debug('%s Rate limit. Sleep 3 min', n)
                 time.sleep(3 * 60)
                 continue
             elif resp.status_code == 502 or resp.status_code == 504:
-                print(
-                    n,
-                    'wait 30 sec Error',
-                    resp.status_code,
-                    error_count,
-                    url,
-                    params,
-                )
+                logger.debug('%s wait 30 sec Error %s %s %s %s', n, resp.status_code, error_count, url, params)
                 error_count += 1
                 if error_count < 5:
                     time.sleep(30)
                 else:
                     if important:
+                        logger.error('%s Error limit exceeded HTTP error %s ', n, resp.status_code)
                         raise LoadingError
                     else:
                         return None
@@ -231,23 +224,22 @@ class Page(object):
                 # print('503 Error waiting 2 min', screen_name, proxy, url, resp.text, resp.status_code)
                 error_count += 1
                 if error_count > 5:
-                    print(n, 'AWAM: Requestes 503 error', url, self.pr)
+                    logger.error('%s Requestes 503 error %s %s', n, url, self.pr)
                     raise LoadingError
-                print(n, ' Requestes 503 error', error_count, url, self.pr)
+                logger.debug('%s Requestes 503 error %s %s %s', n, error_count, url, self.pr)
                 time.sleep(120)
                 continue
             else:
                 error_count += 1
-                print(n, resp.text)
-                print(n, 'Error', error_count, url, params, resp.status_code)
+                # print(n, resp.text)
+                logger.debug('%s HTTP Error %s %s %s %s', n, resp.status_code, error_count, url, params)
                 if not important:
                     return None
 
                 if error_count > 5:
-                    print(n, 'Error limit exceeded Requestes error ', url, self.pr,
-                          resp.status_code)
+                    logger.error('%s Error limit exceeded Requestes error %s %s %s', n, url, self.pr, resp.status_code)
                     raise LoadingError
-                print(n, 'Error waiting 1 min', url, resp.status_code)
+                logger.debug('%s Error waiting 1 min %s %s', n, resp.status_code, url)
                 time.sleep(60)
                 continue
 
@@ -299,10 +291,10 @@ def login(n, page):
         j = json.loads(r)
         page.ses.headers['authorization'] = 'OAuth ' + j['token']
     except Exception as e:
-        print(e)
-        print(n, 'Unable login')
+        logger.error('%s Unable to login', n)
+        logger.exception('message')
         exit()
-    print(n, 'Login success')
+    logger.debug('%s Login success', n)
 
 
 def get_tweets(n, dateto, permno, proxy, query, lock, session):
@@ -311,10 +303,8 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
     page = Page(proxy)
     login(n, page)
     for t in get_new_search(n, page, proxy, query):
-        # pprint(t)
         count_repl = 0
         t1 = datetime.strptime(t['created_at'], '%Y-%m-%dT%H:%M:%SZ')
-        # print(dateto,t1)
         if dateto > t1:
             break
 
@@ -326,11 +316,7 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
         if not user:
             if settings.ISUSERPROFILE:
                 url = 'https://stocktwits.com/api/user_info_stream/' + t['user']['username'] + '?limit=15'
-                r = page.load(
-                    n,
-                    'get',
-                    url,
-                    headers={'referer': 'https://stocktwits.com/' + t['user']['username']},
+                r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + t['user']['username']},
                     important=False)
                 if r:
                     j = json.loads(r)
@@ -338,11 +324,7 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
             if settings.ISWATCHLIST:
                 url = 'https://api.stocktwits.com/api/2/watchlists/user/' + str(
                     t['user']['id']) + '.json'
-                r = page.load(
-                    n,
-                    'get',
-                    url,
-                    headers={'referer': 'https://stocktwits.com/' + t['user']['username']},
+                r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + t['user']['username']},
                     important=False)
                 if r:
                     j = json.loads(r)
@@ -359,8 +341,7 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                     website=t['user']['website_url'],
                     source=None,
                 # user_strategy=json.dumps(t['user']['trading_strategy'])[:200],
-                    user_topmentioned=' '.join(
-                        [f['symbol'] for f in t['user']['most_mentioned'][0]])[:255]
+                    user_topmentioned=' '.join([f['symbol'] for f in t['user']['most_mentioned'][0]])[:255]
                     if t['user'].get('most_mentioned', False) else None,
                     verified='YES' if t['user']['official'] else 'NO',
                     location=t['user']['location'][:255]
@@ -381,18 +362,19 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                     watchlist_count=t['user']['watchlist_stocks_count'],
                     watchlist_stocks=watch_list,
                     ideas=t['user']['ideas'])
-                user.counts.append(user_count)
-                user.strategy.append(user_strategy)
-                session.add(user_count)
-                session.add(user_strategy)
-                session.add(user)
                 try:
+                    user.counts.append(user_count)
+                    user.strategy.append(user_strategy)
+                    session.add(user_count)
+                    session.add(user_strategy)
+                    session.add(user)
                     session.commit()
                 except sqlalchemy.exc.IntegrityError as err:
                     if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)", err.args[0]):
-                        print(n, 'ROLLBACK USER')
+                        logger.warning('%s ROLLBACK USER', n)
                         session.rollback()
-                        # print('DUBLICATE USER', err)
+                except Exception:
+                    logger.exception('message')
 
         idea = Ideas(
             ideas_id=t['id'],
@@ -410,13 +392,12 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
             if int(t['conversation']['replies']) > 20:
                 rrr = 1
             max = None
-            url = 'https://api.stocktwits.com/api/2/messages/' + str(
-                t['id']) + '/conversation.json?max='
+            url = 'https://api.stocktwits.com/api/2/messages/' + str(t['id']) + '/conversation.json?max='
             flag_conv = False
             while True:
                 r = page.load(n, 'get', url, important=False)
                 if not r:
-                    print(n, 'Error loading conversation')
+                    logger.error('%s Error loading conversation', n)
                     break    # , headers={'referer': 'https://stocktwits.com/' + t['user']['username']})
                 j = json.loads(r)
                 if flag_conv:
@@ -434,27 +415,30 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                             time=t1.time(),
                             reply_userid=children['user']['id'],
                             text=children['body'])
-                        session.add(reply)
                         try:
+                            session.add(reply)
                             session.commit()
                         except sqlalchemy.exc.IntegrityError as err:
                             if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)",
                                         err.args[0]):
-                                print(n, 'ROLLBACK REPLY')
+                                logger.warning('%s ROLLBACK REPLY', n)
                                 session.rollback()
+                        except Exception:
+                            logger.error('message')
 
                     idea.replies.append(reply)
                 # break
                 if mess['cursor']['more']:
-                    url = 'https://api.stocktwits.com/api/2/messages/' + str(
-                        t['id']) + '/children.json?since=' + str(mess['cursor']['since'])
+                    url = 'https://api.stocktwits.com/api/2/messages/' + str(t['id']) + '/children.json?since=' \
+                        + str(mess['cursor']['since'])
                     flag_conv = True
                     continue
                 break
 
         idea_count = Ideas_Count(
             replies=t['conversation']['replies'] if t.get('conversation', False) else None,
-            likes=t['likes']['total'] if t.get('likes', False) else None)
+            likes=t['likes']['total'] if t.get('likes', False) else None
+            )
         idea.counts.append(idea_count)
 
         tokens = preprocess(idea.text)
@@ -483,22 +467,21 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
         #                          url=' '.join([f['url'] for f in t['links']])[:150] if t.get('links', False) else None)
         #     idea.urls.append(idea_url)
         #     session.add(idea_url)
-
-        user.ideas.append(idea)
-        session.add(idea_count)
-        session.add(idea)
         try:
+            user.ideas.append(idea)
+            session.add(idea_count)
+            session.add(idea)
             session.commit()
         except sqlalchemy.exc.IntegrityError as err:
-
             if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)", err.args[0]):
-                print(n, 'ROLLBACK IDEAS')
+                logger.warning('%s ROLLBACK IDEAS', n)
                 session.rollback()
                 # print('DUBLICATE USER', err)
+        except Exception:
+            logger.error('message')
 
         count += 1
-        print('{}   {:6} {:8}  {}  {}'.format(n, query, count, t['created_at'], count_repl
-                                              if count_repl > 0 else ''))
+        logger.info('%s %s %s %s %s', n, query, count, t['created_at'], count_repl if count_repl > 0 else '')
 
         # if count>99: break
 
@@ -526,26 +509,23 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                     fieldnames=fdnames,
                     dialect='excel',
                     quotechar='"',
-                    quoting=csv.QUOTE_ALL)
+                    quoting=csv.QUOTE_ALL
+                    )
                 writer.writerow(data)
-
         else:
-
             with open(fname, 'w') as f:
-
                 writer = csv.DictWriter(
                     f,
                     lineterminator='\n',
                     fieldnames=fdnames,
                     dialect='excel',
                     quotechar='"',
-                    quoting=csv.QUOTE_ALL)
+                    quoting=csv.QUOTE_ALL
+                    )
                 writer.writeheader()
                 writer.writerow(data)
-
     else:
         pass
-
     return count
 
 
@@ -558,21 +538,29 @@ def scrape(n, user_queue, proxy, lock, pg_dsn):
     while not user_queue.empty():
         dateto, permno, query, i = user_queue.get()
         n = i
-        print(n, 'START', i, proxy, query)
+        logger.info('%s START %s %s %s', n, i, proxy, query)
         try:
             res = get_tweets(n, dateto, permno, proxy, query, lock, session=session)
         except LoadingError:
-            print(n, 'LoadingError except')
+            logger.error('%s LoadingError except', n)
             return
         if not res:
-            print(n, '     SCRAP_USER Error in', query, i)
+            logger.error('%s SCRAP_USER Error in %s %s', n, query, i)
             # with open('error_list.txt', 'a') as f:
             #     f.write(query[0] + '\n')
         else:
-            print(n, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ' ENDED', i, proxy, query, res)
+            logger.error('%s ENDED %s %s %s %s', n, i, proxy, query, res)
 
         time.sleep(1)
 
+
+def create_logger():
+    log_file = 'tweet_scrapper_' + str(datetime.now().strftime('%Y-%m-%d')) + '.log'
+    logging.config.fileConfig('log.ini', defaults={'logfilename': log_file})
+    return logging.getLogger(__name__)
+
+
+logger = create_logger()
 
 if __name__ == '__main__':
     # multiprocessing.set_start_method('forkserver')
@@ -584,8 +572,13 @@ if __name__ == '__main__':
     lock = Lock()
 
     fname = 'symbol_list.xlsx'
-    wb = load_workbook(fname)
-    ws = wb.active
+    try:
+        wb = load_workbook(fname)
+        ws = wb.active
+    except Exception:
+        logger.error('Could not open file %s. Exitting...', fname)
+        # logger.exception('message')
+        exit()
     i = 2
     while True:
         if not ws.cell(row=i, column=1).value:

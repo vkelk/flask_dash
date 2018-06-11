@@ -85,26 +85,16 @@ class Twit:
         return self.text
 
 
-# def get_symbols(s):
-#     s = s.upper()
-#     res = re.findall('(\$[A-Z]{1,6}([._][A-Z]{1,2})?)', s, re.M)
-#     if res:
-#         r = list(map(lambda x: x[0], res))
-#         r = list(set(r))
-#         return r
-#     else:
-#         return []
-
-
 def scra(query, i, proxy, lock, session=None):
     twitter_scraper = tweet_api.TweetScraper(proxy, IS_PROFILE_SEARCH=IS_PROFILE_SEARCH, logname='awam')
     count = 0
+    idx = 0
 
     # Receiving random credentials from the settings file
     credential = settings.twitter_logins[random.randrange(0, len(settings.twitter_logins))]
     login = credential['login']
     password = credential['password']
-    for t in twitter_scraper.get_new_search(query, login, password):
+    for idx, t in enumerate(twitter_scraper.get_new_search(query, login, password)):
         data = {}
         data['tweet_id'] = t.id
         data['UserID'] = t.user_id
@@ -298,7 +288,7 @@ def scra(query, i, proxy, lock, session=None):
         finally:
             Session.remove()
         count += 1
-
+    logger.info('Query %s: %s tweets of which %s are new', query, idx, count)
     lock.acquire()
     date_begin = query[2]
     date_end = query[3]
@@ -317,6 +307,7 @@ def scra(query, i, proxy, lock, session=None):
         lock.release()
         return count
     else:
+        logger.warning('Count is %s', count)
         with open('error.csv', 'a') as f:
             data = {}
             fdnames = ['time', 'query_name', 'number', 'date_from', 'date_to']
@@ -333,13 +324,6 @@ def scra(query, i, proxy, lock, session=None):
 
 
 def scrape_query(user_queue, proxy, lock, pg_dsn):
-    # db_engine = create_engine(pg_dsn, pool_size=1)
-    # add_engine_pidguard(db_engine)
-    # DstSession = sessionmaker(bind=db_engine, autoflush=False)
-    # session = DstSession()
-    # session = Session()
-
-    active = True
     while not user_queue.empty():
         query, i = user_queue.get()
 
@@ -353,14 +337,13 @@ def scrape_query(user_queue, proxy, lock, pg_dsn):
         except Exception:
             logger.exception('message')
             raise
-        if not res:
-            logger.warning('Empty scrape result %s %s', query, i)
-            # print('     SCRAP_USER Error in', query, i)
-            with open('error_list.txt', 'a') as f:
-                f.write(query[0] + '\n')
-        else:
-            logger.info('ENDED %s, %s, %s, %s', i, proxy, query, res)
-    # session.close()
+        # if not res:
+        #     logger.warning('Empty scrape result %s %s', query, i)
+        #     # print('     SCRAP_USER Error in', query, i)
+        #     with open('error_list.txt', 'a') as f:
+        #         f.write(query[0] + '\n')
+        # else:
+        logger.info('ENDED %s, %s, %s, %s', i, proxy, query, res)
     return True
 
 

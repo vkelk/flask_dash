@@ -2,7 +2,7 @@ import requests
 import re
 # from pprint import pprint
 # from threading import Thread
-from flask import current_app, url_for, render_template, session
+from flask import url_for, render_template, session
 # from flask_mail import Message
 from flask_login import current_user
 from itsdangerous import URLSafeTimedSerializer
@@ -14,7 +14,7 @@ from application.project.models import Project
 # HELPERS
 def send_mail(to_address, subject, html):
     r = requests.post("https://api.mailgun.net/v3/%s/messages" % base_config.MAILGUN_DOMAIN,
-                      auth=("api", current_app.MAILGUN_KEY),
+                      auth=("api", base_config.MAILGUN_KEY),
                       data={
                           "from": "Dashboard app <postmaster@sandboxe512714bb2924291ade762463fdedbdc.mailgun.org>",
                           "to": to_address,

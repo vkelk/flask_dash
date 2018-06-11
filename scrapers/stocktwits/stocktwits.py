@@ -428,7 +428,7 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                                 logger.warning('%s ROLLBACK REPLY', n)
                                 session.rollback()
                         except Exception:
-                            logger.error('message')
+                            logger.exception('message')
 
                     idea.replies.append(reply)
                 # break
@@ -484,7 +484,7 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                 logger.warning('%s ROLLBACK IDEAS DUPLICATE USER', n)
                 session.rollback()
         except Exception:
-            logger.error('message')
+            logger.exception('message')
 
         count += 1
         logger.info('%s %s %s %s %s', n, query, count, t['created_at'], count_repl if count_repl > 0 else '')

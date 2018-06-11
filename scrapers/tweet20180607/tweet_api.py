@@ -69,7 +69,7 @@ class Page(object):
                 err_response = self.handle_err_response(resp.text)
                 if err_response:
                     return err_response
-                self.logger.error('%s %s %s', resp.staus_code, resp.text, url)
+                self.logger.error('HTTP %s %s %s', resp.status_code, resp.text, url)
                 if important:
                     raise LoadingError
                 else:
@@ -79,7 +79,7 @@ class Page(object):
                 err_response = self.handle_err_response(resp.text)
                 if err_response:
                     return err_response
-                self.logger.error('HTTP %s %s %s', resp.staus_code, resp.text, url)
+                self.logger.error('HTTP %s %s %s', resp.status_code, resp.text, url)
                 if resp.text == '{"message":"Sorry, that user is suspended."}':
                     return resp.text
                 raise

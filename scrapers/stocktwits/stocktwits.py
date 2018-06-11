@@ -1,25 +1,26 @@
-import os.path
 import csv
+from datetime import datetime
 import json
 import logging
 import logging.config
 from multiprocessing.dummy import Process, Lock, Queue
 from multiprocessing.dummy import Pool as ThreadPool
+import os
+from pprint import pprint
 import re
 import requests
 import time
+
 from openpyxl import load_workbook
-from datetime import datetime
-import settings
 from sqlalchemy import create_engine, MetaData, Table
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm import relationship, sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
+import sqlalchemy.exc as exc
 import sqlalchemy.event as event
 import warnings
 
-from sqlalchemy.orm import relationship
-import sqlalchemy.exc
-import os
+import settings
+
 
 os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['OMP_NUM_THREADS'] = '1'
@@ -118,27 +119,23 @@ emoticons_str = r"""
 
 regex_str = [
     emoticons_str,
-    r'<[^>]+>',    # HTML tags
-    r'(?:@[\w_]+)',    # @-mentions
-    r"(?:\#\w*[a-zA-Z]+\w*)",    # hash-tags
-    r"(?:\$[A-Za-z0-9]{1,5}\b)",    # cash-tags
-    r'http[s]?://(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+',    # URLs
-    r'(?:(?:\d+,?)+(?:\.?\d+)?)',    # numbers
-    r"(?:[a-z][a-z'\-_]+[a-z])",    # words with - and '
-    r'(?:[\w_]+)',    # other words
-    r'(?:\S)'    # anything else
+    r'<[^>]+>',  # HTML tags
+    r'(?:@[\w_]+)',  # @-mentions
+    r"(?:\#[a-zA-Z0-9]\w+)",    # hash-tags
+    r"(?:\B\$[A-Za-z][A-Za-z0-9]{0,4}\b)",    # cash-tags
+    r'(?:http[s]?:\/\/(?:[a-z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-f][0-9a-f]))+)',  # URLs
+    r'(?:(?:\d+,?)+(?:\.?\d+)?)',  # numbers
+    r"(?:[a-z][a-z'\-_]+[a-z])",  # words with - and '
+    r'(?:[\w_]+)',  # other words
+    r'(?:\S)'  # anything else
 ]
 
 tokens_re = re.compile(r'(' + '|'.join(regex_str) + ')', re.VERBOSE | re.IGNORECASE)
 emoticon_re = re.compile(r'^' + emoticons_str + '$', re.VERBOSE | re.IGNORECASE)
 
 
-def tokenize(s):
-    return tokens_re.findall(s)
-
-
-def preprocess(s, lowercase=False):
-    tokens = tokenize(s)
+def tokenize(s, lowercase=False):
+    tokens = tokens_re.findall(s)
     if lowercase:
         tokens = [token if emoticon_re.search(token) else token.lower() for token in tokens]
     return tokens
@@ -306,10 +303,12 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
         count_repl = 0
         t1 = datetime.strptime(t['created_at'], '%Y-%m-%dT%H:%M:%SZ')
         if dateto > t1:
+            logger.debug('dateto > t1')
             break
 
         idea = session.query(Ideas).filter_by(ideas_id=t['id']).first()
         if idea:
+            logger.debug('Idea id [%s] exists in db', t['id'])
             continue
 
         user = session.query(User).filter_by(user_id=t['user']['id']).first()
@@ -317,15 +316,14 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
             if settings.ISUSERPROFILE:
                 url = 'https://stocktwits.com/api/user_info_stream/' + t['user']['username'] + '?limit=15'
                 r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + t['user']['username']},
-                    important=False)
+                        important=False)
                 if r:
                     j = json.loads(r)
                     t['user'] = j['user']
             if settings.ISWATCHLIST:
-                url = 'https://api.stocktwits.com/api/2/watchlists/user/' + str(
-                    t['user']['id']) + '.json'
+                url = 'https://api.stocktwits.com/api/2/watchlists/user/' + str(t['user']['id']) + '.json'
                 r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + t['user']['username']},
-                    important=False)
+                        important=False)
                 if r:
                     j = json.loads(r)
                     watch_list = ' '.join([f['symbol'] for f in j['watchlist']['symbols']])[:500]
@@ -340,12 +338,11 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                     date_joined=t['user']['join_date'],
                     website=t['user']['website_url'],
                     source=None,
-                # user_strategy=json.dumps(t['user']['trading_strategy'])[:200],
                     user_topmentioned=' '.join([f['symbol'] for f in t['user']['most_mentioned'][0]])[:255]
                     if t['user'].get('most_mentioned', False) else None,
                     verified='YES' if t['user']['official'] else 'NO',
-                    location=t['user']['location'][:255]
-                    if t['user'].get('location', False) else None)
+                    location=t['user']['location'][:255] if t['user'].get('location', False) else None
+                    )
 
                 usr_st_dict = t['user']['trading_strategy']
                 assets_frequently_traded = json.dumps(usr_st_dict['assets_frequently_traded'])
@@ -369,25 +366,29 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                     session.add(user_strategy)
                     session.add(user)
                     session.commit()
-                except sqlalchemy.exc.IntegrityError as err:
+                except exc.IntegrityError as err:
                     if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)", err.args[0]):
-                        logger.warning('%s ROLLBACK USER', n)
+                        logger.warning('%s ROLLBACK USER Duplicate entry %s', n, t['user']['username'])
                         session.rollback()
                 except Exception:
                     logger.exception('message')
 
+        if t.get('conversation', False):
+            reply_to = t['conversation']['in_reply_to_message_id']
+
         idea = Ideas(
             ideas_id=t['id'],
-            permno=permno,
-            date=t1.date(),
-            time=t1.time(),
-            replied='YES'
-            if t.get('conversation', False) and int(t['conversation']['replies']) > 0 else 'NO',
+            # permno=permno,
+            datetime=t1,
+            # time=t1.time(),
+            reply_to=reply_to if reply_to else None,
             text=t['body'],
             sentiment=t['entities']['sentiment']['basic'] if t['entities']['sentiment'] else None,
+            permalink='https://stocktwits.com/' + t['user']['username'] + '/message/' + str(t['id'])
         # cashtags_other=' '.join([f['symbol'] for f in t['symbols'] if f['symbol'] != query.upper()])[:255]
         )
-        if t.get('conversation', False) and settings.ISREPLY:
+        
+        if t.get('conversation', False) and settings.GET_REPLYS:
             count_repl = 0
             if int(t['conversation']['replies']) > 20:
                 rrr = 1
@@ -404,21 +405,24 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                     mess = j
                 else:
                     mess = j['children']
-                for children in mess['messages']:
+                for child in mess['messages']:
                     count_repl += 1
-                    reply = session.query(Reply).filter_by(reply_id=children['id']).first()
+                    reply = session.query(Ideas).filter_by(ideas_id=child['id']).first()
                     if not reply:
-                        t1 = datetime.strptime(children['created_at'], '%Y-%m-%dT%H:%M:%SZ')
-                        reply = Reply(
-                            reply_id=children['id'],
-                            date=t1.date(),
-                            time=t1.time(),
-                            reply_userid=children['user']['id'],
-                            text=children['body'])
+                        t1 = datetime.strptime(child['created_at'], '%Y-%m-%dT%H:%M:%SZ')
+                        reply = Ideas(
+                            ideas_id=child['id'],
+                            user_id=child['user']['id'],
+                            datetime=t1,
+                            reply_to=t['id'],
+                            text=child['body'],
+                            sentiment=child['entities']['sentiment']['basic'] if child['entities']['sentiment'] else None,
+                            permalink='https://stocktwits.com/' + child['user']['username'] + '/message/' + str(child['id'])
+                        )
                         try:
                             session.add(reply)
                             session.commit()
-                        except sqlalchemy.exc.IntegrityError as err:
+                        except exc.IntegrityError as err:
                             if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)",
                                         err.args[0]):
                                 logger.warning('%s ROLLBACK REPLY', n)
@@ -441,42 +445,44 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
             )
         idea.counts.append(idea_count)
 
-        tokens = preprocess(idea.text)
+        tokens = tokenize(idea.text)
         cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 1])
         if len(cashtags) > 0:
             for cashtag in cashtags:
                 ctag = IdeasCashtags(ideas_id=idea.ideas_id, cashtag=cashtag)
                 idea.cash_s.append(ctag)
                 # session.add(ctag)
-        hashtags = set([term for term in tokens if term.startswith('#') and len(term) > 1])
+        hashtags = set([term.upper() for term in tokens if term.startswith('#') and len(term) > 1])
         if len(hashtags) > 0:
             for hashtag in hashtags:
                 htag = IdeasHashtags(ideas_id=idea.ideas_id, hashtag=hashtag)
                 idea.hash_s.append(htag)
                 # session.add(htag)
-        urls = set([term for term in tokens if term.startswith('http') and len(term) > 4])
-        if len(urls) > 0:
-            for u in urls:
-                utag = IdeasUrls(ideas_id=idea.ideas_id, url=u)
-                idea.url_s.append(utag)
+        # urls = set([term for term in tokens if term.startswith('http') and len(term) > 4])
+        # if len(urls) > 0:
+        #     for u in urls:
+        #         utag = IdeasUrls(ideas_id=idea.ideas_id, url=u[:255])
+        #         idea.url_s.append(utag)
                 # session.add(utag)
 
-        # if t.get('links', False):
-        #     link = 'https://stocktwits.com/' + t['user']['username'] + '/message/' + str(t['id'])
-        #     idea_url = Ideas_Url(link=link[:150],
-        #                          url=' '.join([f['url'] for f in t['links']])[:150] if t.get('links', False) else None)
-        #     idea.urls.append(idea_url)
-        #     session.add(idea_url)
+        if t.get('links', False):
+            for u in t['links']:
+                utag = IdeasUrls(ideas_id=idea.ideas_id, url=u['url'][:255])
+                idea.url_s.append(utag)
+            # link = 'https://stocktwits.com/' + t['user']['username'] + '/message/' + str(t['id'])
+            # idea_url = Ideas_Url(
+            #                      url=' '.join([f['url'] for f in t['links']])[:150] if t.get('links', False) else None)
+            # idea.urls.append(idea_url)
+            # session.add(idea_url)
         try:
             user.ideas.append(idea)
             session.add(idea_count)
             session.add(idea)
             session.commit()
-        except sqlalchemy.exc.IntegrityError as err:
+        except exc.IntegrityError as err:
             if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)", err.args[0]):
-                logger.warning('%s ROLLBACK IDEAS', n)
+                logger.warning('%s ROLLBACK IDEAS DUPLICATE USER', n)
                 session.rollback()
-                # print('DUBLICATE USER', err)
         except Exception:
             logger.error('message')
 
@@ -503,25 +509,13 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
         if os.path.isfile(fname):
 
             with open(fname, 'a', encoding='utf-8') as csvfile:
-                writer = csv.DictWriter(
-                    csvfile,
-                    lineterminator='\n',
-                    fieldnames=fdnames,
-                    dialect='excel',
-                    quotechar='"',
-                    quoting=csv.QUOTE_ALL
-                    )
+                writer = csv.DictWriter(csvfile, lineterminator='\n', fieldnames=fdnames,
+                    dialect='excel', quotechar='"', quoting=csv.QUOTE_ALL)
                 writer.writerow(data)
         else:
             with open(fname, 'w') as f:
-                writer = csv.DictWriter(
-                    f,
-                    lineterminator='\n',
-                    fieldnames=fdnames,
-                    dialect='excel',
-                    quotechar='"',
-                    quoting=csv.QUOTE_ALL
-                    )
+                writer = csv.DictWriter(f, lineterminator='\n', fieldnames=fdnames,
+                    dialect='excel', quotechar='"', quoting=csv.QUOTE_ALL)
                 writer.writeheader()
                 writer.writerow(data)
     else:
@@ -538,18 +532,18 @@ def scrape(n, user_queue, proxy, lock, pg_dsn):
     while not user_queue.empty():
         dateto, permno, query, i = user_queue.get()
         n = i
-        logger.info('%s START %s %s %s', n, i, proxy, query)
+        logger.info('%2s START %2s %s %s', n, i, proxy, query)
         try:
             res = get_tweets(n, dateto, permno, proxy, query, lock, session=session)
         except LoadingError:
-            logger.error('%s LoadingError except', n)
+            logger.error('%2s LoadingError except', n)
             return
         if not res:
-            logger.error('%s SCRAP_USER Error in %s %s', n, query, i)
+            logger.error('%2s SCRAP_USER Error in %s %s', n, query, i)
             # with open('error_list.txt', 'a') as f:
             #     f.write(query[0] + '\n')
         else:
-            logger.error('%s ENDED %s %s %s %s', n, i, proxy, query, res)
+            logger.error('%2s ENDED %2s %s %s %s', n, i, proxy, query, res)
 
         time.sleep(1)
 
@@ -609,11 +603,3 @@ if __name__ == '__main__':
         pool.join()
         if not user_queue.empty():
             continue
-    # for n,i in enumerate(range(np)):
-    #
-    #     p = Process(target=scrape, args=(n+1, user_queue, settings.proxy_list[i], lock, murl))
-    #     p.start()
-    #     pp.append(p)
-    #     #
-    # for p in pp:
-    #     p.join()

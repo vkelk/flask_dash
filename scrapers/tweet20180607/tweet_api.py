@@ -65,34 +65,34 @@ class Page(object):
             if resp.status_code == requests.codes.ok:
                 return resp.text
             elif resp.status_code == 404:
-                self.logger.warning('HTTP %s %s %s', url, resp.status_code, resp.text)
+                self.logger.warning('%s HTTP %s', url, resp.status_code)
                 err_response = self.handle_err_response(resp.text)
                 if err_response:
                     return err_response
-                self.logger.error('HTTP %s %s %s', resp.status_code, resp.text, url)
+                self.logger.error('%s HTTP %s', resp.status_code, url)
                 if important:
                     raise LoadingError
                 else:
                     return None
             elif resp.status_code == 403:
-                self.logger.warning('HTTP %s %s %s', url, resp.status_code, resp.text)
+                self.logger.warning('%s HTTP %s', url, resp.status_code)
                 err_response = self.handle_err_response(resp.text)
                 if err_response:
                     return err_response
-                self.logger.error('HTTP %s %s %s', resp.status_code, resp.text, url)
+                self.logger.error('%s HTTP %s', resp.status_code, url)
                 if resp.text == '{"message":"Sorry, that user is suspended."}':
                     return resp.text
                 raise
                 return None
             elif resp.status_code == 429:
-                self.logger.warn('HTTP %s Rate limit. Sleep 3 min %s', resp.status_code, url)
+                self.logger.warn('%s HTTP Rate limit. Sleep 3 min %s', resp.status_code, url)
                 time.sleep(3 * 60)
                 continue
             elif resp.status_code == 503:
-                self.logger.warn('HTTP %s Error waiting 2 min %s', resp.status_code, url)
+                self.logger.warn('%s HTTP Error waiting 2 min %s', resp.status_code, url)
                 error_count += 1
                 if error_count > 5:
-                    self.logger.error('HTTP %s %s', resp.status_code, url)
+                    self.logger.error('%s HTTP %s', resp.status_code, url)
                     if important:
                         raise LoadingError
                     else:
@@ -101,16 +101,16 @@ class Page(object):
                 continue
             else:
                 error_count += 1
-                self.logger.warn('HTTP %s %s Count: %s', resp.status_code, url, error_count)
+                self.logger.warn('%s HTTP %s Count: %s', resp.status_code, url, error_count)
                 if error_count > 5:
                     self.logger.error(
-                        'HTTP %s %s %s Error limit exceeded Requests error Count: %s',
+                        '%s HTTP %s %s Error limit exceeded Requests error Count: %s',
                         resp.status_code, url, self.pr, error_count)
                     if important:
                         raise LoadingError
                     else:
                         return None
-                self.logger.warn('HTTP %s %s waiting 1 min', resp.status_code, url)
+                self.logger.warn('%s HTTP %s waiting 1 min', resp.status_code, url)
                 time.sleep(60)
                 continue
 
@@ -119,9 +119,12 @@ class Page(object):
             msg = json.loads(err_msg)
             if 'message' in msg:
                 return err_msg
-        except Exception as e:
+        except json.decoder.JSONDecodeError:
+            self.logger.warning('JSONDecodeError')
+            return None
+        except Exception:
             self.logger.exception('message')
-        self.logger.error('Could not handle %s', err_msg)
+        # self.logger.error('Could not handle %s', err_msg)
         return None
 
 

@@ -96,6 +96,7 @@ def tokenize(s, lowercase=False):
 def fill(session, t, query=None, permno=None):
     session = Session()
     if session.query(Tweet).filter_by(tweet_id=t.id).first():
+        # Session.remove()
         return None
     data = {}
     data['permno'] = permno if permno else None
@@ -191,9 +192,11 @@ def fill(session, t, query=None, permno=None):
                 lists=t.user_listed_count)
             session.add(user_count)
             user.counts.append(user_count)
-        session.add(user)
         try:
+            session.add(user)
+            session.flush()
             session.commit()
+            logger.info('Inserted new user: %s', data['UserID'])
         except sqlalchemy.exc.IntegrityError as err:
             if re.search("duplicate key value violates unique constraint", err.args[0]):
                 logger.warning('ROLLBACK USER %s', data['UserID'])
@@ -267,8 +270,8 @@ def fill(session, t, query=None, permno=None):
     except Exception as e:
         logger.exception('message')
         raise
-    finally:
-        Session.remove()
+    # finally:
+        # Session.remove()
     # print(query, user.twitter_handle,t.date)
     return True
 
@@ -281,7 +284,7 @@ def reply(session, twitter_scraper, username, tweet_id):
     url = 'https://twitter.com/' + username + '/status/' + str(tweet_id)
     while True:
         r1 = twitter_scraper.page.load(url)
-        if first:
+        if first and r1:
             res = re.findall('data-min-position="(.+?)"', r1, re.S)
         else:
             try:
@@ -300,10 +303,10 @@ def reply(session, twitter_scraper, username, tweet_id):
             if (first and re.search('show_more_button', r1, re.M) or (not first and j['has_more_items'])):
                 # PyQuery(r1)('li.ThreadedConversation-moreReplies').attr('data-expansion-url')
                 first = False
-                url = 'https://twitter.com/i/' + username + '/conversation/'
-                + str(tweet_id)
-                + '?include_available_features=1&include_entities=1&max_position='
-                + data_min + '&reset_error_state=false'
+                url = 'https://twitter.com/i/' + username + '/conversation/' \
+                    + str(tweet_id) \
+                    + '?include_available_features=1&include_entities=1&max_position=' \
+                    + data_min + '&reset_error_state=false'
                 continue
         break
     return count
@@ -334,12 +337,16 @@ def check_tweet(user_queue, pg_dsn, proxy_list):
     session = Session()
     username_list = []
     count = 0
-    for idx, tweet in enumerate(session.query(Tweet).all()):
-        tweet_id = tweet.tweet_id
+    q = session.query(mvCashtags.tweet_id, mvCashtags.user_id) \
+        .group_by(mvCashtags.tweet_id, mvCashtags.user_id)
+    # for idx, tweet in enumerate(session.query(Tweet).all()):
+    for idx, tweet in enumerate(q.all()):
+        # tweet_id = tweet.tweet_id
 
         # Getting the user name from permalink
-        username = re.findall('https://twitter.com/(.+?)/status', tweet.permalink)[0]
-        user_queue.put((username, tweet_id))
+        user = session.query(User.twitter_handle).filter(User.user_id == tweet.user_id).first()
+        # username = re.findall('https://twitter.com/(.+?)/status', tweet.permalink)[0]
+        user_queue.put((user.twitter_handle, tweet.tweet_id))
 
     # Send poisoned pill
     for s in proxy_list:
@@ -351,12 +358,11 @@ def check_tweet(user_queue, pg_dsn, proxy_list):
 
 Base = declarative_base()
 pg_config = {'username': settings.PG_USER, 'password': settings.PG_PASSWORD, 'database': settings.PG_DBNAME,
-    'host': settings.DB_HOST}
+                'host': settings.DB_HOST}
 pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
 db_engine = create_engine(pg_dsn)
 add_engine_pidguard(db_engine)
 pg_meta = MetaData(bind=db_engine, schema="fintweet")
-DstSession = sessionmaker(bind=db_engine, autoflush=False)
 
 
 class User(Base):
@@ -425,11 +431,14 @@ def get_cashtags_list():
 
 
 logger = create_logger()
+session_factory = sessionmaker(bind=db_engine, autoflush=False)
+Session = scoped_session(session_factory)
 
 if __name__ == '__main__':
-    dstssn = DstSession()
-    session_factory = sessionmaker(bind=db_engine, autoflush=False)
-    Session = scoped_session(session_factory)
+    DstSession = sessionmaker(bind=db_engine, autoflush=False)
+    # dstssn = DstSession()
+    # session_factory = sessionmaker(bind=db_engine, autoflush=False)
+    # Session = scoped_session(session_factory)
 
     try:
         command = sys.argv[1]

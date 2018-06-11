@@ -549,7 +549,7 @@ def scrape(n, user_queue, proxy, lock, pg_dsn):
 
 
 def create_logger():
-    log_file = 'tweet_scrapper_' + str(datetime.now().strftime('%Y-%m-%d')) + '.log'
+    log_file = 'stocktwits_scrapper_' + str(datetime.now().strftime('%Y-%m-%d')) + '.log'
     logging.config.fileConfig('log.ini', defaults={'logfilename': log_file})
     return logging.getLogger(__name__)
 

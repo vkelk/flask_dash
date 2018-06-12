@@ -466,20 +466,24 @@ if __name__ == '__main__':
 
     user_queue = multiprocessing.dummy.Queue()
     working_ctags = get_cashtags_list()
-    ii = i = 2
-    t1 = '2016-01-01'
-    t2 = '2016-12-31'
+    print('Len of ctag list', len(working_ctags))
+    i = 0
+    t1 = '2012-01-01'
+    t2 = '2017-01-01'
     date_delta = datetime.strptime(t2, '%Y-%m-%d') - datetime.strptime(t1, '%Y-%m-%d')
     for days in range(0, date_delta.days + 1, settings.FREQUENCY):
-        date_start = datetime.strptime(t2, '%Y-%m-%d') - timedelta(days=settings.FREQUENCY)
-        date_end = date_start + timedelta(days=settings.FREQUENCY)
+        date_end = datetime.strptime(t2, '%Y-%m-%d') - timedelta(days=days)
+        date_start = date_end - timedelta(days=settings.FREQUENCY)
+        # date_start = datetime.strptime(t2, '%Y-%m-%d') - timedelta(days=days)
+        # date_end = date_start + timedelta(days=settings.FREQUENCY)
+        # print(days, date_start, date_end)
         for ticker in working_ctags:
             query = ticker['cashtag'].lower().strip('$'), \
                 ticker['cashtag'].lower().strip(' '), date_start.strftime("%Y-%m-%d"), date_end.strftime("%Y-%m-%d")
-            # print(query)
+            # print(query, i)
             user_queue.put((query, i))
             i += 1
-
+    exit()
     pool = ThreadPool(len(settings.proxy_list))
     # pool = ThreadPool(4)
     lock = Lock()

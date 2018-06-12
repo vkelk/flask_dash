@@ -466,7 +466,6 @@ if __name__ == '__main__':
 
     user_queue = multiprocessing.dummy.Queue()
     working_ctags = get_cashtags_list()
-    print('Len of ctag list', len(working_ctags))
     i = 0
     t1 = '2012-01-01'
     t2 = '2017-01-01'
@@ -483,7 +482,6 @@ if __name__ == '__main__':
             # print(query, i)
             user_queue.put((query, i))
             i += 1
-    exit()
     pool = ThreadPool(len(settings.proxy_list))
     # pool = ThreadPool(4)
     lock = Lock()

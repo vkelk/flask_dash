@@ -371,9 +371,11 @@ def add_engine_pidguard(engine):
 
 
 def get_cashtags_list():
-    q = Session.query(mvCashtags.cashtags) \
-        .group_by(mvCashtags.cashtags) \
-        .having(func.count(mvCashtags.cashtags).between(settings.CASHTAGS_MIN_COUNT, settings.CASHTAGS_MAX_COUNT))
+    q = Session.query(TweetCashtags.cashtags) \
+        .join(Tweet) \
+        .filter(Tweet.date.between('2012-01-01', '2016-12-31')) \
+        .group_by(TweetCashtags.cashtags) \
+        .having(func.count(TweetCashtags.cashtags).between(settings.CASHTAGS_MIN_COUNT, settings.CASHTAGS_MAX_COUNT))
     fields = ['cashtag', 'count']
     return [dict(zip(fields, d)) for d in q.all()]
 
@@ -426,16 +428,16 @@ class Tweet(Base):
     url_s = relationship('TweetUrl')
 
 
-class mvCashtags(Base):
-    # __table__ = Table('mv_cashtags', fintweet_meta, autoload=True)
-    __tablename__ = 'mv_cashtags'
-    __table_args__ = {"schema": "fintweet"}
+# class mvCashtags(Base):
+#     # __table__ = Table('mv_cashtags', fintweet_meta, autoload=True)
+#     __tablename__ = 'mv_cashtags'
+#     __table_args__ = {"schema": "fintweet"}
 
-    id = Column(BigInteger, primary_key=True)
-    tweet_id = Column(BigInteger)
-    user_id = Column(BigInteger)
-    cashtags = Column(String(120))
-    datetime = Column(DateTime)
+#     id = Column(BigInteger, primary_key=True)
+#     tweet_id = Column(BigInteger)
+#     user_id = Column(BigInteger)
+#     cashtags = Column(String(120))
+#     datetime = Column(DateTime)
 
 
 def create_logger():

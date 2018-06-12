@@ -188,5 +188,5 @@ settings.py
 *.csv
 *.txt
 *.log
-
-
+*.dta
+*.dts

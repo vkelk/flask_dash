@@ -210,9 +210,10 @@ def check_user(user_queue, pg_dsn, proxy_list):
 
 def get_users_list():
     session = DstSession()
-    q = session.query(distinct(mvCashtags.user_id)) \
-        .filter(mvCashtags.datetime.between('2012-01-01', '2016-12-31')) \
-        .group_by(mvCashtags.user_id)
+    q = session.query(distinct(Tweet.user_id)) \
+        .filter(Tweet.date.between('2012-01-01', '2016-12-31')) \
+        .join(TweetCashtags) \
+        .group_by(Tweet.user_id)
     return [d[0] for d in q.all()]
 
 

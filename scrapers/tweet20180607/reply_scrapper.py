@@ -337,8 +337,9 @@ def check_tweet(user_queue, pg_dsn, proxy_list):
     session = Session()
     username_list = []
     count = 0
-    q = session.query(mvCashtags.tweet_id, mvCashtags.user_id) \
-        .group_by(mvCashtags.tweet_id, mvCashtags.user_id)
+    q = session.query(Tweet.tweet_id, Tweet.user_id) \
+        .join(TweetCashtags) \
+        .group_by(Tweet.tweet_id, Tweet.user_id)
     # for idx, tweet in enumerate(session.query(Tweet).all()):
     for idx, tweet in enumerate(q.all()):
         # tweet_id = tweet.tweet_id

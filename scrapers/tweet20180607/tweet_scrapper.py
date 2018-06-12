@@ -384,7 +384,7 @@ Base = declarative_base()
 pg_config = {'username': settings.PG_USER, 'password': settings.PG_PASSWORD, 'database': settings.PG_DBNAME,
                 'host': settings.DB_HOST}
 pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
-db_engine = create_engine(pg_dsn)
+db_engine = create_engine(pg_dsn, connect_args={"application_name": 'tweet_scraper:' + str(__name__)})
 add_engine_pidguard(db_engine)
 pg_meta = MetaData(bind=db_engine, schema="fintweet")
 

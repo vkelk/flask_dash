@@ -1,25 +1,26 @@
+from datetime import datetime
+from dateutil import parser as dateparser
+import json
 import logging
 import logging.config
 import os.path
 from multiprocessing import Process
 import multiprocessing.dummy
+import os
 import re
 import sys
-from dateutil import parser as dateparser
-import settings
+import time
+import warnings
+
 from sqlalchemy import create_engine, MetaData, Table, func, Column, BigInteger, String, DateTime
 from sqlalchemy import event, exc
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-import warnings
-import os
-import sqlalchemy.exc
+
+import settings
 import tweet_api
-from pyquery import PyQuery
-import json
-import time
-from datetime import datetime
+
 
 ISUSERPROFILE = True
 
@@ -93,10 +94,12 @@ def tokenize(s, lowercase=False):
     return tokens
 
 
-def fill(session, t, query=None, permno=None):
+def fill(t, query=None, permno=None):
+    Session = scoped_session(session_factory)
     session = Session()
     if session.query(Tweet).filter_by(tweet_id=t.id).first():
-        # Session.remove()
+        session.close()
+        Session.remove()
         return None
     data = {}
     data['permno'] = permno if permno else None
@@ -197,11 +200,13 @@ def fill(session, t, query=None, permno=None):
             session.flush()
             session.commit()
             logger.info('Inserted new user: %s', data['UserID'])
-        except sqlalchemy.exc.IntegrityError as err:
+        except exc.IntegrityError as err:
             if re.search("duplicate key value violates unique constraint", err.args[0]):
                 logger.warning('ROLLBACK USER %s', data['UserID'])
                 session.rollback()
         except Exception as e:
+            session.close()
+            Session.remove()
             logger.exception('message')
             raise
 
@@ -254,30 +259,30 @@ def fill(session, t, query=None, permno=None):
     if not session.query(TweetCount).filter_by(tweet_id=int(data['tweet_id'])).first():
         twit.counts.append(tweet_count)
         session.add(tweet_count)
-    else:
-        i = 1
-    # session.add(twit)
+
     try:
         session.add(twit)
         session.flush()
         session.commit()
         logger.info('Inserted new Tweet: %s %s', twit.tweet_id, twit.reply_to)
         # print('Inserted', twit.tweet_id, twit.reply_to)
-    except sqlalchemy.exc.IntegrityError as err:
+    except exc.IntegrityError as err:
         if re.search('duplicate key value violates unique constraint', err.args[0]):
             logger.warning('ROLLBACK duplicate entry')
             session.rollback()
     except Exception as e:
         logger.exception('message')
+        session.close()
+        Session.remove()
         raise
-    # finally:
-        # Session.remove()
+    finally:
+        session.close()
+        Session.remove()
     # print(query, user.twitter_handle,t.date)
     return True
 
 
-def reply(session, twitter_scraper, username, tweet_id):
-    session = Session()
+def reply(twitter_scraper, username, tweet_id):
     count = 0
     first = True
     j = {'has_more_items': False}
@@ -293,9 +298,10 @@ def reply(session, twitter_scraper, username, tweet_id):
                 res.append(j['min_position'])
                 r1 = j['items_html']
             except Exception:
+                logger.exception('message')
                 break
         for t in twitter_scraper.cont(r1, ''):
-            if fill(session, t):
+            if fill(t):
                 count += 1
 
         if res:
@@ -313,10 +319,6 @@ def reply(session, twitter_scraper, username, tweet_id):
 
 
 def reply_loader(n, user_queue, pg_dsn, proxy):
-    # db_engine = create_engine(pg_dsn, pool_size=1)
-    # add_engine_pidguard(db_engine)
-    # DstSession = sessionmaker(bind=db_engine, autoflush=False)
-    session = Session()
     twitter_scraper = tweet_api.TweetScraper(proxy, IS_PROFILE_SEARCH=None, logname='awam')
     logger.info('Scraper %s with Proxy %s started', n, proxy)
     # reply(session, twitter_scraper,'anatoliisharii',975426560424599552)
@@ -324,29 +326,20 @@ def reply_loader(n, user_queue, pg_dsn, proxy):
         r = user_queue.get()
         if r:
             username, tweet_id = r
-            c = reply(session, twitter_scraper, username, tweet_id)
-            logger.info('%s For tweet %s found %s new reply', n, tweet_id, c)
+            c = reply(twitter_scraper, username, tweet_id)
+            logger.info('%2s For tweet %s found %s new reply', n, tweet_id, c)
         else:
             break
 
 
 def check_tweet(user_queue, pg_dsn, proxy_list):
-    # db_engine = create_engine(pg_dsn, pool_size=1)
-    # add_engine_pidguard(db_engine)
-    # DstSession = sessionmaker(bind=db_engine, autoflush=False)
+    Session = scoped_session(session_factory)
     session = Session()
-    username_list = []
-    count = 0
     q = session.query(Tweet.tweet_id, Tweet.user_id) \
         .join(TweetCashtags) \
         .group_by(Tweet.tweet_id, Tweet.user_id)
-    # for idx, tweet in enumerate(session.query(Tweet).all()):
     for idx, tweet in enumerate(q.all()):
-        # tweet_id = tweet.tweet_id
-
-        # Getting the user name from permalink
         user = session.query(User.twitter_handle).filter(User.user_id == tweet.user_id).first()
-        # username = re.findall('https://twitter.com/(.+?)/status', tweet.permalink)[0]
         user_queue.put((user.twitter_handle, tweet.tweet_id))
 
     # Send poisoned pill
@@ -354,6 +347,8 @@ def check_tweet(user_queue, pg_dsn, proxy_list):
         user_queue.put(None)
 
     logger.info('Total checked %s tweets', idx)
+    session.close()
+    Session.remove()
     return
 
 
@@ -361,7 +356,13 @@ Base = declarative_base()
 pg_config = {'username': settings.PG_USER, 'password': settings.PG_PASSWORD, 'database': settings.PG_DBNAME,
                 'host': settings.DB_HOST}
 pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
-db_engine = create_engine(pg_dsn)
+db_engine = create_engine(
+    pg_dsn,
+    connect_args={"application_name": 'reply_scraper:' + str(__name__)},
+    pool_size=100, 
+    max_overflow=0, 
+    encoding='utf-8'
+    )
 add_engine_pidguard(db_engine)
 pg_meta = MetaData(bind=db_engine, schema="fintweet")
 
@@ -423,24 +424,19 @@ def create_logger():
     return logging.getLogger(__name__)
 
 
-def get_cashtags_list():
-    q = Session.query(mvCashtags.cashtags) \
-        .group_by(mvCashtags.cashtags) \
-        .having(func.count(mvCashtags.cashtags).between(settings.CASHTAGS_MIN_COUNT, settings.CASHTAGS_MAX_COUNT))
-    fields = ['cashtag', 'count']
-    return [dict(zip(fields, d)) for d in q.all()]
+# def get_cashtags_list():
+#     q = Session.query(mvCashtags.cashtags) \
+#         .group_by(mvCashtags.cashtags) \
+#         .having(func.count(mvCashtags.cashtags).between(settings.CASHTAGS_MIN_COUNT, settings.CASHTAGS_MAX_COUNT))
+#     fields = ['cashtag', 'count']
+#     return [dict(zip(fields, d)) for d in q.all()]
 
 
 logger = create_logger()
 session_factory = sessionmaker(bind=db_engine, autoflush=False)
-Session = scoped_session(session_factory)
+# Session = scoped_session(session_factory)
 
 if __name__ == '__main__':
-    DstSession = sessionmaker(bind=db_engine, autoflush=False)
-    # dstssn = DstSession()
-    # session_factory = sessionmaker(bind=db_engine, autoflush=False)
-    # Session = scoped_session(session_factory)
-
     try:
         command = sys.argv[1]
     except IndexError:

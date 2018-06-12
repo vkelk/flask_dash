@@ -297,6 +297,8 @@ def reply(twitter_scraper, username, tweet_id):
                 res = []
                 res.append(j['min_position'])
                 r1 = j['items_html']
+            except TypeError:
+                logger.warning('Empty result')
             except Exception:
                 logger.exception('message')
                 break
@@ -359,8 +361,9 @@ pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".fo
 db_engine = create_engine(
     pg_dsn,
     connect_args={"application_name": 'reply_scraper:' + str(__name__)},
-    pool_size=100, 
-    max_overflow=0, 
+    pool_size=100,
+    pool_recycle=300,
+    max_overflow=0,
     encoding='utf-8'
     )
 add_engine_pidguard(db_engine)

@@ -16,7 +16,14 @@ pg_config = {
     'database': base_config.POSTGRES_DB,
     'host': base_config.POSTGRES_HOST}
 pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
-db_engine = create_engine(pg_dsn, pool_size=100, max_overflow=0, encoding='utf-8')
+db_engine = create_engine(
+    pg_dsn,
+    connect_args={"application_name": 'counts:' + str(__name__)},
+    pool_size=100,
+    pool_recycle=600,
+    max_overflow=0,
+    encoding='utf-8'
+    )
 fintweet_meta = MetaData(bind=db_engine, schema="fintweet")
 Session = sessionmaker(bind=db_engine, autoflush=False)
 # ScopedSession = scoped_session(sessionmaker(bind=db_engine))

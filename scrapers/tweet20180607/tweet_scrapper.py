@@ -103,6 +103,8 @@ def scra(query, i, proxy, lock, session=None):
         twit = session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first()
         # if twit and ISUSERPROFILE:
         if twit and twit.user_id:
+            logger.debug('Tweet %s exists in database', twit.tweet_id)
+            session.close()
             Session.remove()
             continue
         # print(query, count, t.date)
@@ -466,6 +468,7 @@ if __name__ == '__main__':
 
     user_queue = multiprocessing.dummy.Queue()
     working_ctags = get_cashtags_list()
+    logger.debug('Total %s cashtags will be processed', len(working_ctags))
     i = 0
     t1 = '2012-01-01'
     t2 = '2017-01-01'
@@ -482,10 +485,18 @@ if __name__ == '__main__':
             # print(query, i)
             user_queue.put((query, i))
             i += 1
-    pool = ThreadPool(len(settings.proxy_list))
-    # pool = ThreadPool(4)
-    lock = Lock()
-    # Single process for testings
-    # scrape_query(user_queue, '207.150.166.171:8800', lock, pg_dsn)
-    # exit()
-    pool.map(lambda x: (scrape_query(user_queue, x, lock, pg_dsn)), settings.proxy_list)
+    try:
+        lock = Lock()
+        # Single process for testings
+        scrape_query(user_queue, settings.proxy_list[0], lock, pg_dsn)
+        exit()
+
+        pool = ThreadPool(len(settings.proxy_list))
+        pool.map(lambda x: (scrape_query(user_queue, x, lock, pg_dsn)), settings.proxy_list)
+    except KeyboardInterrupt:
+        logger.warning('Interrupted by keyboard.')
+    finally:
+        db_engine.dispose()
+        logger.info('db_engine disposed')
+        logger.info('Exiting...')
+        exit()

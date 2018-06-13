@@ -58,7 +58,14 @@ def add_engine_pidguard(engine):
 
 
 Base = declarative_base()
-db_engine = create_engine(pg_dsn, pool_size=1)
+db_engine = create_engine(
+    pg_dsn,
+    connect_args={"application_name": 'stocktwits_scraper:' + str(__name__)},
+    pool_size=100,
+    pool_recycle=300,
+    max_overflow=0,
+    encoding='utf-8'
+    )
 add_engine_pidguard(db_engine)
 pg_meta = MetaData(bind=db_engine, schema="stocktwits")
 
@@ -294,7 +301,58 @@ def login(n, page):
     logger.debug('%s Login success', n)
 
 
-def get_tweets(n, dateto, permno, proxy, query, lock, session):
+def insert_new_user(t, watch_list=None):
+    Session = sessionmaker(bind=db_engine)
+    session = Session()
+    user = User(
+        user_id=t['user']['id'],
+        user_name=t['user']['name'],
+        user_handle=t['user']['username'],
+        date_joined=t['user']['join_date'],
+        website=t['user']['website_url'],
+        user_topmentioned=' '.join([f['symbol'] for f in t['user']['most_mentioned'][0]])[:255]
+        if t['user'].get('most_mentioned', False) else None,
+        verified='YES' if t['user']['official'] else 'NO',
+        location=t['user']['location'][:255] if t['user'].get('location', False) else None
+        )
+
+    usr_st_dict = t['user']['trading_strategy']
+    assets_frequently_traded = json.dumps(usr_st_dict['assets_frequently_traded'])
+    user_strategy = UserStrategy(
+        user_id=t['user']['id'],
+        assets_frequently_traded=assets_frequently_traded,
+        approach=usr_st_dict['approach'],
+        holding_period=usr_st_dict['holding_period'],
+        experience=usr_st_dict['experience'])
+
+    user_count = User_Count(
+        followers=t['user']['followers'],
+        following=t['user']['following'],
+        watchlist_count=t['user']['watchlist_stocks_count'],
+        watchlist_stocks=watch_list,
+        ideas=t['user']['ideas'])
+    try:
+        user.counts.append(user_count)
+        user.strategy.append(user_strategy)
+        session.add(user_count)
+        session.add(user_strategy)
+        session.add(user)
+        # session.flush()
+        session.commit()
+        logger.info('Inserted new user: %s %s', user.user_id, user.user_handle)
+    except exc.IntegrityError as err:
+        if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)", err.args[0]):
+            logger.warning('%s ROLLBACK USER Duplicate entry %s', n, t['user']['username'])
+            session.rollback()
+    except Exception:
+        logger.exception('message')
+    finally:
+        session.close()
+
+
+def get_tweets(n, dateto, permno, proxy, query, lock):
+    Session = sessionmaker(bind=db_engine)
+    session = Session()
     query = query.strip('$').upper()
     count = 0
     page = Page(proxy)
@@ -313,71 +371,35 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
 
         user = session.query(User).filter_by(user_id=t['user']['id']).first()
         if not user:
-            if settings.ISUSERPROFILE:
-                url = 'https://stocktwits.com/api/user_info_stream/' + t['user']['username'] + '?limit=15'
-                r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + t['user']['username']},
-                        important=False)
-                if r:
-                    j = json.loads(r)
-                    t['user'] = j['user']
-            if settings.ISWATCHLIST:
-                url = 'https://api.stocktwits.com/api/2/watchlists/user/' + str(t['user']['id']) + '.json'
-                r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + t['user']['username']},
-                        important=False)
-                if r:
-                    j = json.loads(r)
-                    watch_list = ' '.join([f['symbol'] for f in j['watchlist']['symbols']])[:500]
-            else:
-                watch_list = None
-            user = session.query(User).filter_by(user_id=t['user']['id']).first()
-            if not user:
-                user = User(
-                    user_id=t['user']['id'],
-                    user_name=t['user']['name'],
-                    user_handle=t['user']['username'],
-                    date_joined=t['user']['join_date'],
-                    website=t['user']['website_url'],
-                    source=None,
-                    user_topmentioned=' '.join([f['symbol'] for f in t['user']['most_mentioned'][0]])[:255]
-                    if t['user'].get('most_mentioned', False) else None,
-                    verified='YES' if t['user']['official'] else 'NO',
-                    location=t['user']['location'][:255] if t['user'].get('location', False) else None
-                    )
-
-                usr_st_dict = t['user']['trading_strategy']
-                assets_frequently_traded = json.dumps(usr_st_dict['assets_frequently_traded'])
-                user_strategy = UserStrategy(
-                    user_id=t['user']['id'],
-                    assets_frequently_traded=assets_frequently_traded,
-                    approach=usr_st_dict['approach'],
-                    holding_period=usr_st_dict['holding_period'],
-                    experience=usr_st_dict['experience'])
-
-                user_count = User_Count(
-                    followers=t['user']['followers'],
-                    following=t['user']['following'],
-                    watchlist_count=t['user']['watchlist_stocks_count'],
-                    watchlist_stocks=watch_list,
-                    ideas=t['user']['ideas'])
-                try:
-                    user.counts.append(user_count)
-                    user.strategy.append(user_strategy)
-                    session.add(user_count)
-                    session.add(user_strategy)
-                    session.add(user)
-                    session.commit()
-                except exc.IntegrityError as err:
-                    if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)", err.args[0]):
-                        logger.warning('%s ROLLBACK USER Duplicate entry %s', n, t['user']['username'])
-                        session.rollback()
-                except Exception:
-                    logger.exception('message')
+            try:
+                if settings.ISUSERPROFILE:
+                    url = 'https://stocktwits.com/api/user_info_stream/' + t['user']['username'] + '?limit=15'
+                    r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + t['user']['username']},
+                            important=False)
+                    if r:
+                        j = json.loads(r)
+                        t['user'] = j['user']
+                if settings.ISWATCHLIST:
+                    url = 'https://api.stocktwits.com/api/2/watchlists/user/' + str(t['user']['id']) + '.json'
+                    r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + t['user']['username']},
+                            important=False)
+                    if r:
+                        j = json.loads(r)
+                        watch_list = ' '.join([f['symbol'] for f in j['watchlist']['symbols']])[:500]
+                else:
+                    watch_list = None
+                insert_new_user(t, watch_list)
+            except Exception:
+                logger.exception('message')
 
         if t.get('conversation', False):
             reply_to = t['conversation']['in_reply_to_message_id']
+        else:
+            reply_to = None
 
         idea = Ideas(
             ideas_id=t['id'],
+            user_id=t['user']['id'],
             # permno=permno,
             datetime=t1,
             # time=t1.time(),
@@ -408,6 +430,28 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                 for child in mess['messages']:
                     count_repl += 1
                     reply = session.query(Ideas).filter_by(ideas_id=child['id']).first()
+                    user = session.query(User).filter_by(user_id=child['user']['id']).first()
+                    if not user:
+                        try:
+                            if settings.ISUSERPROFILE:
+                                url = 'https://stocktwits.com/api/user_info_stream/' + child['user']['username'] + '?limit=15'
+                                r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + child['user']['username']},
+                                        important=False)
+                                if r:
+                                    j = json.loads(r)
+                                    child['user'] = j['user']
+                            if settings.ISWATCHLIST:
+                                url = 'https://api.stocktwits.com/api/2/watchlists/user/' + str(child['user']['id']) + '.json'
+                                r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + child['user']['username']},
+                                        important=False)
+                                if r:
+                                    j = json.loads(r)
+                                    watch_list = ' '.join([f['symbol'] for f in j['watchlist']['symbols']])[:500]
+                            else:
+                                watch_list = None
+                            insert_new_user(child, watch_list)
+                        except Exception:
+                            logger.exception('message') 
                     if not reply:
                         t1 = datetime.strptime(child['created_at'], '%Y-%m-%dT%H:%M:%SZ')
                         reply = Ideas(
@@ -421,7 +465,9 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                         )
                         try:
                             session.add(reply)
+                            # session.flush()
                             session.commit()
+                            logger.info('Inserted new Idea: %s as reply to %s', reply.ideas_id, idea.ideas_id)
                         except exc.IntegrityError as err:
                             if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)",
                                         err.args[0]):
@@ -430,7 +476,7 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
                         except Exception:
                             logger.exception('message')
 
-                    idea.replies.append(reply)
+                    # idea.replies.append(reply)
                 # break
                 if mess['cursor']['more']:
                     url = 'https://api.stocktwits.com/api/2/messages/' + str(t['id']) + '/children.json?since=' \
@@ -475,19 +521,21 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
             # idea.urls.append(idea_url)
             # session.add(idea_url)
         try:
-            user.ideas.append(idea)
+            # user.ideas.append(idea)
             session.add(idea_count)
             session.add(idea)
+            # session.flush()
             session.commit()
+            logger.info('Inserted new Idea: %s', idea.ideas_id)
         except exc.IntegrityError as err:
             if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)", err.args[0]):
-                logger.warning('%s ROLLBACK IDEAS DUPLICATE USER', n)
+                logger.warning('%s ROLLBACK IDEAS DUPLICATE ENTRY', n)
                 session.rollback()
         except Exception:
             logger.exception('message')
 
         count += 1
-        logger.info('%s %s %s %s %s', n, query, count, t['created_at'], count_repl if count_repl > 0 else '')
+        # logger.info('%s %s %s %s %s', n, query, count, t['created_at'], count_repl if count_repl > 0 else '')
 
         # if count>99: break
 
@@ -523,18 +571,18 @@ def get_tweets(n, dateto, permno, proxy, query, lock, session):
     return count
 
 
-def scrape(n, user_queue, proxy, lock, pg_dsn):
-    db_engine = create_engine(pg_dsn, pool_size=1)
-    add_engine_pidguard(db_engine)
-    Session = sessionmaker(bind=db_engine)
-    session = Session()
+def scrape(n, user_queue, proxy, lock):
+    # db_engine = create_engine(pg_dsn, pool_size=1)
+    # add_engine_pidguard(db_engine)
+    # Session = sessionmaker(bind=db_engine)
+    # session = Session()
 
     while not user_queue.empty():
         dateto, permno, query, i = user_queue.get()
         n = i
         logger.info('%2s START %2s %s %s', n, i, proxy, query)
         try:
-            res = get_tweets(n, dateto, permno, proxy, query, lock, session=session)
+            res = get_tweets(n, dateto, permno, proxy, query, lock)
         except LoadingError:
             logger.error('%2s LoadingError except', n)
             return
@@ -559,8 +607,8 @@ logger = create_logger()
 if __name__ == '__main__':
     # multiprocessing.set_start_method('forkserver')
 
-    Session = sessionmaker(bind=db_engine)
-    session = Session()
+    # Session = sessionmaker(bind=db_engine)
+    # session = Session()
 
     user_queue = Queue()
     lock = Lock()
@@ -593,13 +641,21 @@ if __name__ == '__main__':
     for i, proxy in enumerate(settings.proxy_list):
         n += 1
         proxy_list.append({'proxy': proxy, 'num': n})
-    pool = ThreadPool(len(settings.proxy_list))
-    # Single process for testing
-    # scrape(0, user_queue, proxy_list[0], lock, pg_dsn)
-    # exit()
-    while True:
-        pool.map(lambda x: (scrape(x['num'], user_queue, x['proxy'], lock, pg_dsn)), proxy_list)
-        pool.close()
-        pool.join()
-        if not user_queue.empty():
-            continue
+    try:
+        # Single process for testing
+        # scrape(0, user_queue, proxy_list[0], lock)
+        # exit()
+        pool = ThreadPool(len(settings.proxy_list))
+        while True:
+            pool.map(lambda x: (scrape(x['num'], user_queue, x['proxy'], lock)), proxy_list)
+            pool.close()
+            pool.join()
+            if not user_queue.empty():
+                continue
+    except KeyboardInterrupt:
+        logger.warning('Interrupted by keyboard.')
+    finally:
+        db_engine.dispose()
+        logger.info('db_engine disposed')
+        logger.info('Exiting...')
+        exit()

@@ -29,7 +29,7 @@ class Page(object):
             'Cache-Control': 'max-age=0',
             'Accept-Encoding': 'gzip, deflate, sdch, br',
             # 'accept': 'application/json, text/javascript, */*; q=0.01',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept': 'text/html,text/javascript,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US;q=0.6,en;q=0.4',
             'x-compress': 'null',
             'Upgrade-Insecure-Requests': '1',
@@ -48,69 +48,78 @@ class Page(object):
         error_count = 0
         while True:
             try:
-                resp = self.ses.get(url, proxies=self.pr, params=params, headers=headers, timeout=self.timeout)
+                response = self.ses.get(url, proxies=self.pr, params=params, headers=headers, timeout=self.timeout)
             except requests.exceptions.RequestException as e:
                 error_count += 1
                 # print('Loading error', error_count, pr, e)
                 if error_count < 3:
-                    # self.logger.warning('Loading error %s %s %s', error_count, url, self.pr, e)
+                    self.logger.debug('Loading error %s %s %s', error_count, url, self.pr, e)
                     time.sleep(60)
                     continue
                 self.logger.error('HTTP limit exceeded Loading error %s %s %s', url, self.pr, e)
                 if important:
                     raise LoadingError
                 else:
+                    self.logger.debug('Returning None')
                     return None
 
-            if resp.status_code == requests.codes.ok:
-                return resp.text
-            elif resp.status_code == 404:
-                self.logger.warning('%s HTTP %s', url, resp.status_code)
-                err_response = self.handle_err_response(resp.text)
+            if response.status_code == requests.codes.ok:
+                self.logger.debug('Response OK %s', response.url)
+                self.logger.debug('Response encoding %s', response.encoding)
+                print(response.text)
+                print(response.content)
+                return response.text
+            elif response.status_code == 404:
+                self.logger.warning('%s HTTP %s', url, response.status_code)
+                err_response = self.handle_err_response(response.text)
                 if err_response:
                     return err_response
-                self.logger.error('%s HTTP %s', resp.status_code, url)
+                self.logger.error('%s HTTP %s', response.status_code, url)
                 if important:
                     raise LoadingError
                 else:
+                    self.logger.debug('Returning None')
                     return None
-            elif resp.status_code == 403:
-                self.logger.warning('%s HTTP %s', url, resp.status_code)
-                err_response = self.handle_err_response(resp.text)
+            elif response.status_code == 403:
+                self.logger.warning('%s HTTP %s', url, response.status_code)
+                err_response = self.handle_err_response(response.text)
                 if err_response:
                     return err_response
-                self.logger.error('%s HTTP %s', resp.status_code, url)
-                if resp.text == '{"message":"Sorry, that user is suspended."}':
-                    return resp.text
+                self.logger.error('%s HTTP %s', response.status_code, url)
+                if response.text == '{"message":"Sorry, that user is suspended."}':
+                    return response.text
                 raise
+                self.logger.debug('Returning None')
                 return None
-            elif resp.status_code == 429:
-                self.logger.warn('%s HTTP Rate limit. Sleep 3 min %s', resp.status_code, url)
+            elif response.status_code == 429:
+                self.logger.warn('%s HTTP Rate limit. Sleep 3 min %s', response.status_code, url)
                 time.sleep(3 * 60)
                 continue
-            elif resp.status_code == 503:
-                self.logger.warn('%s HTTP Error waiting 2 min %s', resp.status_code, url)
+            elif response.status_code == 503:
+                self.logger.warn('%s HTTP Error waiting 2 min %s', response.status_code, url)
                 error_count += 1
                 if error_count > 5:
-                    self.logger.error('%s HTTP %s', resp.status_code, url)
+                    self.logger.error('%s HTTP %s', response.status_code, url)
                     if important:
                         raise LoadingError
                     else:
+                        self.logger.debug('Returning None')
                         return None
                 time.sleep(120)
                 continue
             else:
                 error_count += 1
-                self.logger.warn('%s HTTP %s Count: %s', resp.status_code, url, error_count)
+                self.logger.warn('%s HTTP %s Count: %s', response.status_code, url, error_count)
                 if error_count > 5:
                     self.logger.error(
                         '%s HTTP %s %s Error limit exceeded Requests error Count: %s',
-                        resp.status_code, url, self.pr, error_count)
+                        response.status_code, url, self.pr, error_count)
                     if important:
                         raise LoadingError
                     else:
+                        self.logger.debug('Returning None')
                         return None
-                self.logger.warn('%s HTTP %s waiting 1 min', resp.status_code, url)
+                self.logger.warn('%s HTTP %s waiting 1 min', response.status_code, url)
                 time.sleep(60)
                 continue
 
@@ -125,6 +134,7 @@ class Page(object):
         except Exception:
             self.logger.exception('message')
         # self.logger.error('Could not handle %s', err_msg)
+        self.logger.debug('Returning None')
         return None
 
 
@@ -178,6 +188,7 @@ class TweetScraper(object):
                             s = '   Enter {} for {}:'.format('TemporaryPassword', login)
                             challenge_response = input(s)
                             print(challenge_type)
+                            self.logger.debug('Returning None')
                             return None
                     else:
                         self.logger.error('Challenge type: %s', challenge_type)
@@ -212,20 +223,16 @@ class TweetScraper(object):
         data_end = query[3]
         data_current = data_begin
         refreshCursor = ''
-
         query_string = query[1]
-
         h = {'x-requested-with': 'XMLHttpRequest', 'x-twitter-active-user': 'yes',
              'accept': 'application/json, text/javascript, */*; q=0.01'}
         params = {}
         if self.IS_PROFILE_SEARCH:
             refreshCursor = '999992735314882560'
-
             token = self.twitter_login(login, password)
             if not token:
                 self.logger.error('UNABLE TO LOGIN')
                 return False
-
         empty_count = 0
         date_range_change_count = 0
         while True:
@@ -235,10 +242,8 @@ class TweetScraper(object):
                 params['include_available_features'] = '1'
                 params['include_entities'] = '1'
                 params['reset_error_state'] = 'false'
-
             else:
                 url = 'https://twitter.com/i/search/timeline'
-
                 params['include_available_features'] = '1'
                 params['include_entities'] = '1'
                 params['reset_error_state'] = 'false'
@@ -247,21 +252,21 @@ class TweetScraper(object):
                 params['f'] = 'tweets'
                 params['l'] = 'en'
                 params['q'] = '"' + query_string + '" since:' + data_begin + ' until:' + data_end
-
             params['max_position'] = refreshCursor
             resp = self.page.load(url, params=params, headers=h)
+            print(resp)
+            exit()
             try:
                 r = json.loads(resp)
-                # pprint(r.keys())
+                print(r)
+                if not r.get('inner', False):
+                    r['inner'] = r
             except Exception as e:
                 # print(resp.text)
                 self.logger.error('JSON error %s %s %s', url, self.page.pr, resp.text)
                 self.logger.exception('message')
                 raise LoadingError
 
-            if not r.get('inner', False):
-                r['inner'] = r
-            # pprint(r.keys())
             try:
                 refreshCursor = r['inner']['min_position']
             except KeyError:
@@ -272,6 +277,7 @@ class TweetScraper(object):
             del resp
 
             if not refreshCursor:
+                self.logger.debug('Breaking from loop.')
                 break
 
             # '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n \n':
@@ -285,13 +291,16 @@ class TweetScraper(object):
                         if date_range_change_count < 3:
                             data_end = data_current
                             empty_count = 0
+                            self.logger.debug('Continue with the loop.')
                             continue
+                    self.logger.debug('Breaking from loop.')
                     break
                 else:
                     # print(r['inner']['new_latent_count'])
                     # self.logger.warning('Twitter server stopped. sleep 3 sec %s', query_string)
                     # print('Twitter server stopped. sleep 3 sec')
                     time.sleep(3)
+                    self.logger.debug('Continue with the loop.')
                     continue
             empty_count = 0
             date_range_change_count = 0
@@ -300,19 +309,25 @@ class TweetScraper(object):
                 if tweet:
                     data_current = re.sub(' \d+:\d+:\d+', '', str(tweet.date))
                     yield tweet
-
+                else:
+                    self.logger.debug('Returning None')
+            self.logger.debug('Returning None')
+        self.logger.warning('Returning None')
         self.page.close()
 
     def cont(self, r, query_string):
+        self.logger.debug('Starting to extract')
         # r = re.sub('</span><span class="invisible">', '', r)
         try:
             tweets = PyQuery(r)('div.js-stream-tweet')
             # print(tweets.html())
         except TypeError:
             self.logger.warning('no div.js-stream-tweet')
+            self.logger.debug('Returning None')
             return None
         except Exception as e:
             self.logger.exception('message')
+            self.logger.debug('Returning None')
             return None
         for tweetHTML in tweets:
             # pprint(tweetHTML)
@@ -521,6 +536,7 @@ class TweetScraper(object):
                     self.logger.warning('Key "page" does not exists %s', url)
                     continue
             yield tweet
+        self.logger.debug('Returning None')
         return None
 
     def get_user_profile(self, usernameTweet,  tweet):
@@ -564,6 +580,7 @@ class TweetScraper(object):
                 else:
                     self.logger.warning('Unhandeled error message: "%s"', j['message'])
         self.logger.warning('Unhandeled error response: "%s"', j)
+        self.logger.debug('Returning None')
         return None
 
     def get_s(self, url, screen_name, important=True):
@@ -579,6 +596,7 @@ class TweetScraper(object):
                 if important:
                     raise LoadingError
                 else:
+                    self.logger.debug('Returning None')
                     return None
 
         return j

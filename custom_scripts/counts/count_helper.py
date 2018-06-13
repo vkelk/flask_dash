@@ -33,9 +33,17 @@ logger = logging.getLogger(__name__)
 
 
 def convert_date(input_dt, zone_from=ZONE_NY, zone_to=ZONE_UTC):
-    utc_datetime = datetime.strptime(input_dt, '%Y-%m-%d %H:%M:%S')
+    if isinstance(input_dt, str):
+        utc_datetime = datetime.strptime(input_dt, '%Y-%m-%d %H:%M:%S')
+    elif isinstance(input_dt, datetime):
+        utc_datetime = input_dt
+    else:
+        logger.error('Incorect date format')
+        return None
+    # utc_datetime = datetime.strptime(input_dt, '%Y-%m-%d %H:%M:%S')
     # Tell the datetime object that it's in NY time zone since datetime objects are 'naive' by default
     utc_datetime = utc_datetime.replace(tzinfo=zone_from)
+    # utc_datetime = input_dt.replace(tzinfo=zone_from)
     return utc_datetime.astimezone(zone_to)
 
 
@@ -147,19 +155,19 @@ def load_counts(t):
 
 def get_tweet_ids(c):
     ScopedSession = scoped_session(sessionmaker(bind=db_engine))
-    date_input = c['date_input'].strftime("%Y-%m-%d")
-    if c['date_from'] == c['date_to']:
-        datetime_start = convert_date(c['date_from'].strftime("%Y-%m-%d") + ' ' + c['time_from'].strftime("%H:%M:%S"))
-        datetime_end = convert_date(c['date_to'].strftime("%Y-%m-%d") + ' ' + c['time_to'].strftime("%H:%M:%S"))
-    elif c['date_from'].strftime("%Y-%m-%d") == date_input:
-        datetime_start = convert_date(c['date_from'].strftime("%Y-%m-%d") + ' ' + c['time_from'].strftime("%H:%M:%S"))
+    date_input = c['date_input']
+    if c['date_from'].date() == c['date_to'].date():
+        datetime_start = convert_date(c['date_from'])
+        datetime_end = convert_date(c['date_to'])
+    elif c['date_from'].date() == date_input.date():
+        datetime_start = convert_date(c['date_from'])
         datetime_end = convert_date(c['date_from'].strftime("%Y-%m-%d") + ' ' + '23:59:59')
-    elif c['date_to'].strftime("%Y-%m-%d") == date_input:
+    elif c['date_to'].date() == date_input.date():
         datetime_start = convert_date(c['date_to'].strftime("%Y-%m-%d") + ' ' + '00:00:00')
-        datetime_end = convert_date(c['date_to'].strftime("%Y-%m-%d") + ' ' + c['time_to'].strftime("%H:%M:%S"))
+        datetime_end = convert_date(c['date_to'])
     else:
-        datetime_start = convert_date(date_input + ' ' + '00:00:00')
-        datetime_end = convert_date(date_input + ' ' + '23:59:59')
+        datetime_start = convert_date(date_input.strftime("%Y-%m-%d") + ' ' + '00:00:00')
+        datetime_end = convert_date(date_input.strftime("%Y-%m-%d") + ' ' + '23:59:59')
     tweets = ScopedSession.query(mvCashtags.tweet_id) \
         .filter(mvCashtags.cashtags == c['cashtag']) \
         .filter(mvCashtags.datetime.between(datetime_start, datetime_end))

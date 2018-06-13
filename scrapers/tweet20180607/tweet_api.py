@@ -308,8 +308,10 @@ class TweetScraper(object):
         try:
             tweets = PyQuery(r)('div.js-stream-tweet')
             # print(tweets.html())
-        except Exception as e:
+        except TypeError:
             self.logger.warning('no div.js-stream-tweet')
+            return None
+        except Exception as e:
             self.logger.exception('message')
             return None
         for tweetHTML in tweets:

@@ -288,13 +288,14 @@ def reply(twitter_scraper, username, tweet_id):
     j = {'has_more_items': False}
     url = 'https://twitter.com/' + username + '/status/' + str(tweet_id)
     while True:
+        res = []
         r1 = twitter_scraper.page.load(url)
         if first and r1:
             res = re.findall('data-min-position="(.+?)"', r1, re.S)
         else:
             try:
                 j = json.loads(r1)
-                res = []
+                # res = []
                 res.append(j['min_position'])
                 r1 = j['items_html']
             except TypeError:
@@ -306,7 +307,7 @@ def reply(twitter_scraper, username, tweet_id):
             if fill(t):
                 count += 1
 
-        if res:
+        if len(res) > 0:
             data_min = res[0]
             if (first and re.search('show_more_button', r1, re.M) or (not first and j['has_more_items'])):
                 # PyQuery(r1)('li.ThreadedConversation-moreReplies').attr('data-expansion-url')
@@ -339,7 +340,8 @@ def check_tweet(user_queue, pg_dsn, proxy_list):
     session = Session()
     q = session.query(Tweet.tweet_id, Tweet.user_id) \
         .join(TweetCashtags) \
-        .group_by(Tweet.tweet_id, Tweet.user_id)
+        .group_by(Tweet.tweet_id, Tweet.user_id) \
+        .yield_per(200)
     for idx, tweet in enumerate(q.all()):
         user = session.query(User.twitter_handle).filter(User.user_id == tweet.user_id).first()
         user_queue.put((user.twitter_handle, tweet.tweet_id))

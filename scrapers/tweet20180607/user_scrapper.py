@@ -213,7 +213,8 @@ def get_users_list():
     q = session.query(distinct(Tweet.user_id)) \
         .filter(Tweet.date.between('2012-01-01', '2016-12-31')) \
         .join(TweetCashtags) \
-        .group_by(Tweet.user_id)
+        .group_by(Tweet.user_id) \
+        .yield_per(200)
     return [d[0] for d in q.all()]
 
 

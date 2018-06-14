@@ -24,12 +24,12 @@ class Page(object):
         self.timeout = 30
         self.ses = requests.Session()
         self.ses.headers = {
-            'user-agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36',
             'Connection': 'keep-alive',
             'Cache-Control': 'max-age=0',
             'Accept-Encoding': 'gzip, deflate, sdch, br',
             # 'accept': 'application/json, text/javascript, */*; q=0.01',
-            'Accept': 'text/html,text/javascript,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept': 'text/html,text/javascript,application/json,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US;q=0.6,en;q=0.4',
             'x-compress': 'null',
             'Upgrade-Insecure-Requests': '1',
@@ -51,7 +51,6 @@ class Page(object):
                 response = self.ses.get(url, proxies=self.pr, params=params, headers=headers, timeout=self.timeout)
             except requests.exceptions.RequestException as e:
                 error_count += 1
-                # print('Loading error', error_count, pr, e)
                 if error_count < 3:
                     self.logger.debug('Loading error %s %s %s', error_count, url, self.pr, e)
                     time.sleep(60)
@@ -65,9 +64,6 @@ class Page(object):
 
             if response.status_code == requests.codes.ok:
                 self.logger.debug('Response OK %s', response.url)
-                self.logger.debug('Response encoding %s', response.encoding)
-                print(response.text)
-                print(response.content)
                 return response.text
             elif response.status_code == 404:
                 self.logger.warning('%s HTTP %s', url, response.status_code)
@@ -254,15 +250,11 @@ class TweetScraper(object):
                 params['q'] = '"' + query_string + '" since:' + data_begin + ' until:' + data_end
             params['max_position'] = refreshCursor
             resp = self.page.load(url, params=params, headers=h)
-            print(resp)
-            exit()
             try:
                 r = json.loads(resp)
-                print(r)
                 if not r.get('inner', False):
                     r['inner'] = r
             except Exception as e:
-                # print(resp.text)
                 self.logger.error('JSON error %s %s %s', url, self.page.pr, resp.text)
                 self.logger.exception('message')
                 raise LoadingError
@@ -271,8 +263,6 @@ class TweetScraper(object):
                 refreshCursor = r['inner']['min_position']
             except KeyError:
                 self.logger.warning('KeyError %s %s %s', url, self.page.pr, resp.text)
-                # print(resp.text)
-                # print('Key error', url, self.page.pr)
                 raise LoadingError
             del resp
 
@@ -286,7 +276,6 @@ class TweetScraper(object):
                 if empty_count > 3:
                     if data_current > data_begin:
                         self.logger.warning('Reduce date range %s', query_string)
-                        # print('Reduce date range')
                         date_range_change_count += 1
                         if date_range_change_count < 3:
                             data_end = data_current
@@ -296,9 +285,7 @@ class TweetScraper(object):
                     self.logger.debug('Breaking from loop.')
                     break
                 else:
-                    # print(r['inner']['new_latent_count'])
-                    # self.logger.warning('Twitter server stopped. sleep 3 sec %s', query_string)
-                    # print('Twitter server stopped. sleep 3 sec')
+                    # self.logger.debug('Twitter server stopped. sleep 3 sec %s', query_string)
                     time.sleep(3)
                     self.logger.debug('Continue with the loop.')
                     continue
@@ -320,7 +307,6 @@ class TweetScraper(object):
         # r = re.sub('</span><span class="invisible">', '', r)
         try:
             tweets = PyQuery(r)('div.js-stream-tweet')
-            # print(tweets.html())
         except TypeError:
             self.logger.warning('no div.js-stream-tweet')
             self.logger.debug('Returning None')
@@ -330,12 +316,9 @@ class TweetScraper(object):
             self.logger.debug('Returning None')
             return None
         for tweetHTML in tweets:
-            # pprint(tweetHTML)
-
             tweet = Twit()
             # tweet.c = user_tweet_count
             tweetPQ = PyQuery(tweetHTML)
-            # pprint(tweetPQ)
             tweet.time_zone = ''  # time_zone
             res = re.findall('twitter-cashtag pretty-link js-nav" dir="ltr"><s>\$</s><b>(?:<strong>)?(.+?)</',
                              str(tweetPQ), re.M)
@@ -345,27 +328,19 @@ class TweetScraper(object):
                 for rt in res:
                     if '$' + rt.upper() != query_string.upper():
                         tweet.symbols.append('$' + rt.upper())
-
             else:
                 tweet.symbols = []
-
-            # print(PyQuery(tweetHTML)('a.twitter-timeline-link'))
             tweet.urls = []
-
             flag = False
             for aa in PyQuery(tweetHTML)('a.twitter-timeline-link'):
                 aaa = PyQuery(aa)
-
                 if aaa.attr('data-expanded-url') and aaa.attr('data-expanded-url') != 'null' and aaa.attr(
                         'data-expanded-url') != 'None':
                     tweet.urls.append(aaa.attr('data-expanded-url'))
                     flag = True
-                    # print(tweetPQ("p.js-tweet-text").text())
                 else:
                     tweet.urls.append(aaa.attr('href'))
-                    # print(aaa.attr('href'),'https://'+aaa.text())
                 # aaa.remove()
-            # print(tweetPQ("p.js-tweet-text").text())
             # if flag:
             #     raise LoadingError
 
@@ -389,8 +364,6 @@ class TweetScraper(object):
                 .replace('https://www. ', 'https://www.') \
                 .replace('https:// ', 'https://')
             # t = tweetPQ("p.js-tweet-text").text()
-            # print(tweetPQ("p.js-tweet-text").html())
-            # print('tweetPQ START', t, 'END')
             e = tweetPQ('img.Emoji')
             tweet.emoji = []
             for em in e:
@@ -407,8 +380,6 @@ class TweetScraper(object):
                         "data-tweet-stat-count").replace(",", ""))
                 except AttributeError:
                     self.logger.warning('AttributeError in ProfileTweet-action--retweet %s', str(tweetPQ))
-                    # print(str(tweetPQ))
-                    # print('Attribute error in ProfileTweet-action--retweet')
                     retweets = 0
 
                 try:
@@ -416,8 +387,6 @@ class TweetScraper(object):
                         "data-tweet-stat-count").replace(",", ""))
                 except AttributeError:
                     self.logger.warning('AttributeError in ProfileTweet-action--retweet %s', str(tweetPQ))
-                    # print(str(tweetPQ))
-                    # print('Attribute error in ProfileTweet-action--retweet')
                     favorites = 0
 
                 try:
@@ -445,7 +414,6 @@ class TweetScraper(object):
             # txt = re.sub('(?:https\://)|(?:http\://)', '', txt)
             # txt = re.sub('https\:\/\/', '', txt)
             # txt=re.sub('http\:\/\/','',txt)
-            # print('text START', txt, 'END')
             tweet.text = txt
             tweet.unixtime = dateSec
             tweet.date = datetime.fromtimestamp(dateSec)
@@ -492,11 +460,7 @@ class TweetScraper(object):
                             tweetPQ('a.js-user-profile-link'),
                             tt, tweet.is_reply_id, tweet.permalink)
                         # print('ERROR', tweetPQ('a.js-user-profile-link'))
-                        # print(tt, tweet.is_reply_id, tweet.permalink)
                         raise LoadingError
-                        # print(tweet.is_reply_username)
-
-                        # print(tweet.is_reply_href,tweet.is_reply_screen_name,tweet.is_reply_id,tweet.is_reply_username)
             else:
                 tweet.is_reply = False
                 # tweet.data_conversation_id = ''
@@ -528,7 +492,6 @@ class TweetScraper(object):
                 if j and 'page' in j:
                     tweet_status = PyQuery(j['page'])('a.js-geo-pivot-link')
                     if tweet_status:
-                        # print(tweet_status.text(), tweet_status.attr('data-place-id'))
                         tweet.location_name = tweet_status.text()
                         tweet.location_id = tweet_status.attr('data-place-id') if tweet_status.attr(
                             'data-place-id') else ''
@@ -545,8 +508,6 @@ class TweetScraper(object):
             j = self.get_s(url, '', important=False)  # query_string)
         except Exception as e:
             self.logger.error('%s %s', type(e), str(e))
-            # fname = sys._getframe().f_code.co_name
-            # print(fname, type(e), str(e))
             raise
         if j and ('init_data' in j or 'message' in j):
             if 'init_data' in j:

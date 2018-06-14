@@ -98,7 +98,6 @@ def scra(query, i, proxy, lock, session=None):
         data = {}
         data['tweet_id'] = t.id
         data['UserID'] = t.user_id
-        # print(query, count, t.date)
         session = Session()
         twit = session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first()
         # if twit and ISUSERPROFILE:
@@ -107,7 +106,6 @@ def scra(query, i, proxy, lock, session=None):
             session.close()
             Session.remove()
             continue
-        # print(query, count, t.date)
         if twit and twit.user_id is None:
             try:
                 twit.user_id = data['UserID']
@@ -223,7 +221,6 @@ def scra(query, i, proxy, lock, session=None):
             except sqlalchemy.exc.IntegrityError as err:
                 if re.search("duplicate key value violates unique constraint", err.args[0]):
                     logger.warning('ROLLBACK USER %s', data['UserID'])
-                    # print('ROLLBACK USER')
                     session.rollback()
             except Exception as e:
                 logger.exception('message')
@@ -476,20 +473,16 @@ if __name__ == '__main__':
     for days in range(0, date_delta.days + 1, settings.FREQUENCY):
         date_end = datetime.strptime(t2, '%Y-%m-%d') - timedelta(days=days)
         date_start = date_end - timedelta(days=settings.FREQUENCY)
-        # date_start = datetime.strptime(t2, '%Y-%m-%d') - timedelta(days=days)
-        # date_end = date_start + timedelta(days=settings.FREQUENCY)
-        # print(days, date_start, date_end)
         for ticker in working_ctags:
             query = ticker['cashtag'].lower().strip('$'), \
                 ticker['cashtag'].lower().strip(' '), date_start.strftime("%Y-%m-%d"), date_end.strftime("%Y-%m-%d")
-            # print(query, i)
             user_queue.put((query, i))
             i += 1
     try:
         lock = Lock()
         # Single process for testings
-        scrape_query(user_queue, settings.proxy_list[0], lock, pg_dsn)
-        exit()
+        # scrape_query(user_queue, settings.proxy_list[5], lock, pg_dsn)
+        # exit()
 
         pool = ThreadPool(len(settings.proxy_list))
         pool.map(lambda x: (scrape_query(user_queue, x, lock, pg_dsn)), settings.proxy_list)

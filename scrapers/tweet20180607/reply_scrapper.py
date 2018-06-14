@@ -330,7 +330,7 @@ def reply_loader(n, user_queue, pg_dsn, proxy):
         if r:
             username, tweet_id = r
             c = reply(twitter_scraper, username, tweet_id)
-            logger.info('%2s For tweet %s found %s new reply', n, tweet_id, c)
+            logger.info('%2s For tweet %s found %s new reply(s)', n, tweet_id, c)
         else:
             break
 

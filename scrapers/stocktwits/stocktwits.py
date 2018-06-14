@@ -3,10 +3,9 @@ from datetime import datetime
 import json
 import logging
 import logging.config
-from multiprocessing.dummy import Process, Lock, Queue
+from multiprocessing.dummy import Lock, Queue
 from multiprocessing.dummy import Pool as ThreadPool
 import os
-from pprint import pprint
 import re
 import requests
 import time
@@ -106,7 +105,7 @@ class IdeasHashtags(Base):
 
 
 class IdeasUrls(Base):
-    __table__ = Table('ideas_url', pg_meta, autoload=True)
+    __table__ = Table('idea_urls', pg_meta, autoload=True)
 
 
 class Reply(Base):
@@ -155,7 +154,7 @@ class Page(object):
         self.ses = requests.Session()
         self.ses.headers = {
             'user-agent':
-            'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36',
             # 'Connection': 'keep-alive',
             # 'Cache-Control': 'max-age=0',
             'Accept-Encoding':
@@ -348,6 +347,61 @@ def insert_new_user(t, watch_list=None):
         logger.exception('message')
     finally:
         session.close()
+        return user.user_id
+
+
+def insert_new_idea(t, reply_to=None):
+    Session = sessionmaker(bind=db_engine)
+    session = Session()
+    logger.debug('Inserting new idea')
+
+    idea = Ideas(
+        ideas_id=t['id'],
+        user_id=t['user']['id'],
+        datetime=t['created_at'],
+        reply_to=reply_to if reply_to else None,
+        text=t['body'],
+        sentiment=t['entities']['sentiment']['basic'] if t['entities']['sentiment'] else None,
+        permalink='https://stocktwits.com/' + t['user']['username'] + '/message/' + str(t['id'])
+    )
+
+    idea_count = Ideas_Count(
+        replies=t['conversation']['replies'] if t.get('conversation', False) else None,
+        likes=t['likes']['total'] if t.get('likes', False) else None
+        )
+    idea.counts.append(idea_count)
+
+    tokens = tokenize(idea.text)
+    cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 1])
+    if len(cashtags) > 0:
+        for cashtag in cashtags:
+            ctag = IdeasCashtags(ideas_id=idea.ideas_id, cashtag=cashtag)
+            idea.cash_s.append(ctag)
+    hashtags = set([term.upper() for term in tokens if term.startswith('#') and len(term) > 1])
+    if len(hashtags) > 0:
+        for hashtag in hashtags:
+            htag = IdeasHashtags(ideas_id=idea.ideas_id, hashtag=hashtag)
+            idea.hash_s.append(htag)
+
+    if t.get('links', False):
+        for u in t['links']:
+            utag = IdeasUrls(ideas_id=idea.ideas_id, url=u['url'][:255])
+            idea.url_s.append(utag)
+
+    try:
+        session.add(idea_count)
+        session.add(idea)
+        session.commit()
+        if reply_to:
+            logger.info('Inserted new Idea: %s as reply to %s', idea.ideas_id, idea.reply_to)
+        else:
+            logger.info('Inserted new Idea: %s', idea.ideas_id)
+    except exc.IntegrityError as err:
+        if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)", err.args[0]):
+            logger.warning('%s ROLLBACK IDEAS DUPLICATE ENTRY', n)
+            session.rollback()
+    except Exception:
+        logger.exception('message')
 
 
 def get_tweets(n, dateto, permno, proxy, query, lock):
@@ -375,14 +429,14 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
                 if settings.ISUSERPROFILE:
                     url = 'https://stocktwits.com/api/user_info_stream/' + t['user']['username'] + '?limit=15'
                     r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + t['user']['username']},
-                            important=False)
+                                  important=False)
                     if r:
                         j = json.loads(r)
                         t['user'] = j['user']
                 if settings.ISWATCHLIST:
                     url = 'https://api.stocktwits.com/api/2/watchlists/user/' + str(t['user']['id']) + '.json'
                     r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + t['user']['username']},
-                            important=False)
+                                  important=False)
                     if r:
                         j = json.loads(r)
                         watch_list = ' '.join([f['symbol'] for f in j['watchlist']['symbols']])[:500]
@@ -391,30 +445,14 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
                 insert_new_user(t, watch_list)
             except Exception:
                 logger.exception('message')
-
         if t.get('conversation', False):
             reply_to = t['conversation']['in_reply_to_message_id']
         else:
             reply_to = None
+        idea_id = insert_new_idea(t, reply_to)
 
-        idea = Ideas(
-            ideas_id=t['id'],
-            user_id=t['user']['id'],
-            # permno=permno,
-            datetime=t1,
-            # time=t1.time(),
-            reply_to=reply_to if reply_to else None,
-            text=t['body'],
-            sentiment=t['entities']['sentiment']['basic'] if t['entities']['sentiment'] else None,
-            permalink='https://stocktwits.com/' + t['user']['username'] + '/message/' + str(t['id'])
-        # cashtags_other=' '.join([f['symbol'] for f in t['symbols'] if f['symbol'] != query.upper()])[:255]
-        )
-        
         if t.get('conversation', False) and settings.GET_REPLYS:
             count_repl = 0
-            if int(t['conversation']['replies']) > 20:
-                rrr = 1
-            max = None
             url = 'https://api.stocktwits.com/api/2/messages/' + str(t['id']) + '/conversation.json?max='
             flag_conv = False
             while True:
@@ -434,16 +472,18 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
                     if not user:
                         try:
                             if settings.ISUSERPROFILE:
-                                url = 'https://stocktwits.com/api/user_info_stream/' + child['user']['username'] + '?limit=15'
-                                r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + child['user']['username']},
-                                        important=False)
+                                url = 'https://stocktwits.com/api/user_info_stream/' + child['user']['username'] \
+                                    + '?limit=15'
+                                r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/'
+                                              + child['user']['username']}, important=False)
                                 if r:
                                     j = json.loads(r)
                                     child['user'] = j['user']
                             if settings.ISWATCHLIST:
-                                url = 'https://api.stocktwits.com/api/2/watchlists/user/' + str(child['user']['id']) + '.json'
-                                r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/' + child['user']['username']},
-                                        important=False)
+                                url = 'https://api.stocktwits.com/api/2/watchlists/user/' + str(child['user']['id']) \
+                                    + '.json'
+                                r = page.load(n, 'get', url, headers={'referer': 'https://stocktwits.com/'
+                                              + child['user']['username']}, important=False)
                                 if r:
                                     j = json.loads(r)
                                     watch_list = ' '.join([f['symbol'] for f in j['watchlist']['symbols']])[:500]
@@ -451,33 +491,11 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
                                 watch_list = None
                             insert_new_user(child, watch_list)
                         except Exception:
-                            logger.exception('message') 
-                    if not reply:
-                        t1 = datetime.strptime(child['created_at'], '%Y-%m-%dT%H:%M:%SZ')
-                        reply = Ideas(
-                            ideas_id=child['id'],
-                            user_id=child['user']['id'],
-                            datetime=t1,
-                            reply_to=t['id'],
-                            text=child['body'],
-                            sentiment=child['entities']['sentiment']['basic'] if child['entities']['sentiment'] else None,
-                            permalink='https://stocktwits.com/' + child['user']['username'] + '/message/' + str(child['id'])
-                        )
-                        try:
-                            session.add(reply)
-                            # session.flush()
-                            session.commit()
-                            logger.info('Inserted new Idea: %s as reply to %s', reply.ideas_id, idea.ideas_id)
-                        except exc.IntegrityError as err:
-                            if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)",
-                                        err.args[0]):
-                                logger.warning('%s ROLLBACK REPLY', n)
-                                session.rollback()
-                        except Exception:
                             logger.exception('message')
+                    if not reply:
+                        reply_id = insert_new_idea(child, reply_to=t['id'])
+                        count += 1
 
-                    # idea.replies.append(reply)
-                # break
                 if mess['cursor']['more']:
                     url = 'https://api.stocktwits.com/api/2/messages/' + str(t['id']) + '/children.json?since=' \
                         + str(mess['cursor']['since'])
@@ -485,59 +503,7 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
                     continue
                 break
 
-        idea_count = Ideas_Count(
-            replies=t['conversation']['replies'] if t.get('conversation', False) else None,
-            likes=t['likes']['total'] if t.get('likes', False) else None
-            )
-        idea.counts.append(idea_count)
-
-        tokens = tokenize(idea.text)
-        cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 1])
-        if len(cashtags) > 0:
-            for cashtag in cashtags:
-                ctag = IdeasCashtags(ideas_id=idea.ideas_id, cashtag=cashtag)
-                idea.cash_s.append(ctag)
-                # session.add(ctag)
-        hashtags = set([term.upper() for term in tokens if term.startswith('#') and len(term) > 1])
-        if len(hashtags) > 0:
-            for hashtag in hashtags:
-                htag = IdeasHashtags(ideas_id=idea.ideas_id, hashtag=hashtag)
-                idea.hash_s.append(htag)
-                # session.add(htag)
-        # urls = set([term for term in tokens if term.startswith('http') and len(term) > 4])
-        # if len(urls) > 0:
-        #     for u in urls:
-        #         utag = IdeasUrls(ideas_id=idea.ideas_id, url=u[:255])
-        #         idea.url_s.append(utag)
-                # session.add(utag)
-
-        if t.get('links', False):
-            for u in t['links']:
-                utag = IdeasUrls(ideas_id=idea.ideas_id, url=u['url'][:255])
-                idea.url_s.append(utag)
-            # link = 'https://stocktwits.com/' + t['user']['username'] + '/message/' + str(t['id'])
-            # idea_url = Ideas_Url(
-            #                      url=' '.join([f['url'] for f in t['links']])[:150] if t.get('links', False) else None)
-            # idea.urls.append(idea_url)
-            # session.add(idea_url)
-        try:
-            # user.ideas.append(idea)
-            session.add(idea_count)
-            session.add(idea)
-            # session.flush()
-            session.commit()
-            logger.info('Inserted new Idea: %s', idea.ideas_id)
-        except exc.IntegrityError as err:
-            if re.match("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)", err.args[0]):
-                logger.warning('%s ROLLBACK IDEAS DUPLICATE ENTRY', n)
-                session.rollback()
-        except Exception:
-            logger.exception('message')
-
         count += 1
-        # logger.info('%s %s %s %s %s', n, query, count, t['created_at'], count_repl if count_repl > 0 else '')
-
-        # if count>99: break
 
     if count:
         fname = 'report.csv'
@@ -558,12 +524,12 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
 
             with open(fname, 'a', encoding='utf-8') as csvfile:
                 writer = csv.DictWriter(csvfile, lineterminator='\n', fieldnames=fdnames,
-                    dialect='excel', quotechar='"', quoting=csv.QUOTE_ALL)
+                                        dialect='excel', quotechar='"', quoting=csv.QUOTE_ALL)
                 writer.writerow(data)
         else:
             with open(fname, 'w') as f:
                 writer = csv.DictWriter(f, lineterminator='\n', fieldnames=fdnames,
-                    dialect='excel', quotechar='"', quoting=csv.QUOTE_ALL)
+                                        dialect='excel', quotechar='"', quoting=csv.QUOTE_ALL)
                 writer.writeheader()
                 writer.writerow(data)
     else:

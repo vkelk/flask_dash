@@ -170,16 +170,20 @@ if __name__ == '__main__':
                 try:
                     t = future.result()
                     df_output.at[index2, 'gvkey'] = str(row['gvkey'])
-                    df_output.at[index2, 'database'] = 'twitter'
-                    df_output.at[index2, 'day_status'] = t['day_status']
-                    df_output.at[index2, 'date'] = str(t['date'])
                     df_output.at[index2, 'cashtag'] = t['cashtag']
+                    df_output.at[index2, 'database'] = 'twitter'
+                    df_output.at[index2, 'date'] = str(t['date'].date())
+                    df_output.at[index2, 'day_status'] = t['day_status']
+                    if settings.frequency:
+                        period_str = str(t['date'].time()) + ' - ' + str((t['date'] \
+                            + timedelta(hours=settings.frequency)).time())
+                        df_output.at[index2, 'time'] = period_str
                     df_output.at[index2, 'tweets'] = str(t['tweets_count'])
                     df_output.at[index2, 'retweets'] = str(t['retweets'])
                     df_output.at[index2, 'replies'] = str(t['replies'])
-                    df_output.at[index2, 'users'] = str(t['users'])
                     df_output.at[index2, 'mentions'] = str(t['mentions'])
                     df_output.at[index2, 'hashtags'] = str(t['hashtags'])
+                    df_output.at[index2, 'users'] = str(t['users'])
                     index2 += 1
 
                     if settings.download_users:

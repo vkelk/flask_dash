@@ -1,10 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil import tz
 import logging
 
 from sqlalchemy import Table, create_engine, MetaData, func, Column, BigInteger, String, DateTime, distinct
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.sql.expression import true
 
 import settings
 
@@ -146,6 +147,7 @@ def load_counts(t):
         t['mentions'] = len(t['mentions_list'])
         t['hashtags_list'] = get_hashtag_count(t['tweet_ids'], ScopedSession)
         t['hashtags'] = len(t['hashtags_list'])
+        logger.debug('Processed %s', t)
     except Exception:
         logger.exception('message')
     finally:
@@ -155,7 +157,8 @@ def load_counts(t):
 
 def get_tweet_ids(c):
     ScopedSession = scoped_session(sessionmaker(bind=db_engine))
-    date_input = c['date_input']
+    session = ScopedSession()
+    date_input = c['date']
     if c['date_from'].date() == c['date_to'].date():
         datetime_start = convert_date(c['date_from'])
         datetime_end = convert_date(c['date_to'])
@@ -168,7 +171,9 @@ def get_tweet_ids(c):
     else:
         datetime_start = convert_date(date_input.strftime("%Y-%m-%d") + ' ' + '00:00:00')
         datetime_end = convert_date(date_input.strftime("%Y-%m-%d") + ' ' + '23:59:59')
-    tweets = ScopedSession.query(mvCashtags.tweet_id) \
+    logger.debug('Start date: %s, end date: %s', datetime_start, datetime_end)
+    # print(datetime_start, datetime_end)
+    tweets = session.query(mvCashtags.tweet_id) \
         .filter(mvCashtags.cashtags == c['cashtag']) \
         .filter(mvCashtags.datetime.between(datetime_start, datetime_end))
     if 'date_joined' in c and c['date_joined']:
@@ -189,5 +194,57 @@ def get_tweet_ids(c):
     except Exception:
         logger.exception('message')
     finally:
+        session.close()
         ScopedSession.remove()
     return data
+
+
+def validate_frequency(freq):
+    if 24 % freq == 0:
+        return True
+    logger.warning('Frequency setting is not valid. Chose another value.')
+    return False
+
+
+def get_trading_periods(c):
+    logger.debug('Getting periods')
+    ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+    session = ScopedSession()
+    query_trading_days = session.query(TradingDays.date) \
+        .filter(TradingDays.is_trading == true()) \
+        .filter(TradingDays.date.between(c['date_from'].date(), c['date_to'].date()))
+    trading_days = [d[0] for d in query_trading_days.all()]
+    if settings.frequency and validate_frequency(settings.frequency):
+        logger.debug('Found setting for frequecy: %s', settings.frequency)
+        days = []
+        last_date_time = c['date_from']
+        while last_date_time <= c['date_to']:
+            if settings.days == 'all':
+                days.append(last_date_time)
+            elif settings.days == 'trading' and last_date_time.date() in trading_days:
+                days.append(last_date_time)
+            elif settings.days == 'non-trading' and last_date_time.date() not in trading_days:
+                days.append(last_date_time)
+            else:
+                logger.warning('Datetime %s does not met any condition', last_date_time)
+            last_date_time = last_date_time + timedelta(hours=settings.frequency)
+            # print(last_date_time)
+        return days
+    logger.debug('Frequency setting is empty or not valid')
+    if settings.days == 'trading':
+        return [datetime.combine(d, datetime.min.time()) for d in trading_days]
+    else:
+        days = []
+        date_delta = c['date_to'] - c['date_from']
+        for i in range(date_delta.days + 1):
+            date_input = (c['date_from'] + timedelta(days=i))
+            if settings.days == 'all':
+                days.append(date_input)
+            elif settings.days == 'non-trading' and date_input not in trading_days:
+                days.append(date_input)
+            else:
+                logger.error('Incorrect day status defined in settings')
+                raise
+        return [datetime.combine(d, datetime.min.time()) for d in days]
+    logger.error('Empty result')
+    raise

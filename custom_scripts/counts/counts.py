@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import true
 
 import settings
-from count_helper import db_engine, TradingDays, load_counts, get_tweet_ids
+from count_helper import db_engine, TradingDays, load_counts, get_tweet_ids, validate_frequency,get_trading_periods
 
 
 def slugify(s):
@@ -26,12 +26,13 @@ def dataframe_from_file(filename):
             if 'cashtag' in df.columns and 'gvkey' in df.columns:
                 return df
             else:
+                logger.warning('The input file does not contains wanted header')
                 print(df.columns)
         # TODO: Create import from CSV
     except Exception:
         logger.error('Cannot open filename %s', filename)
-        logger.exception('message')
-        raise
+        # logger.exception('message')
+        exit()
     return None
 
 
@@ -50,22 +51,25 @@ def get_tweet_list(c):
     '''
     logger.info('Getting tweet list for %s', c['cashtag'])
     ScopedSession = scoped_session(sessionmaker(bind=db_engine))
-    date_delta = c['date_to'] - c['date_from']
-    trading_days = ScopedSession.query(TradingDays.date) \
+    session = ScopedSession()
+    # date_delta = c['date_to'] - c['date_from']
+    periods = get_trading_periods(c)
+    trading_days = session.query(TradingDays.date) \
         .filter(TradingDays.is_trading == true()) \
         .filter(TradingDays.date.between(c['date_from'], c['date_to']))
-    days_list = [d[0] for d in trading_days.all()]
+    tdays_list = [d[0] for d in trading_days.all()]
+    session.close()
     result = []
-    for i in range(date_delta.days + 1):
+    for time_frame in periods:
         cn = c.copy()
-        date_input = (c['date_from'] + timedelta(days=i))
-        cn['date_input'] = date_input
-        cn['date'] = date_input
-        if c['day_status'] in ['trading', 'all'] and date_input.date() in days_list:
+        cn['date_input'] = time_frame
+        cn['date'] = time_frame
+        if c['day_status'] in ['trading', 'all'] and time_frame.date() in tdays_list:
             cn['day_status'] = 'trading'
-        elif c['day_status'] in ['non-trading', 'all'] and date_input.date() not in days_list:
+        elif c['day_status'] in ['non-trading', 'all'] and time_frame.date() not in tdays_list:
             cn['day_status'] = 'non-trading'
         else:
+            logger.debug('Skipping date %s. Do not apply the %s contition', time_frame.date(), settings.days)
             continue
         result.append(cn)
     res_list = []
@@ -94,6 +98,7 @@ def download_hashtags(hashtags_map):
     except Exception:
         logger.error('Hashtags output file is not saved')
         logger.exception('message')
+        raise
 
 
 def download_users(users_map):
@@ -176,22 +181,27 @@ if __name__ == '__main__':
                     df_output.at[index2, 'mentions'] = str(t['mentions'])
                     df_output.at[index2, 'hashtags'] = str(t['hashtags'])
                     index2 += 1
-                    for di in t['users_list']:
-                        if di['user_id'] in users.keys():
-                            users[di['user_id']]['tweet_counts'] = users[di['user_id']]['tweet_counts'] + di['counts']
-                        else:
-                            users[di['user_id']] = {
-                                'twitter_handle': di['twiiter_handle'],
-                                'tweet_counts': di['counts'],
-                                'date_joined': di['date_joined'],
-                                'location': di['location']
-                            }
-                    for di in t['mentions_list']:
-                        if di['mention'] in mentions.keys():
-                            mentions[di['mention']] = mentions[di['mention']] + di['counts']
-                        else:
-                            mentions[di['mention']] = di['counts']
-                    if len(t['hashtags_list']) > 0:
+
+                    if settings.download_users:
+                        for di in t['users_list']:
+                            if di['user_id'] in users.keys():
+                                users[di['user_id']]['tweet_counts'] = users[di['user_id']]['tweet_counts'] + di['counts']
+                            else:
+                                users[di['user_id']] = {
+                                    'twitter_handle': di['twiiter_handle'],
+                                    'tweet_counts': di['counts'],
+                                    'date_joined': di['date_joined'],
+                                    'location': di['location']
+                                }
+
+                    if settings.download_mentions:
+                        for di in t['mentions_list']:
+                            if di['mention'] in mentions.keys():
+                                mentions[di['mention']] = mentions[di['mention']] + di['counts']
+                            else:
+                                mentions[di['mention']] = di['counts']
+
+                    if settings.download_hashtags and len(t['hashtags_list']) > 0:
                         for di in t['hashtags_list']:
                             if di['hashtag'] in hashtags.keys():
                                 hashtags[di['hashtag']] = hashtags[di['hashtag']] + di['counts']
@@ -200,23 +210,30 @@ if __name__ == '__main__':
                 except Exception:
                     logger.exception('message')
             logger.info('Finished count process for tweet lists')
-        for k, v in hashtags.items():
-            d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'],
-                'hashtag': k.encode('latin-1', 'ignore').decode('latin-1'), 'count': v}
-            hashtags_map.append(d)
-        for k, v in mentions.items():
-            d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'mention': k, 'count': v}
-            mentions_map.append(d)
-        for k, v in users.items():
-            d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'user': k,
-                'twitter_handle': str(v['twitter_handle']).encode('latin-1', 'ignore').decode('latin-1'),
-                'tweet_counts': v['tweet_counts'],
-                'date_joined': str(v['date_joined']),
-                'location': str(v['location']).encode('latin-1', 'ignore').decode('latin-1')}
-            users_map.append(d)
+        
+        if settings.download_hashtags:
+            for k, v in hashtags.items():
+                d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'],
+                    'hashtag': k.encode('latin-1', 'ignore').decode('latin-1'), 'count': v}
+                hashtags_map.append(d)
+
+        if settings.download_mentions:
+            for k, v in mentions.items():
+                d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'mention': k, 'count': v}
+                mentions_map.append(d)
+        
+        if settings.download_users:
+            for k, v in users.items():
+                d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'user': k,
+                    'twitter_handle': str(v['twitter_handle']).encode('latin-1', 'ignore').decode('latin-1'),
+                    'tweet_counts': v['tweet_counts'],
+                    'date_joined': str(v['date_joined']),
+                    'location': str(v['location']).encode('latin-1', 'ignore').decode('latin-1')}
+                users_map.append(d)
     df_output.sort_values(by=['cashtag', 'date'], ascending=[True, True], inplace=True)
     df_output.to_stata('output.dta', write_index=False)
     logger.info('Output file is saved')
+    # print(df_output)
     if settings.download_hashtags:
         download_hashtags(hashtags_map)
     if settings.download_users:

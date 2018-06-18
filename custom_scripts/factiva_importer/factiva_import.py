@@ -1,0 +1,10 @@
+import PyPDF2
+pdf_file = open('./pdfs/Factiva-20180616-2202.pdf', 'rb')
+read_pdf = PyPDF2.PdfFileReader(pdf_file)
+number_of_pages = read_pdf.getNumPages()
+page = read_pdf.getPage(100)
+page_content = page.extractText()
+print('Document info:', read_pdf.getDocumentInfo())
+print('Number of pages', number_of_pages)
+print('Is encripted:', read_pdf.isEncrypted)
+print(page_content)

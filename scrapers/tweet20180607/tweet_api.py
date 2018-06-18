@@ -297,9 +297,9 @@ class TweetScraper(object):
                     data_current = re.sub(' \d+:\d+:\d+', '', str(tweet.date))
                     yield tweet
                 else:
-                    self.logger.debug('Returning None')
-            self.logger.debug('Returning None')
-        self.logger.warning('Returning None')
+                    self.logger.debug('Returning None for %s', query)
+            self.logger.debug('Returning None for %s', query)
+        self.logger.warning('Returning None for %s', query)
         self.page.close()
 
     def cont(self, r, query_string):
@@ -309,11 +309,11 @@ class TweetScraper(object):
             tweets = PyQuery(r)('div.js-stream-tweet')
         except TypeError:
             self.logger.warning('no div.js-stream-tweet')
-            self.logger.debug('Returning None')
+            self.logger.debug('Returning None for %s', query_string)
             return None
         except Exception as e:
             self.logger.exception('message')
-            self.logger.debug('Returning None')
+            self.logger.debug('Returning None for %s', query_string)
             return None
         for tweetHTML in tweets:
             tweet = Twit()

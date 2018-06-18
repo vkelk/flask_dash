@@ -467,8 +467,8 @@ if __name__ == '__main__':
     working_ctags = get_cashtags_list()
     logger.debug('Total %s cashtags will be processed', len(working_ctags))
     i = 0
-    t1 = '2012-01-01'
-    t2 = '2017-01-01'
+    t1 = settings.DATE_START
+    t2 = settings.DATE_END
     date_delta = datetime.strptime(t2, '%Y-%m-%d') - datetime.strptime(t1, '%Y-%m-%d')
     for days in range(0, date_delta.days + 1, settings.FREQUENCY):
         date_end = datetime.strptime(t2, '%Y-%m-%d') - timedelta(days=days)

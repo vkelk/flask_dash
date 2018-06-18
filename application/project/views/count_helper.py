@@ -110,8 +110,10 @@ def get_hashtag_count(tweet_list, sess):
 
 def get_replys_count(tweet_list, sess):
     session = sess()
-    q = session.query(func.count(Tweet.tweet_id)).filter(Tweet.tweet_id.in_(tweet_list)) \
-        .filter(Tweet.reply_to > 0)
+    q = session.query(func.count(Tweet.tweet_id)) \
+        .filter(Tweet.tweet_id.in_(tweet_list)) \
+        .filter(Tweet.reply_to > 0) \
+        .filter(Tweet.reply_to != Tweet.tweet_id)
     return q.scalar()
 
 

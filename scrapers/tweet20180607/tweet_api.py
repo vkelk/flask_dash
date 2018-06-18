@@ -1,12 +1,13 @@
+from datetime import datetime
+import json
 import logging
 import requests
-import time
 import re
-from pyquery import PyQuery
-import sys
-import json
+import time
 
-from datetime import datetime
+from pyquery import PyQuery
+
+import settings
 
 
 class LoadingError(Exception):
@@ -24,7 +25,7 @@ class Page(object):
         self.timeout = 30
         self.ses = requests.Session()
         self.ses.headers = {
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36',
+            'user-agent': settings.USER_AGENTS[0],
             'Connection': 'keep-alive',
             'Cache-Control': 'max-age=0',
             'Accept-Encoding': 'gzip, deflate, sdch, br',
@@ -220,8 +221,6 @@ class TweetScraper(object):
         data_current = data_begin
         refreshCursor = ''
         query_string = query[1]
-        h = {'x-requested-with': 'XMLHttpRequest', 'x-twitter-active-user': 'yes',
-             'accept': 'application/json, text/javascript, */*; q=0.01'}
         params = {}
         if self.IS_PROFILE_SEARCH:
             refreshCursor = '999992735314882560'
@@ -232,6 +231,12 @@ class TweetScraper(object):
         empty_count = 0
         date_range_change_count = 0
         while True:
+            headers = {
+                'user-agent': settings.USER_AGENTS[empty_count],
+                'x-requested-with': 'XMLHttpRequest',
+                'x-twitter-active-user': 'yes',
+                'accept': 'application/json, text/javascript, */*; q=0.01'
+                }
             if self.IS_PROFILE_SEARCH:
                 url = 'https://twitter.com/i/profiles/show/' + query_string + '/timeline/with_replies'
                 # url = 'https://twitter.com/i/profiles/show/' + query_string + '/timeline/with_tweets'
@@ -249,7 +254,7 @@ class TweetScraper(object):
                 params['l'] = 'en'
                 params['q'] = '"' + query_string + '" since:' + data_begin + ' until:' + data_end
             params['max_position'] = refreshCursor
-            resp = self.page.load(url, params=params, headers=h)
+            resp = self.page.load(url, params=params, headers=headers)
             try:
                 r = json.loads(resp)
                 if not r.get('inner', False):
@@ -285,8 +290,8 @@ class TweetScraper(object):
                     self.logger.debug('Breaking from loop.')
                     break
                 else:
-                    # self.logger.debug('Twitter server stopped. sleep 3 sec %s', query_string)
-                    time.sleep(3)
+                    self.logger.debug('Twitter server returned empty response %s', query_string)
+                    time.sleep(1)
                     self.logger.debug('Continue with the loop.')
                     continue
             empty_count = 0

@@ -264,8 +264,7 @@ def fill(t, query=None, permno=None):
         session.add(twit)
         session.flush()
         session.commit()
-        logger.info('Inserted new Tweet: %s %s', twit.tweet_id, twit.reply_to)
-        # print('Inserted', twit.tweet_id, twit.reply_to)
+        logger.info('Inserted new Tweet %s as reply to %s', twit.tweet_id, twit.reply_to)
     except exc.IntegrityError as err:
         if re.search('duplicate key value violates unique constraint', err.args[0]):
             logger.warning('ROLLBACK duplicate entry')
@@ -340,6 +339,7 @@ def check_tweet(user_queue, pg_dsn, proxy_list):
     session = Session()
     q = session.query(Tweet.tweet_id, Tweet.user_id) \
         .join(TweetCashtags) \
+        .filter(Tweet.date.between(settings.DATE_START, settings.DATE_END)) \
         .group_by(Tweet.tweet_id, Tweet.user_id) \
         .yield_per(200)
     for idx, tweet in enumerate(q.all()):

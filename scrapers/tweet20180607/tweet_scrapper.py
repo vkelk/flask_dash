@@ -227,6 +227,10 @@ def scra(query, i, proxy, lock, session=None):
                 raise
         # twit = session.query(Tweet).filter_by(tweet_id=data['tweet_id']).first()
         # if not twit:
+        if data['isReply'] and data['ReplyTweetID'] != data['tweet_id']:
+            reply_to = data['ReplyTweetID']
+        else:
+            reply_to = None
         twit = Tweet(tweet_id=data['tweet_id'],
                      user_id=data['UserID'],
                      date=datetime.strptime(data['DateOfActivity'], '%d/%m/%Y'),
@@ -234,7 +238,7 @@ def scra(query, i, proxy, lock, session=None):
                      timezone=data['TimeZoneUTC'][:10] if data['TimeZoneUTC'] else None,
                      retweet_status=data['Re_tweet'],
                      text=data['Tweet'],
-                     reply_to=data['ReplyTweetID'],
+                     reply_to=reply_to,
                      location=data['Location'][:255] if data['Location'] else None,
                      permalink=data['tweet_url'][:255] if data['tweet_url'] else None,
                      emoticon=','.join(t.emoji) if t.emoji else None)
@@ -276,7 +280,10 @@ def scra(query, i, proxy, lock, session=None):
             session.add(twit)
             session.flush()
             session.commit()
-            logger.info('Inserted new Tweet: %s', data['tweet_id'])
+            if twit.reply_to is not None:
+                logger.info('Inserted new Tweet %s as reply to %s', twit.tweet_id, twit.reply_to)
+            else:
+                logger.info('Inserted new Tweet: %s', twit.tweet_id)
         except sqlalchemy.exc.IntegrityError as err:
             if re.search('duplicate key value violates unique constraint', err.args[0]):
                 logger.warning('ROLLBACK duplicate entry')
@@ -379,6 +386,14 @@ def get_cashtags_list():
     return [dict(zip(fields, d)) for d in q.all()]
 
 
+def create_logger():
+    log_file = 'tweet_scrapper_' + str(datetime.now().strftime('%Y-%m-%d')) + '.log'
+    logging.config.fileConfig('log.ini', defaults={'logfilename': log_file})
+    return logging.getLogger(__name__)
+
+
+logger = create_logger()
+
 Base = declarative_base()
 pg_config = {'username': settings.PG_USER, 'password': settings.PG_PASSWORD, 'database': settings.PG_DBNAME,
                 'host': settings.DB_HOST}
@@ -386,6 +401,11 @@ pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".fo
 db_engine = create_engine(pg_dsn, connect_args={"application_name": 'tweet_scraper:' + str(__name__)})
 add_engine_pidguard(db_engine)
 pg_meta = MetaData(bind=db_engine, schema="fintweet")
+try:
+    db_engine.engine.execute('SELECT 1')
+except exc.OperationalError:
+    logger.error('Cannot connect to database server %s', settings.DB_HOST)
+    exit()
 
 
 class User(Base):
@@ -439,13 +459,7 @@ class Tweet(Base):
 #     datetime = Column(DateTime)
 
 
-def create_logger():
-    log_file = 'tweet_scrapper_' + str(datetime.now().strftime('%Y-%m-%d')) + '.log'
-    logging.config.fileConfig('log.ini', defaults={'logfilename': log_file})
-    return logging.getLogger(__name__)
 
-
-logger = create_logger()
 
 if __name__ == '__main__':
     DstSession = sessionmaker(bind=db_engine, autoflush=False)

@@ -1,3 +1,4 @@
+from pprint import pprint
 import re
 
 
@@ -63,6 +64,8 @@ def striprtf(text):
         'rquote': '\u2019',
         'ldblquote': '\201C',
         'rdblquote': '\u201D',
+        'trowd': '\n',
+        'pard': "\t"
     }
     stack = []
     ignorable = False       # Whether this group (and all inside it) are "ignorable".
@@ -120,11 +123,12 @@ def striprtf(text):
     return ''.join(out)
 
 def parser(data):
-    start = re.search(r'\n HD\n', data).start()
-    for m in re.finditer(r'Document [a-zA-Z0-9]{25}\n', data):
+    articles = []
+    start = re.search(r'\tHD\t', data).start()
+    for m in re.finditer(r'Document [a-zA-Z0-9]{25}\t', data):
         end = m.end()
         a = data[start:end].strip()
-        a = '\n   ' + a
+        a = '\t' + a
         articles.append(a)
         start = end
  
@@ -136,11 +140,11 @@ def parser(data):
               'TD', 'CT', 'RF', 'CO', 'IN', 'NS', 'RE', 'IPC', 'IPD', 'PUB', 'AN']
  
     for a in articles:
-        used = [f for f in fields if re.search(r'\n   ' + f + r'\n', a)]
-        unused = [[i, f] for i, f in enumerate(fields) if not re.search(r'\n   ' + f + r'\n', a)]
+        used = [f for f in fields if re.search(r'\t' + f + r'\t', a)]
+        unused = [[i, f] for i, f in enumerate(fields) if not re.search(r'\t' + f + r'\t', a)]
         fields_pos = []
         for f in used:
-            f_m = re.search(r'\n   ' + f + r'\n', a)
+            f_m = re.search(r'\t' + f + r'\t', a)
             f_pos = [f, f_m.start(), f_m.end()]
             fields_pos.append(f_pos)
         obs = []
@@ -156,8 +160,11 @@ def parser(data):
             obs.append(content)
         for f in unused:
             obs.insert(f[0], '')
-        obs.insert(0, file.split('/')[-1].split('.')[0])  # insert Company ID, e.g., GVKEY
+        # obs.insert(0, file.split('/')[-1].split('.')[0])  # insert Company ID, e.g., GVKEY
         print(obs)
+        dictionary = dict(zip(fields, obs))
+        pprint(dictionary)
+        exit()
         # cur.execute('''INSERT INTO articles
         #                (id, hd, cr, wc, pd, et, sn, sc, ed, pg, la, cy, lp, td, ct, rf,
         #                co, ina, ns, re, ipc, ipd, pub, an)
@@ -165,7 +172,9 @@ def parser(data):
         #                ?, ?, ?, ?, ?, ?, ?, ?)''', obs)
 
 raw_data_folder = "rtfs/"
-file1 = open(raw_data_folder + 'Factiva-20180618-1615.rtf', 'rb')
+file1 = open(raw_data_folder + 'Factiva-20180619-1930.rtf', 'rb')
 txt = file1.read()
-# print(txt)
+# print(striprtf(txt))
+with open('test.txt', 'w') as f: 
+    f.write(striprtf(txt)) 
 parser(striprtf(txt))

@@ -190,3 +190,5 @@ settings.py
 *.log
 *.dta
 *.dts
+*.pdf
+*.rtf

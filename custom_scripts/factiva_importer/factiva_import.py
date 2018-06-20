@@ -1,8 +1,8 @@
-from pprint import pprint
 import re
 
 
 def striprtf(text):
+    # Orignal function from https://gist.github.com/gilsondev/7c1d2d753ddb522e7bc22511cfb08676
     pattern = re.compile(r"\\([a-z]{1,32})(-?\d{1,10})?[ ]?|\\'([0-9a-f]{2})|\\([^a-z])|([{}])|[\r\n]+|(.)", re.I)
     # control words which specify a "destionation".
     destinations = frozenset((
@@ -124,6 +124,7 @@ def striprtf(text):
 
 
 def parser(data):
+    # Original funcion from http://www.kaikaichen.com/?p=539
     articles = []
     start = re.search(r'\tHD\t', data).start()
     for m in re.finditer(r'Document [a-zA-Z0-9]{25}\t', data):
@@ -151,7 +152,6 @@ def parser(data):
         obs = []
         n = len(used)
         for i in range(0, n):
-            used_f = fields_pos[i][0]
             start = fields_pos[i][2]
             if i < n - 1:
                 end = fields_pos[i + 1][1]

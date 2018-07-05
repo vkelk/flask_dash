@@ -178,9 +178,10 @@ if __name__ == '__main__':
                         period_str = str(t['date'].time()) + ' - ' + str((t['date'] \
                             + timedelta(hours=settings.frequency)).time())
                         df_output.at[index2, 'time'] = period_str
-                    df_output.at[index2, 'tweets'] = str(t['tweets_count'])
+                    df_output.at[index2, 'tweets'] = str(t['tweets_count'] - t['retweets'])
                     df_output.at[index2, 'retweets'] = str(t['retweets'])
                     df_output.at[index2, 'replies'] = str(t['replies'])
+                    df_output.at[index2, 'totalTweets'] = str(t['replies'] + t['tweets_count'])
                     df_output.at[index2, 'mentions'] = str(t['mentions'])
                     df_output.at[index2, 'hashtags'] = str(t['hashtags'])
                     df_output.at[index2, 'users'] = str(t['users'])
@@ -236,6 +237,7 @@ if __name__ == '__main__':
                 users_map.append(d)
     df_output.sort_values(by=['cashtag', 'date'], ascending=[True, True], inplace=True)
     df_output.to_stata('output.dta', write_index=False)
+    print(df_output)
     logger.info('Output file is saved')
     # print(df_output)
     if settings.download_hashtags:

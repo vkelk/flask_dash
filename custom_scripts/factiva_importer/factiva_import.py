@@ -160,16 +160,7 @@ def parser(data):
             obs.append(content)
         for f in unused:
             obs.insert(f[0], '')
-        # obs.insert(0, file.split('/')[-1].split('.')[0])  # insert Company ID, e.g., GVKEY
-        print(obs)
         dictionary = dict(zip(fields, obs))
-        pprint(dictionary)
-        exit()
-        # cur.execute('''INSERT INTO articles
-        #                (id, hd, cr, wc, pd, et, sn, sc, ed, pg, la, cy, lp, td, ct, rf,
-        #                co, ina, ns, re, ipc, ipd, pub, an)
-        #                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-        #                ?, ?, ?, ?, ?, ?, ?, ?)''', obs)
 
 raw_data_folder = "rtfs/"
 file1 = open(raw_data_folder + 'Factiva-20180619-1930.rtf', 'rb')

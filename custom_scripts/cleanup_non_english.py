@@ -91,7 +91,7 @@ def process(t):
     tokens_count = len(tokens)
     tags_count = get_tags_count(tokens)
     latin_count, non_latin_count = get_word_counts(tokens)
-    print(latin_count, non_latin_count)
+    # print(latin_count, non_latin_count)
     if non_latin_count > latin_count:
         if tags_count > 0 and DELETE_WITH_TAGS:
             print('Deleting', t.text)

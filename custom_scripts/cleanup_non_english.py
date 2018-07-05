@@ -4,11 +4,13 @@ import threading
 # from pprint import pprint
 # import time
 
+# from sqlalchemy.expression import in_
 from sqlalchemy.orm import sessionmaker, scoped_session
 # from sqlalchemy.sql.expression import func
 
 from fintweet.models import db_engine, Session, Tweet, TweetCashtags, TweetHashtags, TweetMentions, User, TweetUrl
 
+DELETE_WITH_TAGS = False
 regex_str = [
     r'(?:@[\w_]+)',  # @-mentions
     r"(?:\#[a-zA-Z0-9]\w+)",  # hash-tags
@@ -39,23 +41,16 @@ def page_query(q):
             break
 
 
-def is_english(text):
-    tokens = tokenize(text)
-    # print(text)
+def get_word_counts(tokens):
     non_latin_count = 0
-    tags_count = 0
     latin_count = 0
-    total_count = 0
     for term in set(tokens):
         # print(term)
         if term.startswith('$') or term.startswith('#') or term.startswith('@') or term.startswith('http'):
             tokens.remove(term)
-            tags_count += 1
-            total_count += 1
             continue
         if term.isdigit():
             tokens.remove(term)
-            total_count += 1
             continue
         try:
             term_utf = term.encode(encoding='utf-8')
@@ -69,37 +64,39 @@ def is_english(text):
             print(type(e), str(e))
             print('term', term)
             raise
-        finally:
-            total_count += 1
-    words_count = latin_count + non_latin_count
+    return latin_count, non_latin_count
 
-    # print(word_population)
-    # if word_population < 0.5:
-        # print(text)
-        # print(tokens)
-    if words_count > 0:
-        if latin_count/words_count <= 0.5 and tags_count == 0:
-            return False
-            # print(text)
-            # print(tokens)
-            # print('Latin population', latin_count / words_count)
-            # print('Word population', words_count / total_count)
-            # print('Tags population', tags_count / total_count)
-            # exit()
-        # print(englislatin/total_count*100)
+
+def get_tags_count(tokens):
+    tags_count = 0
+    for term in set(tokens):
+        if term.startswith('$') or term.startswith('#') or term.startswith('@') or term.startswith('http'):
+            tokens.remove(term)
+            tags_count += 1
+    return tags_count
+
+
+def delete_tweet(t):
+    global non_latin_tweets
+    session = Session()
+    tweet = session.query(Tweet).filter(Tweet.tweet_id == t.tweet_id).first()
+    session.delete(tweet)
+    session.commit()
+    with threadLock:
+        non_latin_tweets += 1
 
 
 def process(t):
-    global non_latin_tweets
-    english = is_english(t.text)
-    if english is False:
-        print('Deleting', t.text)
-        session = Session()
-        tweet = session.query(Tweet).filter(Tweet.tweet_id == t.tweet_id).first()
-        session.delete(tweet)
-        session.commit()
-        with threadLock:
-            non_latin_tweets += 1
+    tokens = tokenize(t.text)
+    tokens_count = len(tokens)
+    tags_count = get_tags_count(tokens)
+    latin_count, non_latin_count = get_word_counts(tokens)
+    print(latin_count, non_latin_count)
+    if non_latin_count > latin_count:
+        if tags_count > 0 and DELETE_WITH_TAGS:
+            print('Deleting', t.text)
+            print()
+            # delete_tweet(t)
 
 
 if __name__ == '__main__':
@@ -107,7 +104,7 @@ if __name__ == '__main__':
     threadLock = threading.Lock()
     non_latin_tweets = 0
     try:
-        tweets = session.query(Tweet).filter(Tweet.reply_to == None)
+        tweets = session.query(Tweet).filter(Tweet.reply_to.in_([None, 0]))
         # tweets = session.query(Tweet).limit(15000)
         for t in tweets.execution_options(stream_results=True).yield_per(200):
             process(t)

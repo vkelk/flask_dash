@@ -6,8 +6,16 @@ from .settings import PG_USER, PG_PASSWORD, PG_DBNAME, DB_HOST
 
 Base = declarative_base()
 pg_config = {'username': PG_USER, 'password': PG_PASSWORD, 'database': PG_DBNAME, 'host': DB_HOST}
-pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
-db_engine = create_engine(pg_dsn)
+pg_dsn = "postgresql://{username}:{password}@{host}:5432/{database}".format(**pg_config)
+# db_engine = create_engine(pg_dsn)
+db_engine = create_engine(
+    pg_dsn,
+    connect_args={"application_name": 'fintweet:' + str(__name__)},
+    pool_size=100,
+    pool_recycle=600,
+    max_overflow=0,
+    encoding='utf-8'
+    )
 fintweet_meta = MetaData(bind=db_engine, schema="fintweet")
 dashboard_meta = MetaData(bind=db_engine, schema="dashboard")
 Session = sessionmaker(bind=db_engine, autoflush=False)

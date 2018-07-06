@@ -86,7 +86,7 @@ def delete_tweet(t):
         non_latin_tweets += 1
 
 
-def process(t):
+def phase_one(t):   
     tokens = tokenize(t.text)
     tokens_count = len(tokens)
     tags_count = get_tags_count(tokens)
@@ -94,7 +94,7 @@ def process(t):
     # print(latin_count, non_latin_count)
     if non_latin_count > latin_count:
         if tags_count > 0 and DELETE_WITH_TAGS:
-            print('Deleting', t.text)
+            print('Will delete', t.text)
             print()
             # delete_tweet(t)
 
@@ -104,10 +104,21 @@ if __name__ == '__main__':
     threadLock = threading.Lock()
     non_latin_tweets = 0
     try:
-        tweets = session.query(Tweet).filter(Tweet.reply_to.in_([None, 0]))
+        print('Will delete non-latin tweets that are not replys and have more non-latin words than latin')
+        tweets = session.query(Tweet) \
+            .filter(Tweet.reply_to == None) \
+            .filter(Tweet.date >= '2012-01-01') \
+            .filter(Tweet.date <= '2016-12-31') \
+            .filter(Tweet.text.op('~')('[^[:ascii:]]'))
+        # tweets = session.query(Tweet).filter(Tweet.text.op('~')('[^\x00-\x7F]+'))
         # tweets = session.query(Tweet).limit(15000)
-        for t in tweets.execution_options(stream_results=True).yield_per(200):
-            process(t)
+        for i, t in enumerate(tweets.execution_options(stream_results=True).yield_per(200)):
+            phase_one(t)
+            # print(t.text)
+            if i % 10000 == 0:
+                print(i, t.tweet_id)
+                # print(t.text)
+                # exit()
     except Exception as e:
         print(type(e), str(e))
         raise
@@ -115,13 +126,14 @@ if __name__ == '__main__':
     exit()
 
     # tweets = session.query(Tweet)
+    print('Will delete non-latin tweets that are not replys and have more non-latin words than latin')
     tweets = page_query(session.query(Tweet.tweet_id, Tweet.text) \
         .filter(Tweet.tweet_id > 0) \
         .filter(Tweet.reply_to == None) \
         .order_by(Tweet.tweet_id))
     with cf.ThreadPoolExecutor(max_workers=16) as executor:
         try:
-            executor.map(process, tweets)
+            executor.map(phase_one, tweets)
         except Exception as e:
             print('ThreadPool', type(e), str(e))
             raise

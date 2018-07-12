@@ -36,6 +36,22 @@ def dataframe_from_file(filename):
     return None
 
 
+def get_cashtag_periods(cashtag):
+    interval_time = settings.frequency * 60 * 60
+    ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+    session = ScopedSession()
+    query = "SELECT cashtags, to_timestamp(FLOOR ((EXTRACT ('epoch' FROM datetime)/{0}))*{0}) AT TIME ZONE 'UTC' AS interval, \
+    ARRAY_AGG(tweet_id) as tweet_ids \
+    FROM fintweet.mv_cashtags \
+    WHERE cashtag = :cashtag \
+    GROUP BY cashtags, interval \
+    LIMIT 25".format(interval_time)
+    tweets = session.execute(query, {"cashtag": cashtag})
+    for t in tweets:
+        d = dict(t)
+        print(d)
+
+
 def get_tweet_list(c):
     '''
     Input dict should follow this format

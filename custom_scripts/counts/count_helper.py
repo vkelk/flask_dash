@@ -84,6 +84,14 @@ class TradingDays(Base):
     __table__ = Table('trading_days', project_meta, autoload=True)
 
 
+class FintweetCounts(Base):
+    __table__ = Table('fintweet_counts', project_meta, autoload=True)
+
+
+class FintweetCountTweets(Base):
+    __table__ = Table('fintweet_count_tweets', project_meta, autoload=True)
+
+
 def get_users_count(tweet_list, sess):
     session = sess()
     q = session.query(

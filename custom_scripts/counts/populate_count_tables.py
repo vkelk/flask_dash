@@ -4,7 +4,7 @@ import logging
 import logging.config
 from pprint import pprint
 
-from sqlalchemy import text
+from sqlalchemy import text, func
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import true
 
@@ -123,22 +123,21 @@ def create_logger():
 
 
 def insert_count_data(t):
-    d=dict(t)
-    uuid = d['cashtags'].strip('$') + ''.join(i for i in str(d['interval']) if i.isdigit())
-    count = FintweetCounts(uuid=uuid, cashtag=d['cashtags'], period=d['interval'], tweets=len(d['tweet_ids']))
+    uuid = t[0].strip('$') + ''.join(i for i in str(t[1]) if i.isdigit())
+    count = FintweetCounts(uuid=uuid, cashtag=t[0], period=t[1], tweets=len(t[2]))
     try:
         ScopedSession = scoped_session(sessionmaker(bind=db_engine))
         session = ScopedSession()
         session.add(count)
-        session.commit() 
+        session.commit()
     except Exception:
         logger.exception('message')
         raise
-    for tweet_id in d['tweet_ids']:
+    for tweet_id in t[2]:
         tweet_ids = FintweetCountTweets(uuid=uuid, tweet_id=tweet_id)
         try:
             session.add(tweet_ids)
-            session.commit() 
+            session.commit()
         except Exception:
             logger.exception('message')
             raise
@@ -148,26 +147,42 @@ def insert_count_data(t):
     logger.info('Inserted UUID %s', uuid)
 
 
+def page_query(q):
+    offset = 0
+    while True:
+        r = False
+        for elem in q.limit(2000).offset(offset):
+            r = True
+            yield elem
+        offset += 2000
+        print(offset)
+        if not r:
+            break
+
+
 logger = create_logger()
 
 
 if __name__ == '__main__':
     logger.info('*** Script started')
-    cashtag = '$GS'
     ScopedSession = scoped_session(sessionmaker(bind=db_engine))
     session = ScopedSession()
     query = "SELECT cashtags, to_timestamp(FLOOR ((EXTRACT ('epoch' FROM datetime)/900))*900) AT TIME ZONE 'UTC' AS interval, \
     ARRAY_AGG(tweet_id) as tweet_ids \
     FROM fintweet.mv_cashtags \
     GROUP BY cashtags, interval"
-    tweets = session.execute(query)
-    # for t in tweets:
+    # tweets = session.execute(query)
+    interval = func.to_timestamp(func.floor((func.extract('epoch', mvCashtags.datetime)/900))*900) \
+        .op('AT TIME ZONE')('UTC').label('interval')
+    sa_query = session.query(mvCashtags.cashtags, interval, func.array_agg(mvCashtags.tweet_id).label('tweet_ids')) \
+        .group_by(mvCashtags.cashtags).group_by('interval')
+    # for t in page_query(sa_query):
     #     insert_count_data(t)
     # exit()
     with cf.ThreadPoolExecutor(max_workers=16) as executor:
         try:
-            executor.map(insert_count_data, tweets)
-        except Exception as e:
-            print('ThreadPool', type(e), str(e))
+            executor.map(insert_count_data, page_query(sa_query.execution_options(stream_results=True)))
+        except Exception:
+            logger.exception('message')
             raise
     print("ALL DONE.")

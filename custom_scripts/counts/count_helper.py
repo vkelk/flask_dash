@@ -258,3 +258,48 @@ def get_trading_periods(c):
         return [datetime.combine(d, datetime.min.time()) for d in days]
     logger.error('Empty result')
     raise
+
+
+def get_cashtag_periods(c):
+    logger.info('Getting tweet list for %s', c['cashtag'])
+    interval_time = settings.frequency * 60 * 60
+    datetime_start = convert_date(c['date_from'])
+    datetime_end = convert_date(c['date_to'])
+    ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+    session = ScopedSession()
+    interval = func.to_timestamp(func.floor((func.extract('epoch', mvCashtags.datetime)/interval_time))*interval_time) \
+        .op('AT TIME ZONE')('UTC').label('interval')
+    tweets = session.query(mvCashtags.cashtags, interval, func.array_agg(mvCashtags.tweet_id).label('tweet_ids')) \
+        .filter(mvCashtags.cashtags == c['cashtag']) \
+        .filter(mvCashtags.datetime.between(datetime_start, datetime_end))
+    if 'date_joined' in c and c['date_joined']:
+        tweets = tweets.join(User, mvCashtags.user_id == User.user_id).filter(User.date_joined >= c['date_joined'])
+    if 'following' in c and c['following']:
+        tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
+            .filter(UserCount.following >= c['following'])
+    if 'followers' in c and c['followers']:
+        tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
+            .filter(UserCount.follower >= c['followers'])
+    tweets = tweets.group_by(mvCashtags.cashtags).group_by('interval')
+    trading_days = session.query(TradingDays.date) \
+        .filter(TradingDays.is_trading == true()) \
+        .filter(TradingDays.date.between(c['date_from'], c['date_to']))
+    tdays_list = [d[0] for d in trading_days.all()]
+    period_list = []
+    for t in tweets:
+        period = {
+            'cashtag': t[0],
+            'date': t[1],
+            'tweets_count': len(t[2]),
+            'tweet_ids': t[2]
+        }
+        if c['day_status'] in ['trading', 'all'] and period['date'].date() in tdays_list:
+            period['day_status'] = 'trading'
+        elif c['day_status'] in ['non-trading', 'all'] and period['date'].date() not in tdays_list:
+            period['day_status'] = 'non-trading'
+        else:
+            logger.debug('Skipping date %s. Do not apply the "%s" contition', period['date'].date(), settings.days)
+            continue
+        period_list.append(period)
+    logger.info('Completed tweet list for %s', c['cashtag'])
+    return period_list

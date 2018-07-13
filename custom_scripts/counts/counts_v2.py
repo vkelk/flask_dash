@@ -6,11 +6,9 @@ import os
 import re
 
 import pandas as pd
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.sql.expression import true
 
 import settings
-from count_helper import db_engine, TradingDays, load_counts, get_tweet_ids, validate_frequency, get_trading_periods
+from count_helper import get_cashtag_periods, load_counts
 
 
 def slugify(s):
@@ -34,74 +32,6 @@ def dataframe_from_file(filename):
         # logger.exception('message')
         exit()
     return None
-
-
-def get_cashtag_periods(cashtag):
-    interval_time = settings.frequency * 60 * 60
-    ScopedSession = scoped_session(sessionmaker(bind=db_engine))
-    session = ScopedSession()
-    query = "SELECT cashtags, to_timestamp(FLOOR ((EXTRACT ('epoch' FROM datetime)/{0}))*{0}) AT TIME ZONE 'UTC' AS interval, \
-    ARRAY_AGG(tweet_id) as tweet_ids \
-    FROM fintweet.mv_cashtags \
-    WHERE cashtag = :cashtag \
-    GROUP BY cashtags, interval \
-    LIMIT 25".format(interval_time)
-    tweets = session.execute(query, {"cashtag": cashtag})
-    for t in tweets:
-        d = dict(t)
-        print(d)
-
-
-def get_tweet_list(c):
-    '''
-    Input dict should follow this format
-    conditions = {
-        'cashtag': string,
-        'date_from': datetime_object,
-        'date_to': datetime_object,
-        'day_status': string: 'all', 'trading', 'non-trading'
-        'date_joined': date_string,
-        'followers': integer,
-        'following': integer,
-    }
-    '''
-    logger.info('Getting tweet list for %s', c['cashtag'])
-    ScopedSession = scoped_session(sessionmaker(bind=db_engine))
-    session = ScopedSession()
-    # date_delta = c['date_to'] - c['date_from']
-    periods = get_trading_periods(c)
-    trading_days = session.query(TradingDays.date) \
-        .filter(TradingDays.is_trading == true()) \
-        .filter(TradingDays.date.between(c['date_from'], c['date_to']))
-    tdays_list = [d[0] for d in trading_days.all()]
-    session.close()
-    result = []
-    for time_frame in periods:
-        cn = c.copy()
-        cn['date_input'] = time_frame
-        cn['date'] = time_frame
-        if c['day_status'] in ['trading', 'all'] and time_frame.date() in tdays_list:
-            cn['day_status'] = 'trading'
-        elif c['day_status'] in ['non-trading', 'all'] and time_frame.date() not in tdays_list:
-            cn['day_status'] = 'non-trading'
-        else:
-            logger.debug('Skipping date %s. Do not apply the %s contition', time_frame.date(), settings.days)
-            continue
-        result.append(cn)
-    res_list = []
-    full_list = []
-    with cf.ThreadPoolExecutor(max_workers=32) as executor:
-        future_to_tweet = {executor.submit(get_tweet_ids, i): i for i in result}
-        for future in cf.as_completed(future_to_tweet):
-            try:
-                tw = future.result()
-                tw['tweets_count'] = len(tw['tweet_ids'])
-                full_list.extend(tw['tweet_ids'])
-                res_list.append(tw)
-            except Exception:
-                logger.exception('message')
-        logger.info('Completed tweet list for %s', c['cashtag'])
-    return res_list, full_list
 
 
 def download_hashtags(hashtags_map):
@@ -143,7 +73,7 @@ def download_mentions(mentions_map):
 
 def create_logger():
     log_file = 'counts_' + str(datetime.now().strftime('%Y-%m-%d')) + '.log'
-    logging.config.fileConfig('log.ini', defaults={'logfilename': log_file})
+    logging.config.fileConfig('log.ini', defaults={'logfilename': log_file}, disable_existing_loggers=False)
     return logging.getLogger(__name__)
 
 
@@ -178,10 +108,10 @@ if __name__ == '__main__':
             'followers': settings.followers,
             'following': settings.following,
         }
-        tweet_list, full_tweet_list = get_tweet_list(conditions)
+        period_list = get_cashtag_periods(conditions)
         with cf.ThreadPoolExecutor(max_workers=32) as executor:
             logger.info('Starting count process for tweet lists')
-            future_to_tweet = {executor.submit(load_counts, t): t for t in tweet_list}
+            future_to_tweet = {executor.submit(load_counts, t): t for t in period_list}
             for future in cf.as_completed(future_to_tweet):
                 try:
                     t = future.result()
@@ -191,8 +121,8 @@ if __name__ == '__main__':
                     df_output.at[index2, 'date'] = str(t['date'].date())
                     df_output.at[index2, 'day_status'] = t['day_status']
                     if settings.frequency:
-                        period_str = str(t['date'].time()) + ' - ' + str((t['date'] \
-                            + timedelta(hours=settings.frequency)).time())
+                        period_str = str(t['date'].time()) + ' - ' \
+                            + str((t['date'] + timedelta(hours=settings.frequency)).time())
                         df_output.at[index2, 'time'] = period_str
                     df_output.at[index2, 'tweets'] = str(t['tweets_count'] - t['retweets'])
                     df_output.at[index2, 'retweets'] = str(t['retweets'])
@@ -201,6 +131,7 @@ if __name__ == '__main__':
                     df_output.at[index2, 'mentions'] = str(t['mentions'])
                     df_output.at[index2, 'hashtags'] = str(t['hashtags'])
                     df_output.at[index2, 'users'] = str(t['users'])
+                    df_output.at[index2, 'datetime'] = str(t['date'])
                     index2 += 1
 
                     if settings.download_users:
@@ -231,28 +162,29 @@ if __name__ == '__main__':
                 except Exception:
                     logger.exception('message')
             logger.info('Finished count process for tweet lists')
-        
+
         if settings.download_hashtags:
             for k, v in hashtags.items():
                 d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'],
-                    'hashtag': k.encode('latin-1', 'ignore').decode('latin-1'), 'count': v}
+                     'hashtag': k.encode('latin-1', 'ignore').decode('latin-1'), 'count': v}
                 hashtags_map.append(d)
 
         if settings.download_mentions:
             for k, v in mentions.items():
                 d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'mention': k, 'count': v}
                 mentions_map.append(d)
-        
+
         if settings.download_users:
             for k, v in users.items():
                 d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'user': k,
-                    'twitter_handle': str(v['twitter_handle']).encode('latin-1', 'ignore').decode('latin-1'),
-                    'tweet_counts': v['tweet_counts'],
-                    'date_joined': str(v['date_joined']),
-                    'location': str(v['location']).encode('latin-1', 'ignore').decode('latin-1')}
+                     'twitter_handle': str(v['twitter_handle']).encode('latin-1', 'ignore').decode('latin-1'),
+                     'tweet_counts': v['tweet_counts'],
+                     'date_joined': str(v['date_joined']),
+                     'location': str(v['location']).encode('latin-1', 'ignore').decode('latin-1')}
                 users_map.append(d)
-    df_output.sort_values(by=['cashtag', 'date'], ascending=[True, True], inplace=True)
+    df_output.sort_values(by=['cashtag', 'datetime'], ascending=[True, True], inplace=True)
     df_output.to_stata('output.dta', write_index=False)
+    pd.set_option('display.expand_frame_repr', False)
     print(df_output)
     logger.info('Output file is saved')
     # print(df_output)
@@ -262,5 +194,5 @@ if __name__ == '__main__':
         download_users(users_map)
     if settings.download_mentions:
         download_mentions(mentions_map)
-    
+
     logger.info('Process succesfuly finished.')

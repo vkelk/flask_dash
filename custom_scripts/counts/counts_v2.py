@@ -109,12 +109,13 @@ if __name__ == '__main__':
             'following': settings.following,
         }
         period_list = get_cashtag_periods(conditions)
-        with cf.ThreadPoolExecutor(max_workers=32) as executor:
+        with cf.ProcessPoolExecutor(max_workers=16) as executor:
             logger.info('Starting count process for tweet lists')
             future_to_tweet = {executor.submit(load_counts, t): t for t in period_list}
             for future in cf.as_completed(future_to_tweet):
                 try:
                     t = future.result()
+                    logger.debug('Got full results for %s %s', t['cashtag'], t['date'])
                     df_output.at[index2, 'gvkey'] = str(row['gvkey'])
                     df_output.at[index2, 'cashtag'] = t['cashtag']
                     df_output.at[index2, 'database'] = 'twitter'

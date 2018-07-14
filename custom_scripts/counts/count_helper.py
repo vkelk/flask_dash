@@ -1,3 +1,4 @@
+import concurrent.futures as cf
 from datetime import datetime, timedelta
 from dateutil import tz
 import logging
@@ -19,7 +20,7 @@ pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".fo
 db_engine = create_engine(
     pg_dsn,
     connect_args={"application_name": 'counts:' + str(__name__)},
-    pool_size=100,
+    pool_size=300,
     pool_recycle=600,
     max_overflow=0,
     encoding='utf-8'
@@ -105,7 +106,9 @@ def get_users_count(tweet_list, sess):
         .filter(mvCashtags.tweet_id.in_(tweet_list)) \
         .group_by(mvCashtags.user_id, User.twitter_handle, User.date_joined, User.location)
     fields = ['user_id', 'twiiter_handle', 'date_joined', 'location', 'counts']
-    return [dict(zip(fields, d)) for d in q.all()]
+    result = [dict(zip(fields, d)) for d in q.all()]
+    session.close()
+    return result
 
 
 def get_retweet_count(tweet_list, sess):
@@ -115,7 +118,9 @@ def get_retweet_count(tweet_list, sess):
         .join(Tweet, mvCashtags.tweet_id == Tweet.tweet_id) \
         .filter(mvCashtags.tweet_id.in_(tweet_list)) \
         .filter(Tweet.retweet_status.in_(true_list))
-    return q.scalar()
+    result = q.scalar()
+    session.close()
+    return result
 
 
 def get_hashtag_count(tweet_list, sess):
@@ -125,7 +130,9 @@ def get_hashtag_count(tweet_list, sess):
         .group_by(TweetHashtag.hashtags)
     fields = ['hashtag', 'counts']
     # print(q.all())
-    return [dict(zip(fields, d)) for d in q.all()]
+    result = [dict(zip(fields, d)) for d in q.all()]
+    session.close()
+    return result
 
 
 def get_replys_count(tweet_list, sess):
@@ -134,7 +141,9 @@ def get_replys_count(tweet_list, sess):
         .filter(Tweet.tweet_id.in_(tweet_list)) \
         .filter(Tweet.reply_to > 0) \
         .filter(Tweet.reply_to != Tweet.tweet_id)
-    return q.scalar()
+    result = q.scalar()
+    session.close()
+    return result
 
 
 def get_mentions_count(tweet_list, sess):
@@ -143,19 +152,35 @@ def get_mentions_count(tweet_list, sess):
         .filter(TweetMention.tweet_id.in_(tweet_list)) \
         .group_by(TweetMention.mentions)
     fields = ['mention', 'counts']
-    return [dict(zip(fields, d)) for d in q.all()]
+    result = [dict(zip(fields, d)) for d in q.all()]
+    session.close()
+    return result
 
 
 def load_counts(t):
     try:
         ScopedSession = scoped_session(sessionmaker(bind=db_engine))
-        t['retweets'] = get_retweet_count(t['tweet_ids'], ScopedSession)
-        t['replies'] = get_replys_count(t['tweet_ids'], ScopedSession)
-        t['users_list'] = get_users_count(t['tweet_ids'], ScopedSession)
+        with cf.ThreadPoolExecutor(max_workers=5) as executor:
+            retweet_future = executor.submit(get_retweet_count, t['tweet_ids'], ScopedSession)
+            replys_future = executor.submit(get_replys_count, t['tweet_ids'], ScopedSession)
+            users_future = executor.submit(get_users_count, t['tweet_ids'], ScopedSession)
+            mentions_future = executor.submit(get_mentions_count, t['tweet_ids'], ScopedSession)
+            hashtag_future = executor.submit(get_hashtag_count, t['tweet_ids'], ScopedSession)
+        cf.wait([retweet_future, replys_future, users_future, mentions_future, hashtag_future])
+        t['retweets'] = retweet_future.result()
+        t['replies'] = replys_future.result()
+        t['users_list'] = users_future.result()
+        t['mentions_list'] = mentions_future.result()
+        t['hashtags_list'] = hashtag_future.result()
+        # t['retweets'] = get_retweet_count(t['tweet_ids'], ScopedSession)
+        # t['replies'] = get_replys_count(t['tweet_ids'], ScopedSession)
+        # t['users_list'] = get_users_count(t['tweet_ids'], ScopedSession)
         t['users'] = len(t['users_list'])
-        t['mentions_list'] = get_mentions_count(t['tweet_ids'], ScopedSession)
+        # print(t['users'])
+        # exit()
+        # t['mentions_list'] = get_mentions_count(t['tweet_ids'], ScopedSession)
         t['mentions'] = len(t['mentions_list'])
-        t['hashtags_list'] = get_hashtag_count(t['tweet_ids'], ScopedSession)
+        # t['hashtags_list'] = get_hashtag_count(t['tweet_ids'], ScopedSession)
         t['hashtags'] = len(t['hashtags_list'])
         logger.debug('Processed %s', t)
     except Exception:

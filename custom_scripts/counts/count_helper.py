@@ -113,47 +113,67 @@ def get_users_count(tweet_list, sess):
 
 def get_retweet_count(tweet_list, sess):
     true_list = ['1', 'True', 'true']
-    session = sess()
-    q = session.query(func.count(mvCashtags.tweet_id)) \
-        .join(Tweet, mvCashtags.tweet_id == Tweet.tweet_id) \
-        .filter(mvCashtags.tweet_id.in_(tweet_list)) \
-        .filter(Tweet.retweet_status.in_(true_list))
-    result = q.scalar()
-    session.close()
+    try:
+        session = sess()
+        q = session.query(func.count(mvCashtags.tweet_id)) \
+            .join(Tweet, mvCashtags.tweet_id == Tweet.tweet_id) \
+            .filter(mvCashtags.tweet_id.in_(tweet_list)) \
+            .filter(Tweet.retweet_status.in_(true_list))
+        result = q.scalar()
+    except Exception:
+        logger.error('Cannot run get_retweet_count query')
+        logger.exception('message')
+    finally:
+        session.close()
     return result
 
 
 def get_hashtag_count(tweet_list, sess):
-    session = sess()
-    q = session.query(TweetHashtag.hashtags, func.count(distinct(TweetHashtag.tweet_id))) \
-        .filter(TweetHashtag.tweet_id.in_(tweet_list)) \
-        .group_by(TweetHashtag.hashtags)
-    fields = ['hashtag', 'counts']
-    # print(q.all())
-    result = [dict(zip(fields, d)) for d in q.all()]
-    session.close()
+    try:
+        session = sess()
+        q = session.query(TweetHashtag.hashtags, func.count(distinct(TweetHashtag.tweet_id))) \
+            .filter(TweetHashtag.tweet_id.in_(tweet_list)) \
+            .group_by(TweetHashtag.hashtags)
+        fields = ['hashtag', 'counts']
+        # print(q.all())
+        result = [dict(zip(fields, d)) for d in q.all()]
+    except Exception:
+        logger.error('Cannot run get_hashtag_count query')
+        logger.exception('message')
+    finally:
+        session.close()
     return result
 
 
 def get_replys_count(tweet_list, sess):
-    session = sess()
-    q = session.query(func.count(Tweet.tweet_id)) \
-        .filter(Tweet.tweet_id.in_(tweet_list)) \
-        .filter(Tweet.reply_to > 0) \
-        .filter(Tweet.reply_to != Tweet.tweet_id)
-    result = q.scalar()
-    session.close()
+    try:
+        session = sess()
+        q = session.query(func.count(Tweet.tweet_id)) \
+            .filter(Tweet.tweet_id.in_(tweet_list)) \
+            .filter(Tweet.reply_to > 0) \
+            .filter(Tweet.reply_to != Tweet.tweet_id)
+        result = q.scalar()
+    except Exception:
+        logger.error('Cannot run get_replys_count query')
+        logger.exception('message')
+    finally:
+        session.close()
     return result
 
 
 def get_mentions_count(tweet_list, sess):
-    session = sess()
-    q = session.query(TweetMention.mentions, func.count(distinct(TweetMention.tweet_id))) \
-        .filter(TweetMention.tweet_id.in_(tweet_list)) \
-        .group_by(TweetMention.mentions)
-    fields = ['mention', 'counts']
-    result = [dict(zip(fields, d)) for d in q.all()]
-    session.close()
+    try:
+        session = sess()
+        q = session.query(TweetMention.mentions, func.count(distinct(TweetMention.tweet_id))) \
+            .filter(TweetMention.tweet_id.in_(tweet_list)) \
+            .group_by(TweetMention.mentions)
+        fields = ['mention', 'counts']
+        result = [dict(zip(fields, d)) for d in q.all()]
+    except Exception:
+        logger.error('Cannot run get_mentions_count query')
+        logger.exception('message')
+    finally:
+        session.close()
     return result
 
 
@@ -310,6 +330,8 @@ def get_cashtag_periods(c):
         .filter(TradingDays.is_trading == true()) \
         .filter(TradingDays.date.between(c['date_from'], c['date_to']))
     tdays_list = [d[0] for d in trading_days.all()]
+    session.close()
+    ScopedSession.remove()
     period_list = []
     for t in tweets:
         period = {

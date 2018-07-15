@@ -109,8 +109,8 @@ if __name__ == '__main__':
             'following': settings.following,
         }
         period_list = get_cashtag_periods(conditions)
-        with cf.ProcessPoolExecutor(max_workers=16) as executor:
-            logger.info('Starting count process for tweet lists')
+        with cf.ThreadPoolExecutor(max_workers=32) as executor:
+            logger.info('Starting count process for %s tweet list', row['cashtag'])
             future_to_tweet = {executor.submit(load_counts, t): t for t in period_list}
             for future in cf.as_completed(future_to_tweet):
                 try:

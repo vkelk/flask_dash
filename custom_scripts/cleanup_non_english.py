@@ -8,9 +8,9 @@ import threading
 from sqlalchemy.orm import sessionmaker, scoped_session
 # from sqlalchemy.sql.expression import func
 
-from fintweet.models import db_engine, Session, Tweet, TweetCashtags, TweetHashtags, TweetMentions, User, TweetUrl
+from fintweet.models import db_engine, Session, Tweet, TweetCashtags, TweetHashtags, TweetMentions, User, TweetUrl, TweetDeleted
 
-DELETE_WITH_TAGS = False
+DELETE_WITH_TAGS = True
 regex_str = [
     r'(?:@[\w_]+)',  # @-mentions
     r"(?:\#[a-zA-Z0-9]\w+)",  # hash-tags
@@ -76,14 +76,37 @@ def get_tags_count(tokens):
     return tags_count
 
 
-def delete_tweet(t):
+def remove_tweet(t):
     global non_latin_tweets
-    session = Session()
-    tweet = session.query(Tweet).filter(Tweet.tweet_id == t.tweet_id).first()
-    session.delete(tweet)
-    session.commit()
-    with threadLock:
-        non_latin_tweets += 1
+    try:
+        session = Session()
+        tweet = session.query(Tweet).filter(Tweet.tweet_id == t.tweet_id).first()
+        deleted = TweetDeleted(
+            tweet_id=t.tweet_id,
+            date=t.date,
+            time=t.time,
+            timezone=t.timezone,
+            retweet_status=t.retweet_status,
+            text=t.text,
+            location=t.location,
+            user_id=t.user_id,
+            emoticon=t.emoticon,
+            reply_to=t.reply_to,
+            permalink=t.permalink
+            )
+        session.add(deleted)
+        session.delete(tweet)
+        session.commit()
+        with threadLock:
+            non_latin_tweets += 1
+        print('Deleted', t.tweet_id, t.text)
+    except Exception as e:
+        print('Could not remove', t.tweet_id)
+        print(type(e), str(e))
+        raise
+    finally:
+        session.close()
+
 
 
 def phase_one(t):   
@@ -92,11 +115,13 @@ def phase_one(t):
     tags_count = get_tags_count(tokens)
     latin_count, non_latin_count = get_word_counts(tokens)
     # print(latin_count, non_latin_count)
+    # exit()
     if non_latin_count > latin_count:
         if tags_count > 0 and DELETE_WITH_TAGS:
-            print('Will delete', t.text)
-            print()
-            # delete_tweet(t)
+            # print('Will delete', t.text)
+            # print()
+            remove_tweet(t)
+    return [latin_count, non_latin_count]
 
 
 if __name__ == '__main__':
@@ -104,25 +129,26 @@ if __name__ == '__main__':
     threadLock = threading.Lock()
     non_latin_tweets = 0
     try:
-        print('Will delete non-latin tweets that are not replys and have more non-latin words than latin')
+        print('Will remove non-latin tweets that have more non-latin words in the text than latin words')
         tweets = session.query(Tweet) \
-            .filter(Tweet.reply_to == None) \
+            .outerjoin(TweetCashtags) \
+            .filter(TweetCashtags.tweet_id.is_(None)) \
             .filter(Tweet.date >= '2012-01-01') \
             .filter(Tweet.date <= '2016-12-31') \
             .filter(Tweet.text.op('~')('[^[:ascii:]]'))
         # tweets = session.query(Tweet).filter(Tweet.text.op('~')('[^\x00-\x7F]+'))
         # tweets = session.query(Tweet).limit(15000)
         for i, t in enumerate(tweets.execution_options(stream_results=True).yield_per(200)):
-            phase_one(t)
+            counts = phase_one(t)
             # print(t.text)
-            if i % 10000 == 0:
-                print(i, t.tweet_id)
+            # if i % 10000 == 0:
+                # print(i, t.tweet_id, t.text, t.user_id, counts)
                 # print(t.text)
                 # exit()
     except Exception as e:
         print(type(e), str(e))
         raise
-    print('Non latin tweets', non_latin_tweets)
+    print('Deleted Non latin tweets', non_latin_tweets)
     exit()
 
     # tweets = session.query(Tweet)

@@ -68,10 +68,10 @@ class TweetUrl(Base):
 class Tweet(Base):
     __table__ = Table('tweet', fintweet_meta, autoload=True)
     counts = relationship('TweetCount', cascade="all,delete", backref="tweet")
-    ment_s = relationship('TweetMentions')
+    ment_s = relationship('TweetMentions', cascade="all,delete", backref="tweet")
     cash_s = relationship('TweetCashtags')
-    hash_s = relationship('TweetHashtags')
-    url_s = relationship('TweetUrl')
+    hash_s = relationship('TweetHashtags', cascade="all,delete", backref="tweet")
+    url_s = relationship('TweetUrl', cascade="all,delete", backref="tweet")
 
     def __str__(self):
         return str(self.tweet_id)
@@ -86,3 +86,7 @@ class FileInfo(Base):
 
 class CompanySec(Base):
     __table__ = Table('company_sec', dashboard_meta, autoload=True)
+
+
+class TweetDeleted(Base):
+    __table__ = Table('tweet_deleted', fintweet_meta, autoload=True)

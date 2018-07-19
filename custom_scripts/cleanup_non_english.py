@@ -103,22 +103,23 @@ def remove_tweet(t):
     except Exception as e:
         print('Could not remove', t.tweet_id)
         print(type(e), str(e))
-        raise
+        # raise
     finally:
         session.close()
 
 
-
 def phase_one(t):   
+    # global non_latin_tweets
     tokens = tokenize(t.text)
     tokens_count = len(tokens)
     tags_count = get_tags_count(tokens)
     latin_count, non_latin_count = get_word_counts(tokens)
     # print(latin_count, non_latin_count)
     # exit()
-    if non_latin_count > latin_count:
-        if tags_count > 0 and DELETE_WITH_TAGS:
+    if non_latin_count >= (latin_count - 2) and non_latin_count >= 2:
+        if tags_count >= 0 and DELETE_WITH_TAGS:
             # print('Will delete', t.text)
+            # non_latin_tweets += 1
             # print()
             remove_tweet(t)
     return [latin_count, non_latin_count]
@@ -131,8 +132,6 @@ if __name__ == '__main__':
     try:
         print('Will remove non-latin tweets that have more non-latin words in the text than latin words')
         tweets = session.query(Tweet) \
-            .outerjoin(TweetCashtags) \
-            .filter(TweetCashtags.tweet_id.is_(None)) \
             .filter(Tweet.date >= '2012-01-01') \
             .filter(Tweet.date <= '2016-12-31') \
             .filter(Tweet.text.op('~')('[^[:ascii:]]'))

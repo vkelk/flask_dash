@@ -69,7 +69,7 @@ class Tweet(Base):
     __table__ = Table('tweet', fintweet_meta, autoload=True)
     counts = relationship('TweetCount', cascade="all,delete", backref="tweet")
     ment_s = relationship('TweetMentions', cascade="all,delete", backref="tweet")
-    cash_s = relationship('TweetCashtags')
+    cash_s = relationship('TweetCashtags', cascade="all,delete", backref="tweet")
     hash_s = relationship('TweetHashtags', cascade="all,delete", backref="tweet")
     url_s = relationship('TweetUrl', cascade="all,delete", backref="tweet")
 

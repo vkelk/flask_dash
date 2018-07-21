@@ -109,7 +109,7 @@ if __name__ == '__main__':
             'following': settings.following,
         }
         period_list = get_cashtag_periods(conditions)
-        with cf.ThreadPoolExecutor(max_workers=32) as executor:
+        with cf.ThreadPoolExecutor(max_workers=24) as executor:
             logger.info('Starting count process for %s tweet list', row['cashtag'])
             future_to_tweet = {executor.submit(load_counts, t): t for t in period_list}
             for future in cf.as_completed(future_to_tweet):
@@ -132,6 +132,8 @@ if __name__ == '__main__':
                     df_output.at[index2, 'mentions'] = str(t['mentions'])
                     df_output.at[index2, 'hashtags'] = str(t['hashtags'])
                     df_output.at[index2, 'users'] = str(t['users'])
+                    df_output.at[index2, 'users_retweet'] = str(t['users_retweet'])
+                    df_output.at[index2, 'users_total'] = str((t['users']) + t['users_retweet'])
                     df_output.at[index2, 'datetime'] = str(t['date'])
                     index2 += 1
 

@@ -94,6 +94,7 @@ class FintweetCountTweets(Base):
 
 
 def get_users_count(tweet_list, sess):
+    true_list = ['1', 'True', 'true']
     session = sess()
     q = session.query(
         mvCashtags.user_id,
@@ -103,7 +104,30 @@ def get_users_count(tweet_list, sess):
         func.count(distinct(mvCashtags.tweet_id))
         ) \
         .join(User, User.user_id == mvCashtags.user_id) \
+        .join(Tweet, Tweet.user_id == mvCashtags.user_id) \
         .filter(mvCashtags.tweet_id.in_(tweet_list)) \
+        .filter(Tweet.retweet_status.notin_(true_list)) \
+        .group_by(mvCashtags.user_id, User.twitter_handle, User.date_joined, User.location)
+    fields = ['user_id', 'twiiter_handle', 'date_joined', 'location', 'counts']
+    result = [dict(zip(fields, d)) for d in q.all()]
+    session.close()
+    return result
+
+
+def get_users_retweet_count(tweet_list, sess):
+    true_list = ['1', 'True', 'true']
+    session = sess()
+    q = session.query(
+        mvCashtags.user_id,
+        User.twitter_handle,
+        User.date_joined,
+        User.location,
+        func.count(distinct(mvCashtags.tweet_id))
+        ) \
+        .join(User, User.user_id == mvCashtags.user_id) \
+        .join(Tweet, Tweet.user_id == mvCashtags.user_id) \
+        .filter(mvCashtags.tweet_id.in_(tweet_list)) \
+        .filter(Tweet.retweet_status.in_(true_list)) \
         .group_by(mvCashtags.user_id, User.twitter_handle, User.date_joined, User.location)
     fields = ['user_id', 'twiiter_handle', 'date_joined', 'location', 'counts']
     result = [dict(zip(fields, d)) for d in q.all()]
@@ -180,22 +204,25 @@ def get_mentions_count(tweet_list, sess):
 def load_counts(t):
     try:
         ScopedSession = scoped_session(sessionmaker(bind=db_engine))
-        with cf.ThreadPoolExecutor(max_workers=5) as executor:
+        with cf.ThreadPoolExecutor(max_workers=6) as executor:
             retweet_future = executor.submit(get_retweet_count, t['tweet_ids'], ScopedSession)
             replys_future = executor.submit(get_replys_count, t['tweet_ids'], ScopedSession)
             users_future = executor.submit(get_users_count, t['tweet_ids'], ScopedSession)
+            users_retweet_future = executor.submit(get_users_retweet_count, t['tweet_ids'], ScopedSession)
             mentions_future = executor.submit(get_mentions_count, t['tweet_ids'], ScopedSession)
             hashtag_future = executor.submit(get_hashtag_count, t['tweet_ids'], ScopedSession)
-        cf.wait([retweet_future, replys_future, users_future, mentions_future, hashtag_future])
+        cf.wait([retweet_future, replys_future, users_future, mentions_future, hashtag_future, users_retweet_future])
         t['retweets'] = retweet_future.result()
         t['replies'] = replys_future.result()
         t['users_list'] = users_future.result()
+        t['users_retweet_list'] = users_retweet_future.result()
         t['mentions_list'] = mentions_future.result()
         t['hashtags_list'] = hashtag_future.result()
         # t['retweets'] = get_retweet_count(t['tweet_ids'], ScopedSession)
         # t['replies'] = get_replys_count(t['tweet_ids'], ScopedSession)
         # t['users_list'] = get_users_count(t['tweet_ids'], ScopedSession)
         t['users'] = len(t['users_list'])
+        t['users_retweet'] = len(t['users_retweet_list'])
         # print(t['users'])
         # exit()
         # t['mentions_list'] = get_mentions_count(t['tweet_ids'], ScopedSession)

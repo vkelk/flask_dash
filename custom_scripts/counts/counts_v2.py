@@ -4,6 +4,7 @@ import logging
 import logging.config
 import os
 import re
+import sys
 
 import pandas as pd
 
@@ -111,9 +112,9 @@ if __name__ == '__main__':
         period_list = get_cashtag_periods(conditions)
         with cf.ThreadPoolExecutor(max_workers=24) as executor:
             logger.info('Starting count process for %s tweet list', row['cashtag'])
-            future_to_tweet = {executor.submit(load_counts, t): t for t in period_list}
-            for future in cf.as_completed(future_to_tweet):
-                try:
+            try:
+                future_to_tweet = {executor.submit(load_counts, t): t for t in period_list}
+                for future in cf.as_completed(future_to_tweet):
                     t = future.result()
                     logger.debug('Got full results for %s %s', t['cashtag'], t['date'])
                     df_output.at[index2, 'gvkey'] = str(row['gvkey'])
@@ -123,17 +124,20 @@ if __name__ == '__main__':
                     df_output.at[index2, 'day_status'] = t['day_status']
                     if settings.frequency:
                         period_str = str(t['date'].time()) + ' - ' \
-                            + str((t['date'] + timedelta(hours=settings.frequency)).time())
+                            + str((t['date'] + timedelta(minutes=settings.frequency)).time())
                         df_output.at[index2, 'time'] = period_str
-                    df_output.at[index2, 'tweets'] = str(t['tweets_count'] - t['retweets'])
+                    df_output.at[index2, 'tweets'] = str(t['tweets_count'])
                     df_output.at[index2, 'retweets'] = str(t['retweets'])
                     df_output.at[index2, 'replies'] = str(t['replies'])
-                    df_output.at[index2, 'totalTweets'] = str(t['replies'] + t['tweets_count'])
+                    df_output.at[index2, 'favorites'] = str(t['favorites'])
+                    df_output.at[index2, 'totalTweets'] = str(t['retweets'] + t['tweets_count'])
                     df_output.at[index2, 'mentions'] = str(t['mentions'])
                     df_output.at[index2, 'hashtags'] = str(t['hashtags'])
                     df_output.at[index2, 'users'] = str(t['users'])
-                    df_output.at[index2, 'users_retweet'] = str(t['users_retweet'])
-                    df_output.at[index2, 'users_total'] = str((t['users']) + t['users_retweet'])
+                    df_output.at[index2, 'user_followers'] = str(t['user_followers'])
+                    df_output.at[index2, 'tweet_velocity'] = str((t['retweets'] + t['tweets_count']) / settings.frequency)
+                    # df_output.at[index2, 'users_retweet'] = str(t['users_retweet'])
+                    # df_output.at[index2, 'users_total'] = str((t['users']) + t['users_retweet'])
                     df_output.at[index2, 'datetime'] = str(t['date'])
                     index2 += 1
 
@@ -162,8 +166,9 @@ if __name__ == '__main__':
                                 hashtags[di['hashtag']] = hashtags[di['hashtag']] + di['counts']
                             else:
                                 hashtags[di['hashtag']] = di['counts']
-                except Exception:
-                    logger.exception('message')
+            except Exception:
+                logger.exception('message')
+                sys.exit()
             logger.info('Finished count process for tweet lists')
 
         if settings.download_hashtags:

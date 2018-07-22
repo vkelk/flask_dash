@@ -2,6 +2,7 @@ import concurrent.futures as cf
 from datetime import datetime, timedelta
 from dateutil import tz
 import logging
+import sys
 
 from sqlalchemy import Table, create_engine, MetaData, func, Column, BigInteger, String, DateTime, distinct
 from sqlalchemy.ext.declarative import declarative_base
@@ -51,6 +52,10 @@ def convert_date(input_dt, zone_from=ZONE_NY, zone_to=ZONE_UTC):
 
 class Tweet(Base):
     __table__ = Table('tweet', fintweet_meta, autoload=True)
+
+
+class TweetCount(Base):
+    __table__ = Table('tweet_count', fintweet_meta, autoload=True)
 
 
 class User(Base):
@@ -114,42 +119,42 @@ def get_users_count(tweet_list, sess):
     return result
 
 
-def get_users_retweet_count(tweet_list, sess):
-    true_list = ['1', 'True', 'true']
-    session = sess()
-    q = session.query(
-        mvCashtags.user_id,
-        User.twitter_handle,
-        User.date_joined,
-        User.location,
-        func.count(distinct(mvCashtags.tweet_id))
-        ) \
-        .join(User, User.user_id == mvCashtags.user_id) \
-        .join(Tweet, Tweet.user_id == mvCashtags.user_id) \
-        .filter(mvCashtags.tweet_id.in_(tweet_list)) \
-        .filter(Tweet.retweet_status.in_(true_list)) \
-        .group_by(mvCashtags.user_id, User.twitter_handle, User.date_joined, User.location)
-    fields = ['user_id', 'twiiter_handle', 'date_joined', 'location', 'counts']
-    result = [dict(zip(fields, d)) for d in q.all()]
-    session.close()
-    return result
+# def get_users_retweet_count(tweet_list, sess):
+#     true_list = ['1', 'True', 'true']
+#     session = sess()
+#     q = session.query(
+#         mvCashtags.user_id,
+#         User.twitter_handle,
+#         User.date_joined,
+#         User.location,
+#         func.count(distinct(mvCashtags.tweet_id))
+#         ) \
+#         .join(User, User.user_id == mvCashtags.user_id) \
+#         .join(Tweet, Tweet.user_id == mvCashtags.user_id) \
+#         .filter(mvCashtags.tweet_id.in_(tweet_list)) \
+#         .filter(Tweet.retweet_status.in_(true_list)) \
+#         .group_by(mvCashtags.user_id, User.twitter_handle, User.date_joined, User.location)
+#     fields = ['user_id', 'twiiter_handle', 'date_joined', 'location', 'counts']
+#     result = [dict(zip(fields, d)) for d in q.all()]
+#     session.close()
+#     return result
 
 
-def get_retweet_count(tweet_list, sess):
-    true_list = ['1', 'True', 'true']
-    try:
-        session = sess()
-        q = session.query(func.count(mvCashtags.tweet_id)) \
-            .join(Tweet, mvCashtags.tweet_id == Tweet.tweet_id) \
-            .filter(mvCashtags.tweet_id.in_(tweet_list)) \
-            .filter(Tweet.retweet_status.in_(true_list))
-        result = q.scalar()
-    except Exception:
-        logger.error('Cannot run get_retweet_count query')
-        logger.exception('message')
-    finally:
-        session.close()
-    return result
+# def get_retweet_count(tweet_list, sess):
+#     true_list = ['1', 'True', 'true']
+#     try:
+#         session = sess()
+#         q = session.query(func.count(mvCashtags.tweet_id)) \
+#             .join(Tweet, mvCashtags.tweet_id == Tweet.tweet_id) \
+#             .filter(mvCashtags.tweet_id.in_(tweet_list)) \
+#             .filter(Tweet.retweet_status.in_(true_list))
+#         result = q.scalar()
+#     except Exception:
+#         logger.error('Cannot run get_retweet_count query')
+#         logger.exception('message')
+#     finally:
+#         session.close()
+#     return result
 
 
 def get_hashtag_count(tweet_list, sess):
@@ -169,20 +174,20 @@ def get_hashtag_count(tweet_list, sess):
     return result
 
 
-def get_replys_count(tweet_list, sess):
-    try:
-        session = sess()
-        q = session.query(func.count(Tweet.tweet_id)) \
-            .filter(Tweet.tweet_id.in_(tweet_list)) \
-            .filter(Tweet.reply_to > 0) \
-            .filter(Tweet.reply_to != Tweet.tweet_id)
-        result = q.scalar()
-    except Exception:
-        logger.error('Cannot run get_replys_count query')
-        logger.exception('message')
-    finally:
-        session.close()
-    return result
+# def get_replys_count(tweet_list, sess):
+#     try:
+#         session = sess()
+#         q = session.query(func.count(Tweet.tweet_id)) \
+#             .filter(Tweet.tweet_id.in_(tweet_list)) \
+#             .filter(Tweet.reply_to > 0) \
+#             .filter(Tweet.reply_to != Tweet.tweet_id)
+#         result = q.scalar()
+#     except Exception:
+#         logger.error('Cannot run get_replys_count query')
+#         logger.exception('message')
+#     finally:
+#         session.close()
+#     return result
 
 
 def get_mentions_count(tweet_list, sess):
@@ -201,34 +206,82 @@ def get_mentions_count(tweet_list, sess):
     return result
 
 
+def get_tweet_counts(tweet_list, sess):
+    try:
+        session = sess()
+        q = session.query(func.sum(TweetCount.reply).label('replies'),
+                          func.sum(TweetCount.retweet).label('retweets'),
+                          func.sum(TweetCount.favorite).label('favorites')) \
+            .filter(TweetCount.tweet_id.in_(tweet_list))
+        fields = ['replies', 'retweets', 'favorites']
+        result = [dict(zip(fields, d)) for d in q.all()]
+    except Exception:
+        logger.error('Cannot run get_tweet_counts query')
+        logger.exception('message')
+    finally:
+        session.close()
+    return result
+
+
+def get_user_counts(tweet_list, sess):
+    try:
+        session = sess()
+        q = session.query(distinct(UserCount.user_id), UserCount.follower) \
+            .join(Tweet, UserCount.user_id == Tweet.user_id) \
+            .filter(Tweet.tweet_id.in_(tweet_list))
+        fields = ['user_id', 'follower']
+        result = [dict(zip(fields, d)) for d in q.all()]
+        followers = 0
+        for r in result:
+            followers += r['follower']
+    except Exception:
+        logger.error('Cannot run get_user_counts query')
+        logger.exception('message')
+    finally:
+        session.close()
+    return followers
+
+
 def load_counts(t):
     try:
         ScopedSession = scoped_session(sessionmaker(bind=db_engine))
-        with cf.ThreadPoolExecutor(max_workers=6) as executor:
-            retweet_future = executor.submit(get_retweet_count, t['tweet_ids'], ScopedSession)
-            replys_future = executor.submit(get_replys_count, t['tweet_ids'], ScopedSession)
-            users_future = executor.submit(get_users_count, t['tweet_ids'], ScopedSession)
-            users_retweet_future = executor.submit(get_users_retweet_count, t['tweet_ids'], ScopedSession)
-            mentions_future = executor.submit(get_mentions_count, t['tweet_ids'], ScopedSession)
-            hashtag_future = executor.submit(get_hashtag_count, t['tweet_ids'], ScopedSession)
-        cf.wait([retweet_future, replys_future, users_future, mentions_future, hashtag_future, users_retweet_future])
-        t['retweets'] = retweet_future.result()
-        t['replies'] = replys_future.result()
+        with cf.ThreadPoolExecutor(max_workers=4) as executor:
+            # retweet_future = executor.submit(get_retweet_count, t['tweet_ids'], ScopedSession)
+            # replys_future = executor.submit(get_replys_count, t['tweet_ids'], ScopedSession)
+            try:
+                # tweet_count_future = executor.submit(get_tweet_counts, t['tweet_ids'], ScopedSession)
+                users_future = executor.submit(get_users_count, t['tweet_ids'], ScopedSession)
+                # users_retweet_future = executor.submit(get_users_retweet_count, t['tweet_ids'], ScopedSession)
+                mentions_future = executor.submit(get_mentions_count, t['tweet_ids'], ScopedSession)
+                hashtag_future = executor.submit(get_hashtag_count, t['tweet_ids'], ScopedSession)
+                user_counts_future = executor.submit(get_user_counts, t['tweet_ids'], ScopedSession)
+            except (KeyboardInterrupt, SystemExit):
+                sys.exit()
+        cf.wait([users_future, mentions_future, hashtag_future, user_counts_future])
+        # t['retweets'] = retweet_future.result()
+        # t['replies'] = replys_future.result()
+        # tweet_counts = tweet_count_future.result()
+        # t['retweets'] = tweet_counts[0]['retweets']
+        # t['replies'] = tweet_counts[0]['replies']
+        # t['favorites'] = tweet_counts[0]['favorites']
+        # print(tweet_counts)
+        # sys.exit()
         t['users_list'] = users_future.result()
-        t['users_retweet_list'] = users_retweet_future.result()
+        # t['users_retweet_list'] = users_retweet_future.result()
         t['mentions_list'] = mentions_future.result()
         t['hashtags_list'] = hashtag_future.result()
         # t['retweets'] = get_retweet_count(t['tweet_ids'], ScopedSession)
         # t['replies'] = get_replys_count(t['tweet_ids'], ScopedSession)
         # t['users_list'] = get_users_count(t['tweet_ids'], ScopedSession)
         t['users'] = len(t['users_list'])
-        t['users_retweet'] = len(t['users_retweet_list'])
+        # t['users_retweet'] = len(t['users_retweet_list'])
         # print(t['users'])
         # exit()
         # t['mentions_list'] = get_mentions_count(t['tweet_ids'], ScopedSession)
         t['mentions'] = len(t['mentions_list'])
         # t['hashtags_list'] = get_hashtag_count(t['tweet_ids'], ScopedSession)
         t['hashtags'] = len(t['hashtags_list'])
+        t['user_followers'] = user_counts_future.result()
         logger.debug('Processed %s', t)
     except Exception:
         logger.exception('message')
@@ -237,111 +290,119 @@ def load_counts(t):
     return t
 
 
-def get_tweet_ids(c):
-    ScopedSession = scoped_session(sessionmaker(bind=db_engine))
-    session = ScopedSession()
-    date_input = c['date']
-    if c['date_from'].date() == c['date_to'].date():
-        datetime_start = convert_date(c['date_from'])
-        datetime_end = convert_date(c['date_to'])
-    elif c['date_from'].date() == date_input.date():
-        datetime_start = convert_date(c['date_from'])
-        datetime_end = convert_date(c['date_from'].strftime("%Y-%m-%d") + ' ' + '23:59:59')
-    elif c['date_to'].date() == date_input.date():
-        datetime_start = convert_date(c['date_to'].strftime("%Y-%m-%d") + ' ' + '00:00:00')
-        datetime_end = convert_date(c['date_to'])
-    else:
-        datetime_start = convert_date(date_input.strftime("%Y-%m-%d") + ' ' + '00:00:00')
-        datetime_end = convert_date(date_input.strftime("%Y-%m-%d") + ' ' + '23:59:59')
-    logger.debug('Start date: %s, end date: %s', datetime_start, datetime_end)
-    # print(datetime_start, datetime_end)
-    tweets = session.query(mvCashtags.tweet_id) \
-        .filter(mvCashtags.cashtags == c['cashtag']) \
-        .filter(mvCashtags.datetime.between(datetime_start, datetime_end))
-    if 'date_joined' in c and c['date_joined']:
-        tweets = tweets.join(User, mvCashtags.user_id == User.user_id).filter(User.date_joined >= c['date_joined'])
-    if 'following' in c and c['following']:
-        tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
-            .filter(UserCount.following >= c['following'])
-    if 'followers' in c and c['followers']:
-        tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
-            .filter(UserCount.follower >= c['followers'])
-    try:
-        data = {
-            'tweet_ids': [t[0] for t in tweets.all()],
-            'date': date_input,
-            'day_status': c['day_status'],
-            'cashtag': c['cashtag']
-            }
-    except Exception:
-        logger.exception('message')
-    finally:
-        session.close()
-        ScopedSession.remove()
-    return data
+# def get_tweet_ids(c):
+#     ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+#     session = ScopedSession()
+#     date_input = c['date']
+#     if c['date_from'].date() == c['date_to'].date():
+#         datetime_start = convert_date(c['date_from'])
+#         datetime_end = convert_date(c['date_to'])
+#     elif c['date_from'].date() == date_input.date():
+#         datetime_start = convert_date(c['date_from'])
+#         datetime_end = convert_date(c['date_from'].strftime("%Y-%m-%d") + ' ' + '23:59:59')
+#     elif c['date_to'].date() == date_input.date():
+#         datetime_start = convert_date(c['date_to'].strftime("%Y-%m-%d") + ' ' + '00:00:00')
+#         datetime_end = convert_date(c['date_to'])
+#     else:
+#         datetime_start = convert_date(date_input.strftime("%Y-%m-%d") + ' ' + '00:00:00')
+#         datetime_end = convert_date(date_input.strftime("%Y-%m-%d") + ' ' + '23:59:59')
+#     logger.debug('Start date: %s, end date: %s', datetime_start, datetime_end)
+#     # print(datetime_start, datetime_end)
+#     tweets = session.query(mvCashtags.tweet_id) \
+#         .filter(mvCashtags.cashtags == c['cashtag']) \
+#         .filter(mvCashtags.datetime.between(datetime_start, datetime_end))
+#     if 'date_joined' in c and c['date_joined']:
+#         tweets = tweets.join(User, mvCashtags.user_id == User.user_id).filter(User.date_joined >= c['date_joined'])
+#     if 'following' in c and c['following']:
+#         tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
+#             .filter(UserCount.following >= c['following'])
+#     if 'followers' in c and c['followers']:
+#         tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
+#             .filter(UserCount.follower >= c['followers'])
+#     try:
+#         data = {
+#             'tweet_ids': [t[0] for t in tweets.all()],
+#             'date': date_input,
+#             'day_status': c['day_status'],
+#             'cashtag': c['cashtag']
+#             }
+#     except Exception:
+#         logger.exception('message')
+#     finally:
+#         session.close()
+#         ScopedSession.remove()
+#     return data
 
 
-def validate_frequency(freq):
-    if 24 % freq == 0:
-        return True
-    logger.warning('Frequency setting is not valid. Chose another value.')
-    return False
+# def validate_frequency(freq):
+#     if 24 % freq == 0:
+#         return True
+#     logger.warning('Frequency setting is not valid. Chose another value.')
+#     return False
 
 
-def get_trading_periods(c):
-    logger.debug('Getting periods')
-    ScopedSession = scoped_session(sessionmaker(bind=db_engine))
-    session = ScopedSession()
-    query_trading_days = session.query(TradingDays.date) \
-        .filter(TradingDays.is_trading == true()) \
-        .filter(TradingDays.date.between(c['date_from'].date(), c['date_to'].date()))
-    trading_days = [d[0] for d in query_trading_days.all()]
-    if settings.frequency and validate_frequency(settings.frequency):
-        logger.debug('Found setting for frequecy: %s', settings.frequency)
-        days = []
-        last_date_time = c['date_from']
-        while last_date_time <= c['date_to']:
-            if settings.days == 'all':
-                days.append(last_date_time)
-            elif settings.days == 'trading' and last_date_time.date() in trading_days:
-                days.append(last_date_time)
-            elif settings.days == 'non-trading' and last_date_time.date() not in trading_days:
-                days.append(last_date_time)
-            else:
-                logger.warning('Datetime %s does not met any condition', last_date_time)
-            last_date_time = last_date_time + timedelta(hours=settings.frequency)
-            # print(last_date_time)
-        return days
-    logger.debug('Frequency setting is empty or not valid')
-    if settings.days == 'trading':
-        return [datetime.combine(d, datetime.min.time()) for d in trading_days]
-    else:
-        days = []
-        date_delta = c['date_to'] - c['date_from']
-        for i in range(date_delta.days + 1):
-            date_input = (c['date_from'] + timedelta(days=i))
-            if settings.days == 'all':
-                days.append(date_input)
-            elif settings.days == 'non-trading' and date_input not in trading_days:
-                days.append(date_input)
-            else:
-                logger.error('Incorrect day status defined in settings')
-                raise
-        return [datetime.combine(d, datetime.min.time()) for d in days]
-    logger.error('Empty result')
-    raise
+# def get_trading_periods(c):
+#     logger.debug('Getting periods')
+#     ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+#     session = ScopedSession()
+#     query_trading_days = session.query(TradingDays.date) \
+#         .filter(TradingDays.is_trading == true()) \
+#         .filter(TradingDays.date.between(c['date_from'].date(), c['date_to'].date()))
+#     trading_days = [d[0] for d in query_trading_days.all()]
+#     if settings.frequency and validate_frequency(settings.frequency):
+#         logger.debug('Found setting for frequecy: %s', settings.frequency)
+#         days = []
+#         last_date_time = c['date_from']
+#         while last_date_time <= c['date_to']:
+#             if settings.days == 'all':
+#                 days.append(last_date_time)
+#             elif settings.days == 'trading' and last_date_time.date() in trading_days:
+#                 days.append(last_date_time)
+#             elif settings.days == 'non-trading' and last_date_time.date() not in trading_days:
+#                 days.append(last_date_time)
+#             else:
+#                 logger.warning('Datetime %s does not met any condition', last_date_time)
+#             last_date_time = last_date_time + timedelta(hours=settings.frequency)
+#             # print(last_date_time)
+#         return days
+#     logger.debug('Frequency setting is empty or not valid')
+#     if settings.days == 'trading':
+#         return [datetime.combine(d, datetime.min.time()) for d in trading_days]
+#     else:
+#         days = []
+#         date_delta = c['date_to'] - c['date_from']
+#         for i in range(date_delta.days + 1):
+#             date_input = (c['date_from'] + timedelta(days=i))
+#             if settings.days == 'all':
+#                 days.append(date_input)
+#             elif settings.days == 'non-trading' and date_input not in trading_days:
+#                 days.append(date_input)
+#             else:
+#                 logger.error('Incorrect day status defined in settings')
+#                 raise
+#         return [datetime.combine(d, datetime.min.time()) for d in days]
+#     logger.error('Empty result')
+#     raise
 
 
 def get_cashtag_periods(c):
     logger.info('Getting tweet list for %s', c['cashtag'])
-    interval_time = settings.frequency * 60 * 60
+    interval_time = settings.frequency * 60
     datetime_start = convert_date(c['date_from'])
     datetime_end = convert_date(c['date_to'])
     ScopedSession = scoped_session(sessionmaker(bind=db_engine))
     session = ScopedSession()
     interval = func.to_timestamp(func.floor((func.extract('epoch', mvCashtags.datetime)/interval_time))*interval_time) \
         .op('AT TIME ZONE')('UTC').label('interval')
-    tweets = session.query(mvCashtags.cashtags, interval, func.array_agg(mvCashtags.tweet_id).label('tweet_ids')) \
+    tweets = session.query(
+            mvCashtags.cashtags,
+            interval,
+            func.array_agg(distinct(mvCashtags.tweet_id)).label('tweet_ids'),
+            func.sum(TweetCount.reply).label('replies'),
+            func.sum(TweetCount.retweet).label('retweets'),
+            func.sum(TweetCount.favorite).label('favorites'),
+        ) \
+        .join(TweetCount, TweetCount.tweet_id == mvCashtags.tweet_id) \
         .filter(mvCashtags.cashtags == c['cashtag']) \
         .filter(mvCashtags.datetime.between(datetime_start, datetime_end))
     if 'date_joined' in c and c['date_joined']:
@@ -365,7 +426,10 @@ def get_cashtag_periods(c):
             'cashtag': t[0],
             'date': t[1],
             'tweets_count': len(t[2]),
-            'tweet_ids': t[2]
+            'tweet_ids': t[2],
+            'replies': t[3],
+            'retweets': t[4],
+            'favorites': t[5]
         }
         if c['day_status'] in ['trading', 'all'] and period['date'].date() in tdays_list:
             period['day_status'] = 'trading'

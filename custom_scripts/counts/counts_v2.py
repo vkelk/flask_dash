@@ -90,6 +90,9 @@ if __name__ == '__main__':
         exit()
     else:
         logger.info('Loaded data from %s', settings.input_file_name)
+    if settings.frequency is None:
+        logger.error('Could not read frequency setting. Will setup for default 6 hours ')
+        settings.frequency = 6
     df_output = pd.DataFrame()
     index2 = 0
     users_map = []
@@ -110,7 +113,7 @@ if __name__ == '__main__':
             'following': settings.following,
         }
         period_list = get_cashtag_periods(conditions)
-        with cf.ThreadPoolExecutor(max_workers=24) as executor:
+        with cf.ThreadPoolExecutor(max_workers=48) as executor:
             logger.info('Starting count process for %s tweet list', row['cashtag'])
             try:
                 future_to_tweet = {executor.submit(load_counts, t): t for t in period_list}
@@ -124,7 +127,7 @@ if __name__ == '__main__':
                     df_output.at[index2, 'day_status'] = t['day_status']
                     if settings.frequency:
                         period_str = str(t['date'].time()) + ' - ' \
-                            + str((t['date'] + timedelta(minutes=settings.frequency)).time())
+                            + str((t['date'] + timedelta(hours=settings.frequency)).time())
                         df_output.at[index2, 'time'] = period_str
                     df_output.at[index2, 'tweets'] = str(t['tweets_count'])
                     df_output.at[index2, 'retweets'] = str(t['retweets'])
@@ -135,7 +138,7 @@ if __name__ == '__main__':
                     df_output.at[index2, 'hashtags'] = str(t['hashtags'])
                     df_output.at[index2, 'users'] = str(t['users'])
                     df_output.at[index2, 'user_followers'] = str(t['user_followers'])
-                    df_output.at[index2, 'tweet_velocity'] = str((t['retweets'] + t['tweets_count']) / settings.frequency)
+                    df_output.at[index2, 'tweet_velocity'] = (t['retweets'] + t['tweets_count']) / (settings.frequency * 60)
                     # df_output.at[index2, 'users_retweet'] = str(t['users_retweet'])
                     # df_output.at[index2, 'users_total'] = str((t['users']) + t['users_retweet'])
                     df_output.at[index2, 'datetime'] = str(t['date'])

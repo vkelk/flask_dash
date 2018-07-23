@@ -1,3 +1,4 @@
+import argparse
 import concurrent.futures as cf
 from datetime import datetime, timedelta
 import logging
@@ -83,6 +84,20 @@ logger = create_logger()
 
 if __name__ == '__main__':
     logger.info('*** Script started')
+    parser = argparse.ArgumentParser(description='Processing counts from database.')
+    parser.add_argument(
+        '-p',
+        '--period',
+        nargs=1,
+        help='Select trading period from options [trading, pre_market, post_market, non_trading]',
+        required=True
+        )
+    args = parser.parse_args()
+    if args.period[0] not in ['trading', 'pre_market', 'post_market', 'non_trading']:
+        logger.error('Select trading period from options [trading, pre_market, post_market, non_trading]')
+        parser.print_help()
+        print(args.period)
+        exit()
     df_in = dataframe_from_file(settings.input_file_name)
     if df_in is None or df_in.empty:
         logger.error('Could not load imput parameters from file %s', settings.input_file_name)
@@ -98,21 +113,38 @@ if __name__ == '__main__':
     users_map = []
     mentions_map = []
     hashtags_map = []
-
+    if args.period[0] == 'trading':
+        time_from = '09:30:00'
+        time_to = '16:00:00'
+    elif args.period[0] == 'pre_market':
+        time_from = '00:00:00'
+        time_to = '09:30:00'
+    elif args.period[0] == 'post_market':
+        time_from = '16:00:00'
+        time_to = '23:59:59'
+    elif args.period[0] == 'non_trading':
+        time_from = '00:00:00'
+        time_to = '23:59:59'
+    else:
+        time_from = '00:00:00'
+        time_to = '23:59:59'
     for index, row in df_in.iterrows():
         users = {}
         mentions = {}
         hashtags = {}
+
         conditions = {
             'cashtag': row['cashtag'],
-            'date_from': datetime.strptime(settings.date_from + ' ' + settings.time_from, '%Y-%m-%d %H:%M:%S'),
-            'date_to': datetime.strptime(settings.date_to + ' ' + settings.time_to, '%Y-%m-%d %H:%M:%S'),
-            'day_status': settings.days,
+            'date_from': datetime.strptime(settings.date_from + ' ' + time_from, '%Y-%m-%d %H:%M:%S'),
+            'date_to': datetime.strptime(settings.date_to + ' ' + time_to, '%Y-%m-%d %H:%M:%S'),
+            'day_status': args.period[0],
             'date_joined': settings.date_joined,
             'followers': settings.followers,
             'following': settings.following,
         }
         period_list = get_cashtag_periods(conditions)
+        if len(period_list) == 0:
+            continue
         with cf.ThreadPoolExecutor(max_workers=48) as executor:
             logger.info('Starting count process for %s tweet list', row['cashtag'])
             try:
@@ -193,6 +225,9 @@ if __name__ == '__main__':
                      'date_joined': str(v['date_joined']),
                      'location': str(v['location']).encode('latin-1', 'ignore').decode('latin-1')}
                 users_map.append(d)
+    if df_output is None or df_output.empty:
+        logger.warning('Output results are empty. Exiting...')
+        sys.exit()
     df_output.sort_values(by=['cashtag', 'datetime'], ascending=[True, True], inplace=True)
     df_output.to_stata('output.dta', write_index=False)
     pd.set_option('display.expand_frame_repr', False)

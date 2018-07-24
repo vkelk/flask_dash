@@ -36,11 +36,11 @@ def dataframe_from_file(filename):
     return None
 
 
-def download_hashtags(hashtags_map):
+def download_hashtags(hashtags_map, prefix=None):
     try:
         df_hashtags = pd.DataFrame(hashtags_map)
         df_hashtags.sort_values(by=['cashtag', 'count'], ascending=[True, False], inplace=True)
-        file_hashtags = 'output_hashtags.dta'
+        file_hashtags = str(prefix) + '_output_hashtags.dta'
         df_hashtags.to_stata(file_hashtags, write_index=False)
         logger.info('Hashtags output file is saved')
     except Exception:
@@ -49,11 +49,11 @@ def download_hashtags(hashtags_map):
         raise
 
 
-def download_users(users_map):
+def download_users(users_map, prefix=None):
     try:
         df_users = pd.DataFrame(users_map)
         df_users.sort_values(by=['cashtag', 'tweet_counts'], ascending=[True, False], inplace=True)
-        file_users = 'output_users.dta'
+        file_users = str(prefix) + '_output_users.dta'
         df_users.to_stata(file_users, write_index=False)
         logger.info('Users output file is saved')
     except Exception:
@@ -61,11 +61,11 @@ def download_users(users_map):
         logger.exception('message')
 
 
-def download_mentions(mentions_map):
+def download_mentions(mentions_map, prefix=None):
     try:
         df_mentions = pd.DataFrame(mentions_map)
         df_mentions.sort_values(by=['cashtag', 'count'], ascending=[True, False], inplace=True)
-        file_mentions = 'output_mentions.dta'
+        file_mentions = str(prefix) + '_output_mentions.dta'
         df_mentions.to_stata(file_mentions, write_index=False)
         logger.info('Mentions output file is saved')
     except Exception:
@@ -105,9 +105,6 @@ if __name__ == '__main__':
         exit()
     else:
         logger.info('Loaded data from %s', settings.input_file_name)
-    if settings.frequency is None:
-        logger.error('Could not read frequency setting. Will setup for default 6 hours ')
-        settings.frequency = 6
     df_output = pd.DataFrame()
     index2 = 0
     users_map = []
@@ -155,12 +152,12 @@ if __name__ == '__main__':
                     df_output.at[index2, 'gvkey'] = str(row['gvkey'])
                     df_output.at[index2, 'cashtag'] = t['cashtag']
                     df_output.at[index2, 'database'] = 'twitter'
-                    df_output.at[index2, 'date'] = str(t['date'].date())
+                    df_output.at[index2, 'date'] = str(t['date'])
                     df_output.at[index2, 'day_status'] = t['day_status']
-                    if settings.frequency:
-                        period_str = str(t['date'].time()) + ' - ' \
-                            + str((t['date'] + timedelta(hours=settings.frequency)).time())
-                        df_output.at[index2, 'time'] = period_str
+                    # if settings.frequency:
+                    #     period_str = str(t['date'].time()) + ' - ' \
+                    #         + str((t['date'] + timedelta(hours=settings.frequency)).time())
+                    #     df_output.at[index2, 'time'] = period_str
                     df_output.at[index2, 'tweets'] = str(t['tweets_count'])
                     df_output.at[index2, 'retweets'] = str(t['retweets'])
                     df_output.at[index2, 'replies'] = str(t['replies'])
@@ -170,7 +167,7 @@ if __name__ == '__main__':
                     df_output.at[index2, 'hashtags'] = str(t['hashtags'])
                     df_output.at[index2, 'users'] = str(t['users'])
                     df_output.at[index2, 'user_followers'] = str(t['user_followers'])
-                    df_output.at[index2, 'tweet_velocity'] = (t['retweets'] + t['tweets_count']) / (settings.frequency * 60)
+                    df_output.at[index2, 'tweet_velocity'] = (t['retweets'] + t['tweets_count']) / t['hours']
                     # df_output.at[index2, 'users_retweet'] = str(t['users_retweet'])
                     # df_output.at[index2, 'users_total'] = str((t['users']) + t['users_retweet'])
                     df_output.at[index2, 'datetime'] = str(t['date'])
@@ -229,16 +226,16 @@ if __name__ == '__main__':
         logger.warning('Output results are empty. Exiting...')
         sys.exit()
     df_output.sort_values(by=['cashtag', 'datetime'], ascending=[True, True], inplace=True)
-    df_output.to_stata('output.dta', write_index=False)
+    df_output.to_stata(str(args.period[0]) + '_output.dta', write_index=False)
     pd.set_option('display.expand_frame_repr', False)
     print(df_output)
     logger.info('Output file is saved')
     # print(df_output)
     if settings.download_hashtags:
-        download_hashtags(hashtags_map)
+        download_hashtags(hashtags_map, args.period[0])
     if settings.download_users:
-        download_users(users_map)
+        download_users(users_map, args.period[0])
     if settings.download_mentions:
-        download_mentions(mentions_map)
+        download_mentions(mentions_map, args.period[0])
 
     logger.info('Process succesfuly finished.')

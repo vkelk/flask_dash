@@ -1,10 +1,10 @@
 import concurrent.futures as cf
-from datetime import datetime, timedelta
+from datetime import datetime, date
 from dateutil import tz
 import logging
 import sys
 
-from sqlalchemy import Table, create_engine, MetaData, func, Column, BigInteger, String, DateTime, distinct
+from sqlalchemy import Table, create_engine, MetaData, func, Column, BigInteger, String, DateTime, distinct, Time, cast, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import true
@@ -237,7 +237,8 @@ def get_user_counts(tweet_list, sess):
         result = [dict(zip(fields, d)) for d in q.all()]
         followers = 0
         for r in result:
-            followers += r['follower']
+            if isinstance(r['follower'], int):
+                followers += r['follower']
     except Exception:
         logger.error('Cannot run get_user_counts query')
         logger.exception('message')
@@ -392,45 +393,50 @@ def load_counts(t):
 
 def get_cashtag_periods(c):
     logger.info('Getting tweet list for %s', c['cashtag'])
-    interval_time = settings.frequency * 60 * 60
-    datetime_start = convert_date(c['date_from'])
-    datetime_end = convert_date(c['date_to'])
+    # print(c)
+    # interval_time = settings.frequency * 60 * 60
+    # datetime_start = convert_date(c['date_from'])
+    # datetime_end = convert_date(c['date_to'])
     # print(datetime_start, datetime_end)
-    date_start = datetime_start.date()
-    date_end = datetime_end.date()
-    time_start = datetime_start.time()
-    time_end = datetime_end.time()
+    date_start = c['date_from'].date()
+    date_end = c['date_to'].date()
+    time_start = c['date_from'].time()
+    time_end = c['date_to'].time()
+    duration = (datetime.combine(date.min, time_end) - datetime.combine(date.min, time_start)).total_seconds()
+    if c['day_status'] in ['non_trading', 'post_market']:
+        duration += 1
     # print(time_start, time_end)
     ScopedSession = scoped_session(sessionmaker(bind=db_engine))
     session = ScopedSession()
     try:
-        interval = func.to_timestamp(func.floor((func.extract('epoch', Tweet.date + Tweet.time)/interval_time)) * interval_time) \
-            .op('AT TIME ZONE')('EST').label('interval')
+        # interval = func.to_timestamp(func.floor((func.extract('epoch', Tweet.date + Tweet.time)/interval_time)) * interval_time) \
+        #     .op('AT TIME ZONE')('EST').label('interval')
         tweets = session.query(
-                TweetCashtag.cashtags,
-                interval,
-                func.array_agg(distinct(Tweet.tweet_id)).label('tweet_ids'),
+                mvCashtags.cashtags,
+                cast(mvCashtags.datetime, Date).label('date'),
+                func.array_agg(distinct(mvCashtags.tweet_id)).label('tweet_ids'),
                 func.sum(TweetCount.reply).label('replies'),
                 func.sum(TweetCount.retweet).label('retweets'),
                 func.sum(TweetCount.favorite).label('favorites'),
             ) \
-            .join(Tweet, Tweet.tweet_id == TweetCashtag.tweet_id) \
-            .join(TweetCount, TweetCount.tweet_id == TweetCashtag.tweet_id) \
-            .filter(TweetCashtag.cashtags == c['cashtag']) \
-            .filter(Tweet.date.between(date_start, date_end)) \
-            .filter(Tweet.time.between(time_start, time_end))
+            .join(TweetCount, TweetCount.tweet_id == mvCashtags.tweet_id) \
+            .filter(mvCashtags.cashtags == c['cashtag']) \
+            .filter(mvCashtags.datetime.between(date_start, date_end)) \
+            .filter(cast(mvCashtags.datetime, Time).between(time_start, time_end))
         if 'date_joined' in c and c['date_joined']:
-            tweets = tweets.join(User, Tweet.user_id == User.user_id).filter(User.date_joined >= c['date_joined'])
+            tweets = tweets.join(User, mvCashtags.user_id == User.user_id).filter(User.date_joined >= c['date_joined'])
         if 'following' in c and c['following']:
-            tweets = tweets.join(UserCount, Tweet.user_id == UserCount.user_id) \
+            tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
                 .filter(UserCount.following >= c['following'])
         if 'followers' in c and c['followers']:
-            tweets = tweets.join(UserCount, Tweet.user_id == UserCount.user_id) \
+            tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
                 .filter(UserCount.follower >= c['followers'])
-        tweets = tweets.group_by(TweetCashtag.cashtags).group_by('interval')
+        tweets = tweets.group_by(mvCashtags.cashtags).group_by('date')
+        # print(tweets.statement.compile(dialect=postgresql.dialect()))
+        # sys.exit()
         trading_days = session.query(TradingDays.date) \
             .filter(TradingDays.is_trading == true()) \
-            .filter(TradingDays.date.between(c['date_from'], c['date_to']))
+            .filter(TradingDays.date.between(date_start, date_end))
         tdays_list = [d[0] for d in trading_days.all()]
     except Exception:
         logger.error('Could not execute get_cashtag_periods')
@@ -440,7 +446,9 @@ def get_cashtag_periods(c):
         ScopedSession.remove()
     period_list = []
     # print(tweets)
+    # print(tweets.first())
     for t in tweets:
+        # sys.exit()
         period = {
             'cashtag': t[0],
             'date': t[1],
@@ -448,14 +456,15 @@ def get_cashtag_periods(c):
             'tweet_ids': t[2],
             'replies': t[3],
             'retweets': t[4],
-            'favorites': t[5]
+            'favorites': t[5],
+            'hours': duration / 3600
         }
-        if c['day_status'] in ['trading', 'pre_market', 'post_market'] and period['date'].date() in tdays_list:
-            period['day_status'] = 'trading'
-        elif c['day_status'] in ['non_trading'] and period['date'].date() not in tdays_list:
-            period['day_status'] = 'non_trading'
+        if c['day_status'] in ['trading', 'pre_market', 'post_market'] and period['date'] in tdays_list:
+            period['day_status'] = c['day_status']
+        elif c['day_status'] in ['non_trading'] and period['date'] not in tdays_list:
+            period['day_status'] = c['day_status']
         else:
-            logger.debug('Skipping date %s. Do not apply the "%s" contition', period['date'].date(), settings.days)
+            logger.debug('Skipping date %s. Do not apply the "%s" contition', period['date'], c['day_status'])
             continue
         period_list.append(period)
     logger.info('Completed tweet list for %s', c['cashtag'])

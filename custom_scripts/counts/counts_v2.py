@@ -1,6 +1,6 @@
 import argparse
 import concurrent.futures as cf
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 import logging.config
 import os

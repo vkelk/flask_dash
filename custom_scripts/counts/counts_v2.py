@@ -139,18 +139,26 @@ if __name__ == '__main__':
             'followers': settings.followers,
             'following': settings.following,
         }
-        period_list = get_cashtag_periods(conditions)
-        if len(period_list) == 0:
-            continue
-        with cf.ThreadPoolExecutor(max_workers=48) as executor:
-            logger.info('Starting count process for %s tweet list', row['cashtag'])
+        # period_list = get_cashtag_periods(conditions)
+        # if len(period_list) == 0:
+            # continue
+        # logger.info('Found %s periods for cashtag %s', len(period_list), row['cashtag'])
+        # period_items = len(period_list)
+        i = 0
+        with cf.ThreadPoolExecutor() as executor:
             try:
-                future_to_tweet = {executor.submit(load_counts, t): t for t in period_list}
+                future_to_tweet = {executor.submit(load_counts, t): t for t in get_cashtag_periods(conditions)}
+                logger.info('Starting count process for %s tweet list', row['cashtag'])
                 for future in cf.as_completed(future_to_tweet):
+                    i += 1
+                    # print(i)
+                    # progress = i / period_items * 100
+                    sys.stdout.write("\r[%d]" % i)
+                    sys.stdout.flush()
                     t = future.result()
-                    logger.debug('Got full results for %s %s', t['cashtag'], t['date'])
+                    # logger.debug('Got full results for %s %s', row['cashtag'], t['date'])
                     df_output.at[index2, 'gvkey'] = str(row['gvkey'])
-                    df_output.at[index2, 'cashtag'] = t['cashtag']
+                    df_output.at[index2, 'cashtag'] = row['cashtag']
                     df_output.at[index2, 'database'] = 'twitter'
                     df_output.at[index2, 'date'] = str(t['date'])
                     df_output.at[index2, 'day_status'] = t['day_status']
@@ -205,18 +213,18 @@ if __name__ == '__main__':
 
         if settings.download_hashtags:
             for k, v in hashtags.items():
-                d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'],
+                d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'],
                      'hashtag': k.encode('latin-1', 'ignore').decode('latin-1'), 'count': v}
                 hashtags_map.append(d)
 
         if settings.download_mentions:
             for k, v in mentions.items():
-                d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'mention': k, 'count': v}
+                d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'], 'mention': k, 'count': v}
                 mentions_map.append(d)
 
         if settings.download_users:
             for k, v in users.items():
-                d = {'gvkey': row['gvkey'], 'cashtag': t['cashtag'], 'user': k,
+                d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'], 'user': k,
                      'twitter_handle': str(v['twitter_handle']).encode('latin-1', 'ignore').decode('latin-1'),
                      'tweet_counts': v['tweet_counts'],
                      'date_joined': str(v['date_joined']),

@@ -194,18 +194,46 @@ def get_user_counts(tweet_list, sess):
     return followers
 
 
+def page_query(q):
+    offset = 0
+    while True:
+        r = False
+        for elem in q.limit(5).offset(offset):
+            r = True
+            yield elem
+        offset += 5
+        print(offset)
+        if not r:
+            break
+
+
+def load_counts_v2(t):
+    # print(t)
+    try:
+        logger.debug('Inspecting %s tweets for %s', t['tweets_count'], t['date'])
+        ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+        t['users_list'] = get_users_count(t['tweet_ids'], ScopedSession)
+        t['mentions_list'] = get_mentions_count(t['tweet_ids'], ScopedSession)
+        t['hashtags_list'] = get_hashtag_count(t['tweet_ids'], ScopedSession)
+        t['user_followers'] = get_user_counts(t['tweet_ids'], ScopedSession)
+        t['users'] = len(t['users_list'])
+        t['mentions'] = len(t['mentions_list'])
+        t['hashtags'] = len(t['hashtags_list'])
+    except Exception:
+        logger.exception('message')
+    finally:
+        ScopedSession.remove()
+    return t
+
+
 def load_counts(t):
     # print(t)
     try:
         logger.debug('Inspecting %s tweets for %s', t['tweets_count'], t['date'])
         ScopedSession = scoped_session(sessionmaker(bind=db_engine))
         with cf.ThreadPoolExecutor(max_workers=4) as executor:
-            # retweet_future = executor.submit(get_retweet_count, t['tweet_ids'], ScopedSession)
-            # replys_future = executor.submit(get_replys_count, t['tweet_ids'], ScopedSession)
             try:
-                # tweet_count_future = executor.submit(get_tweet_counts, t['tweet_ids'], ScopedSession)
                 users_future = executor.submit(get_users_count, t['tweet_ids'], ScopedSession)
-                # users_retweet_future = executor.submit(get_users_retweet_count, t['tweet_ids'], ScopedSession)
                 mentions_future = executor.submit(get_mentions_count, t['tweet_ids'], ScopedSession)
                 hashtag_future = executor.submit(get_hashtag_count, t['tweet_ids'], ScopedSession)
                 user_counts_future = executor.submit(get_user_counts, t['tweet_ids'], ScopedSession)
@@ -216,10 +244,10 @@ def load_counts(t):
         t['users_list'] = users_future.result()
         t['mentions_list'] = mentions_future.result()
         t['hashtags_list'] = hashtag_future.result()
+        t['user_followers'] = user_counts_future.result()
         t['users'] = len(t['users_list'])
         t['mentions'] = len(t['mentions_list'])
         t['hashtags'] = len(t['hashtags_list'])
-        t['user_followers'] = user_counts_future.result()
         # logger.debug('Processed %s', t)
     except Exception:
         logger.exception('message')
@@ -282,7 +310,7 @@ def get_cashtag_periods(c):
     period_list = []
     # print(tweets)
     # print(tweets.first())
-    for t in tweets.execution_options(stream_results=True):
+    for t in page_query(tweets.execution_options(stream_results=True)):
         # sys.exit()
         # print(t[1])
         period = {
@@ -302,6 +330,7 @@ def get_cashtag_periods(c):
         else:
             logger.debug('Skipping date %s. Do not apply the "%s" contition', period['date'], c['day_status'])
             continue
+        period = load_counts(period)
         yield period
         # period_list.append(period)
     logger.info('Completed tweet list for %s', c['cashtag'])

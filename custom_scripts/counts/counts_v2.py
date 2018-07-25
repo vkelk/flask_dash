@@ -79,6 +79,26 @@ def create_logger():
     return logging.getLogger(__name__)
 
 
+def populate_df_output(df_output, index2, t):
+    df_output.at[index2, 'gvkey'] = str(t['gvkey'])
+    df_output.at[index2, 'cashtag'] = t['cashtag']
+    df_output.at[index2, 'database'] = 'twitter'
+    df_output.at[index2, 'date'] = str(t['date'])
+    df_output.at[index2, 'day_status'] = t['day_status']
+    df_output.at[index2, 'tweets'] = str(t['tweets_count'])
+    df_output.at[index2, 'retweets'] = str(t['retweets'])
+    df_output.at[index2, 'replies'] = str(t['replies'])
+    df_output.at[index2, 'favorites'] = str(t['favorites'])
+    df_output.at[index2, 'totalTweets'] = str(t['retweets'] + t['tweets_count'])
+    df_output.at[index2, 'mentions'] = str(t['mentions'])
+    df_output.at[index2, 'hashtags'] = str(t['hashtags'])
+    df_output.at[index2, 'users'] = str(t['users'])
+    df_output.at[index2, 'user_followers'] = str(t['user_followers'])
+    df_output.at[index2, 'tweet_velocity'] = (t['retweets'] + t['tweets_count']) / t['hours']
+    df_output.at[index2, 'datetime'] = str(t['date'])
+    return df_output
+
+
 logger = create_logger()
 
 
@@ -98,18 +118,6 @@ if __name__ == '__main__':
         parser.print_help()
         print(args.period)
         exit()
-    df_in = dataframe_from_file(settings.input_file_name)
-    if df_in is None or df_in.empty:
-        logger.error('Could not load imput parameters from file %s', settings.input_file_name)
-        logger.error('The input file should contain two columns: "gvkey" and "cashtag"')
-        exit()
-    else:
-        logger.info('Loaded data from %s', settings.input_file_name)
-    df_output = pd.DataFrame()
-    index2 = 0
-    users_map = []
-    mentions_map = []
-    hashtags_map = []
     if args.period[0] == 'trading':
         time_from = '09:30:00'
         time_to = '16:00:00'
@@ -125,6 +133,20 @@ if __name__ == '__main__':
     else:
         time_from = '00:00:00'
         time_to = '23:59:59'
+
+    df_in = dataframe_from_file(settings.input_file_name)
+    if df_in is None or df_in.empty:
+        logger.error('Could not load imput parameters from file %s', settings.input_file_name)
+        logger.error('The input file should contain two columns: "gvkey" and "cashtag"')
+        exit()
+    else:
+        logger.info('Loaded data from %s', settings.input_file_name)
+    df_output = pd.DataFrame()
+    index2 = 0
+    users_map = []
+    mentions_map = []
+    hashtags_map = []
+    
     for index, row in df_in.iterrows():
         users = {}
         mentions = {}
@@ -145,6 +167,24 @@ if __name__ == '__main__':
         # logger.info('Found %s periods for cashtag %s', len(period_list), row['cashtag'])
         # period_items = len(period_list)
         i = 0
+        for i, t in enumerate(get_cashtag_periods(conditions)):
+            sys.stdout.write("\r[%d]" % i)
+            sys.stdout.flush()
+            t['gvkey'] = row['gvkey']
+            t['cashtag'] = row['cashtag']
+            df_output = populate_df_output(df_output, index2, t)     
+            index2 += 1
+        if df_output is None or df_output.empty:
+            logger.warning('Output results are empty. Exiting...')
+            sys.exit()
+        df_output.sort_values(by=['cashtag', 'datetime'], ascending=[True, True], inplace=True)
+        df_output.to_stata(str(args.period[0]) + '_output.dta', write_index=False)
+        pd.set_option('display.expand_frame_repr', False)
+        print(df_output)
+        logger.info('Process succesfuly finished.')
+        sys.exit()
+
+
         with cf.ThreadPoolExecutor() as executor:
             try:
                 future_to_tweet = {executor.submit(load_counts, t): t for t in get_cashtag_periods(conditions)}
@@ -156,29 +196,9 @@ if __name__ == '__main__':
                     sys.stdout.write("\r[%d]" % i)
                     sys.stdout.flush()
                     t = future.result()
-                    # logger.debug('Got full results for %s %s', row['cashtag'], t['date'])
-                    df_output.at[index2, 'gvkey'] = str(row['gvkey'])
-                    df_output.at[index2, 'cashtag'] = row['cashtag']
-                    df_output.at[index2, 'database'] = 'twitter'
-                    df_output.at[index2, 'date'] = str(t['date'])
-                    df_output.at[index2, 'day_status'] = t['day_status']
-                    # if settings.frequency:
-                    #     period_str = str(t['date'].time()) + ' - ' \
-                    #         + str((t['date'] + timedelta(hours=settings.frequency)).time())
-                    #     df_output.at[index2, 'time'] = period_str
-                    df_output.at[index2, 'tweets'] = str(t['tweets_count'])
-                    df_output.at[index2, 'retweets'] = str(t['retweets'])
-                    df_output.at[index2, 'replies'] = str(t['replies'])
-                    df_output.at[index2, 'favorites'] = str(t['favorites'])
-                    df_output.at[index2, 'totalTweets'] = str(t['retweets'] + t['tweets_count'])
-                    df_output.at[index2, 'mentions'] = str(t['mentions'])
-                    df_output.at[index2, 'hashtags'] = str(t['hashtags'])
-                    df_output.at[index2, 'users'] = str(t['users'])
-                    df_output.at[index2, 'user_followers'] = str(t['user_followers'])
-                    df_output.at[index2, 'tweet_velocity'] = (t['retweets'] + t['tweets_count']) / t['hours']
-                    # df_output.at[index2, 'users_retweet'] = str(t['users_retweet'])
-                    # df_output.at[index2, 'users_total'] = str((t['users']) + t['users_retweet'])
-                    df_output.at[index2, 'datetime'] = str(t['date'])
+                    t['gvkey'] = row['gvkey']
+                    t['cashtag'] = row['cashtag']
+                    df_output = populate_df_output(df_output, index2, t)     
                     index2 += 1
 
                     if settings.download_users:

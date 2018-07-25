@@ -104,23 +104,27 @@ class FintweetCountTweets(Base):
 
 
 def get_users_count(tweet_list, sess):
-    true_list = ['1', 'True', 'true']
-    session = sess()
-    q = session.query(
-        mvCashtags.user_id,
-        User.twitter_handle,
-        User.date_joined,
-        User.location,
-        func.count(distinct(mvCashtags.tweet_id))
-        ) \
-        .join(User, User.user_id == mvCashtags.user_id) \
-        .join(Tweet, Tweet.user_id == mvCashtags.user_id) \
-        .filter(mvCashtags.tweet_id.in_(tweet_list)) \
-        .filter(Tweet.retweet_status.notin_(true_list)) \
-        .group_by(mvCashtags.user_id, User.twitter_handle, User.date_joined, User.location)
-    fields = ['user_id', 'twiiter_handle', 'date_joined', 'location', 'counts']
-    result = [dict(zip(fields, d)) for d in q.all()]
-    session.close()
+    try:
+        session = sess()
+        q = session.query(
+            Tweet.user_id,
+            User.twitter_handle,
+            User.date_joined,
+            User.location,
+            func.count(distinct(Tweet.tweet_id))
+            ) \
+            .join(User, User.user_id == Tweet.user_id) \
+            .filter(Tweet.tweet_id.in_(tweet_list)) \
+            .group_by(Tweet.user_id, User.twitter_handle, User.date_joined, User.location)
+        fields = ['user_id', 'twiiter_handle', 'date_joined', 'location', 'counts']
+        result = [dict(zip(fields, d)) for d in q.all()]
+    except Exception:
+        logger.error('Cannot run get_hashtag_count query')
+        logger.exception('message')
+    finally:
+        session.close()
+    # print(q)
+    # sys.exit()
     return result
 
 
@@ -284,7 +288,7 @@ def get_cashtag_periods(c):
             ) \
             .join(TweetCount, TweetCount.tweet_id == mvCashtags.tweet_id) \
             .filter(mvCashtags.cashtags == c['cashtag']) \
-            .filter(mvCashtags.datetime.between(date_start, date_end)) \
+            .filter(cast(mvCashtags.datetime, Date).between(date_start, date_end)) \
             .filter(cast(mvCashtags.datetime, Time).between(time_start, time_end))
         if c['day_status'] in ['trading', 'pre_market', 'post_market']:
             tweets = tweets.filter(cast(mvCashtags.datetime, Date).in_(tdays_list))
@@ -310,7 +314,7 @@ def get_cashtag_periods(c):
     period_list = []
     # print(tweets)
     # print(tweets.first())
-    for t in page_query(tweets.execution_options(stream_results=True)):
+    for t in tweets.execution_options(stream_results=True):
         # sys.exit()
         # print(t[1])
         period = {
@@ -330,7 +334,7 @@ def get_cashtag_periods(c):
         else:
             logger.debug('Skipping date %s. Do not apply the "%s" contition', period['date'], c['day_status'])
             continue
-        period = load_counts(period)
+        # period = load_counts(period)
         yield period
         # period_list.append(period)
     logger.info('Completed tweet list for %s', c['cashtag'])

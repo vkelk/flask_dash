@@ -10,7 +10,7 @@ import sys
 import pandas as pd
 
 import settings
-from count_helper import get_cashtag_periods, load_counts
+from count_helper import get_cashtag_periods, load_counts_v2
 
 
 def slugify(s):
@@ -167,27 +167,26 @@ if __name__ == '__main__':
         # logger.info('Found %s periods for cashtag %s', len(period_list), row['cashtag'])
         # period_items = len(period_list)
         i = 0
-        for i, t in enumerate(get_cashtag_periods(conditions)):
-            sys.stdout.write("\r[%d]" % i)
-            sys.stdout.flush()
-            t['gvkey'] = row['gvkey']
-            t['cashtag'] = row['cashtag']
-            df_output = populate_df_output(df_output, index2, t)     
-            index2 += 1
-        if df_output is None or df_output.empty:
-            logger.warning('Output results are empty. Exiting...')
-            sys.exit()
-        df_output.sort_values(by=['cashtag', 'datetime'], ascending=[True, True], inplace=True)
-        df_output.to_stata(str(args.period[0]) + '_output.dta', write_index=False)
-        pd.set_option('display.expand_frame_repr', False)
-        print(df_output)
-        logger.info('Process succesfuly finished.')
-        sys.exit()
+        # for i, t in enumerate(get_cashtag_periods(conditions)):
+        #     sys.stdout.write("\r[%d]" % i)
+        #     sys.stdout.flush()
+        #     t['gvkey'] = row['gvkey']
+        #     t['cashtag'] = row['cashtag']
+        #     df_output = populate_df_output(df_output, index2, t)     
+        #     index2 += 1
+        # if df_output is None or df_output.empty:
+        #     logger.warning('Output results are empty. Exiting...')
+        #     sys.exit()
+        # df_output.sort_values(by=['cashtag', 'datetime'], ascending=[True, True], inplace=True)
+        # df_output.to_stata(str(args.period[0]) + '_output.dta', write_index=False)
+        # pd.set_option('display.expand_frame_repr', False)
+        # print(df_output)
+        # logger.info('Process succesfuly finished.')
+        # sys.exit()
 
-
-        with cf.ThreadPoolExecutor() as executor:
+        with cf.ThreadPoolExecutor(max_workers=16) as executor:
             try:
-                future_to_tweet = {executor.submit(load_counts, t): t for t in get_cashtag_periods(conditions)}
+                future_to_tweet = {executor.submit(load_counts_v2, t): t for t in get_cashtag_periods(conditions)}
                 logger.info('Starting count process for %s tweet list', row['cashtag'])
                 for future in cf.as_completed(future_to_tweet):
                     i += 1
@@ -226,6 +225,7 @@ if __name__ == '__main__':
                                 hashtags[di['hashtag']] = hashtags[di['hashtag']] + di['counts']
                             else:
                                 hashtags[di['hashtag']] = di['counts']
+                future_to_tweet = None
             except Exception:
                 logger.exception('message')
                 sys.exit()

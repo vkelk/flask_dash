@@ -8,6 +8,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 import os
 import re
 import requests
+import sys
 import time
 
 from openpyxl import load_workbook
@@ -60,8 +61,8 @@ Base = declarative_base()
 db_engine = create_engine(
     pg_dsn,
     connect_args={"application_name": 'stocktwits_scraper:' + str(__name__)},
-    pool_size=100,
-    pool_recycle=300,
+    pool_size=300,
+    pool_recycle=600,
     max_overflow=0,
     encoding='utf-8'
     )
@@ -293,16 +294,14 @@ def login(n, page):
     try:
         j = json.loads(r)
         page.ses.headers['authorization'] = 'OAuth ' + j['token']
-    except Exception as e:
+    except Exception:
         logger.error('%s Unable to login', n)
         logger.exception('message')
-        exit()
+        sys.exit()
     logger.debug('%s Login success', n)
 
 
-def insert_new_user(t, watch_list=None):
-    Session = sessionmaker(bind=db_engine)
-    session = Session()
+def insert_new_user(t, sess, watch_list=None):
     user = User(
         user_id=t['user']['id'],
         user_name=t['user']['name'],
@@ -331,6 +330,7 @@ def insert_new_user(t, watch_list=None):
         watchlist_stocks=watch_list,
         ideas=t['user']['ideas'])
     try:
+        session = sess()
         user.counts.append(user_count)
         user.strategy.append(user_strategy)
         session.add(user_count)
@@ -350,9 +350,7 @@ def insert_new_user(t, watch_list=None):
         return user.user_id
 
 
-def insert_new_idea(t, reply_to=None):
-    Session = sessionmaker(bind=db_engine)
-    session = Session()
+def insert_new_idea(t, sess, reply_to=None):
     logger.debug('Inserting new idea')
 
     idea = Ideas(
@@ -365,19 +363,22 @@ def insert_new_idea(t, reply_to=None):
         permalink='https://stocktwits.com/' + t['user']['username'] + '/message/' + str(t['id'])
     )
 
+    # if 'reshare_message' in t:
+    #     pprint(t['reshare_message'])
     idea_count = Ideas_Count(
         replies=t['conversation']['replies'] if t.get('conversation', False) else None,
-        likes=t['likes']['total'] if t.get('likes', False) else None
+        likes=t['likes']['total'] if t.get('likes', False) else None,
+        reshares=t['reshare_message']['reshared_count'] if t.get('reshare_message', False) else None
         )
     idea.counts.append(idea_count)
 
     tokens = tokenize(idea.text)
-    cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 1])
+    cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 2])
     if len(cashtags) > 0:
         for cashtag in cashtags:
             ctag = IdeasCashtags(ideas_id=idea.ideas_id, cashtag=cashtag)
             idea.cash_s.append(ctag)
-    hashtags = set([term.upper() for term in tokens if term.startswith('#') and len(term) > 1])
+    hashtags = set([term.upper() for term in tokens if term.startswith('#') and len(term) > 2])
     if len(hashtags) > 0:
         for hashtag in hashtags:
             htag = IdeasHashtags(ideas_id=idea.ideas_id, hashtag=hashtag)
@@ -389,6 +390,7 @@ def insert_new_idea(t, reply_to=None):
             idea.url_s.append(utag)
 
     try:
+        session = sess()
         session.add(idea_count)
         session.add(idea)
         session.commit()
@@ -402,11 +404,12 @@ def insert_new_idea(t, reply_to=None):
             session.rollback()
     except Exception:
         logger.exception('message')
+    finally:
+        session.close()
 
 
 def get_tweets(n, dateto, permno, proxy, query, lock):
-    Session = sessionmaker(bind=db_engine)
-    session = Session()
+    ScopedSession = scoped_session(sessionmaker(bind=db_engine))
     query = query.strip('$').upper()
     count = 0
     page = Page(proxy)
@@ -417,7 +420,7 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
         if dateto > t1:
             logger.debug('dateto > t1')
             break
-
+        session = ScopedSession()
         idea = session.query(Ideas).filter_by(ideas_id=t['id']).first()
         if idea:
             logger.debug('Idea id [%s] exists in db', t['id'])
@@ -442,14 +445,14 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
                         watch_list = ' '.join([f['symbol'] for f in j['watchlist']['symbols']])[:500]
                 else:
                     watch_list = None
-                insert_new_user(t, watch_list)
+                insert_new_user(t, ScopedSession, watch_list)
             except Exception:
                 logger.exception('message')
         if t.get('conversation', False):
             reply_to = t['conversation']['in_reply_to_message_id']
         else:
             reply_to = None
-        idea_id = insert_new_idea(t, reply_to)
+        idea_id = insert_new_idea(t, ScopedSession, reply_to)
 
         if t.get('conversation', False) and settings.GET_REPLYS:
             count_repl = 0
@@ -469,6 +472,7 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
                     count_repl += 1
                     reply = session.query(Ideas).filter_by(ideas_id=child['id']).first()
                     user = session.query(User).filter_by(user_id=child['user']['id']).first()
+                    session.close()
                     if not user:
                         try:
                             if settings.ISUSERPROFILE:
@@ -489,11 +493,11 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
                                     watch_list = ' '.join([f['symbol'] for f in j['watchlist']['symbols']])[:500]
                             else:
                                 watch_list = None
-                            insert_new_user(child, watch_list)
+                            insert_new_user(child, ScopedSession, watch_list)
                         except Exception:
                             logger.exception('message')
                     if not reply:
-                        reply_id = insert_new_idea(child, reply_to=t['id'])
+                        reply_id = insert_new_idea(child, ScopedSession, reply_to=t['id'])
                         count += 1
 
                 if mess['cursor']['more']:
@@ -502,7 +506,7 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
                     flag_conv = True
                     continue
                 break
-
+        ScopedSession.remove()
         count += 1
 
     if count:
@@ -552,6 +556,9 @@ def scrape(n, user_queue, proxy, lock):
         except LoadingError:
             logger.error('%2s LoadingError except', n)
             return
+        except Exception:
+            logger.exception('message')
+            raise
         if not res:
             logger.error('%2s SCRAP_USER Error in %s %s', n, query, i)
             # with open('error_list.txt', 'a') as f:
@@ -620,6 +627,8 @@ if __name__ == '__main__':
                 continue
     except KeyboardInterrupt:
         logger.warning('Interrupted by keyboard.')
+    except Exception:
+        logger.exception('message')
     finally:
         db_engine.dispose()
         logger.info('db_engine disposed')

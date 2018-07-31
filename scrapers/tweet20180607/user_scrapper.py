@@ -120,7 +120,7 @@ def user_loader(n, user_queue, pg_dsn, proxy):
                 user_count = session.query(UserCount).filter_by(user_id=user_id).first()
                 if not user_count:
                     user_count = UserCount(follower=u.user_followers_count, following=u.user_following_count,
-                        tweets=u.user_tweet_count, likes=u.likes, lists=u.user_listed_count)
+                                           tweets=u.user_tweet_count, likes=u.likes, lists=u.user_listed_count)
                 else:
                     user_count.follower = u.user_followers_count
                     user_count.following = u.user_following_count
@@ -149,7 +149,11 @@ def user_loader(n, user_queue, pg_dsn, proxy):
             del (u)
         else:
             logger.warning('Empty queue')
+            session.close()
+            DstSession.remove()
             return
+    session.close()
+    DstSession.remove()
 
 
 def user_incomplete(user):
@@ -200,6 +204,9 @@ def check_user(user_queue, pg_dsn, proxy_list):
     except Exception:
         logger.exception('message')
         raise
+    finally:
+        session.close()
+        DstSession.remove()
     logger.info('Total checked %s users, processed %s', idx, count)
     # Send poisoned pill
     for s in proxy_list:
@@ -215,6 +222,7 @@ def get_users_list():
         .join(TweetCashtags) \
         .group_by(Tweet.user_id) \
         .yield_per(200)
+    session.close()
     return [d[0] for d in q.all()]
 
 
@@ -225,8 +233,8 @@ pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".fo
 db_engine = create_engine(
     pg_dsn,
     connect_args={"application_name": 'user_scraper:' + str(__name__)},
-    pool_size=100, 
-    max_overflow=0, 
+    pool_size=100,
+    max_overflow=0,
     encoding='utf-8'
     )
 add_engine_pidguard(db_engine)

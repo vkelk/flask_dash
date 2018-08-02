@@ -109,10 +109,6 @@ class IdeasUrls(Base):
     __table__ = Table('idea_urls', pg_meta, autoload=True)
 
 
-class Reply(Base):
-    __table__ = Table('reply', pg_meta, autoload=True)
-
-
 class LoadingError(Exception):
     pass
 

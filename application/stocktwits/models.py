@@ -76,20 +76,22 @@ class Ideas(db.Model):
 
     ideas_id = db.Column(db.BigInteger, primary_key=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey(User.user_id))
-    permno = db.Column(db.Integer)
-    date = db.Column(db.Date)
+    # permno = db.Column(db.Integer)
+    datetime = db.Column(db.Date)
     time = db.Column(db.Time)
-    replied = db.Column(db.String(3))
+    # replied = db.Column(db.String(3))
     text = db.Column(db.Text)
     sentiment = db.Column(db.String(60))
-    cashtags_other = db.Column(db.String(255))
+    permalink = db.Column(db.String(512))
+    reply_to = db.Column(db.BigInteger)
+    # cashtags_other = db.Column(db.String(255))
 
     # user = db.relationship('application.stocktwits.models.User')
     cashtags = db.relationship('IdeaCashtags')
     hashtags = db.relationship('IdeaHashtags')
     # counts = db.relationship('IdeaCounts')
     urls = db.relationship('IdeaUrls')
-    replys = db.relationship('Replys')
+    # replys = db.relationship('Replys')
 
     def __repr__(self):
         return self.ideas_id
@@ -141,14 +143,14 @@ class IdeaHashtags(db.Model):
 
 
 class IdeaUrls(db.Model):
-    __tablename__ = 'ideas_url'
+    __tablename__ = 'idea_urls'
     __table_args__ = {"schema": "stocktwits"}
 
     id = db.Column(db.BigInteger, autoincrement=True)
     ideas_id = db.Column(
         db.BigInteger, db.ForeignKey(Ideas.ideas_id), primary_key=True)
     url = db.Column(db.String(255))
-    link = db.Column(db.String(255))
+    # link = db.Column(db.String(255))
 
     idea = db.relationship('Ideas', backref='ideas_url')
 
@@ -156,18 +158,18 @@ class IdeaUrls(db.Model):
         return self.url
 
 
-class Replys(db.Model):
-    __tablename__ = 'reply'
-    __table_args__ = {"schema": "stocktwits"}
+# class Replys(db.Model):
+#     __tablename__ = 'reply'
+#     __table_args__ = {"schema": "stocktwits"}
 
-    reply_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
-    ideas_id = db.Column(db.BigInteger, db.ForeignKey(Ideas.ideas_id))
-    date = db.Column(db.Date)
-    time = db.Column(db.Time)
-    reply_userid = db.Column(db.BigInteger)
-    text = db.Column(db.Text)
+#     reply_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+#     ideas_id = db.Column(db.BigInteger, db.ForeignKey(Ideas.ideas_id))
+#     date = db.Column(db.Date)
+#     time = db.Column(db.Time)
+#     reply_userid = db.Column(db.BigInteger)
+#     text = db.Column(db.Text)
 
-    idea = db.relationship('Ideas', backref='reply')
+#     idea = db.relationship('Ideas', backref='reply')
 
-    def __repr__(self):
-        return self.reply_id
+#     def __repr__(self):
+#         return self.reply_id

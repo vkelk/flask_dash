@@ -54,7 +54,7 @@ def ajax_topusers(limit=25):
 
 @stocktwit.route('/ajax_tweetcount_timeline')
 def ajax_tweetcount_timeline():
-    q = db.session.query(func.to_char(func.date_trunc('month', Ideas.date), 'YYYY-MM-DD').label('month'),
+    q = db.session.query(func.to_char(func.date_trunc('month', Ideas.datetime), 'YYYY-MM-DD').label('month'),
                          func.count(Ideas.ideas_id).label('count')) \
         .group_by('month')
     return jsonify(q.all())

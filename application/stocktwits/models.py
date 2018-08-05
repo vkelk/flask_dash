@@ -14,7 +14,7 @@ class User(Stocktwits):
     user_name = db.Column(db.String(75))
     date_joined = db.Column(db.Date)
     website = db.Column(db.String(255))
-    source = db.Column(db.String(255))
+    # source = db.Column(db.String(255))
     user_topmentioned = db.Column(db.String(255))
     location = db.Column(db.String(255))
     verified = db.Column(db.String(10))

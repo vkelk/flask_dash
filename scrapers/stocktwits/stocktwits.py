@@ -372,12 +372,12 @@ def insert_new_idea(t, sess, reply_to=None):
     cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 2])
     if len(cashtags) > 0:
         for cashtag in cashtags:
-            ctag = IdeasCashtags(ideas_id=idea.ideas_id, cashtag=cashtag)
+            ctag = IdeasCashtags(ideas_id=idea.ideas_id, cashtag=cashtag[:64])
             idea.cash_s.append(ctag)
     hashtags = set([term.upper() for term in tokens if term.startswith('#') and len(term) > 2])
     if len(hashtags) > 0:
         for hashtag in hashtags:
-            htag = IdeasHashtags(ideas_id=idea.ideas_id, hashtag=hashtag)
+            htag = IdeasHashtags(ideas_id=idea.ideas_id, hashtag=hashtag[:64])
             idea.hash_s.append(htag)
 
     if t.get('links', False):
@@ -400,6 +400,7 @@ def insert_new_idea(t, sess, reply_to=None):
             session.rollback()
     except Exception:
         logger.exception('message')
+        print(idea)
     finally:
         session.close()
 

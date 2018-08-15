@@ -113,8 +113,8 @@ if __name__ == '__main__':
         required=True
         )
     args = parser.parse_args()
-    if args.period[0] not in ['trading', 'pre_market', 'post_market', 'non_trading']:
-        logger.error('Select trading period from options [trading, pre_market, post_market, non_trading]')
+    if args.period[0] not in ['trading', 'pre_market', 'post_market', 'non_trading', 'all']:
+        logger.error('Select trading period from options [trading, pre_market, post_market, non_trading, all]')
         parser.print_help()
         print(args.period)
         exit()

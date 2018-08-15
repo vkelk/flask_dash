@@ -292,7 +292,7 @@ def get_cashtag_periods(c):
             .filter(cast(mvCashtags.datetime, Time).between(time_start, time_end))
         if c['day_status'] in ['trading', 'pre_market', 'post_market']:
             tweets = tweets.filter(cast(mvCashtags.datetime, Date).in_(tdays_list))
-        else:
+        elif c['day_status'] == 'non_trading':
             tweets = tweets.filter(cast(mvCashtags.datetime, Date).notin_(tdays_list))
         if 'date_joined' in c and c['date_joined']:
             tweets = tweets.join(User, mvCashtags.user_id == User.user_id).filter(User.date_joined >= c['date_joined'])
@@ -327,9 +327,9 @@ def get_cashtag_periods(c):
             'favorites': t[4],
             'hours': duration / 3600
         }
-        if c['day_status'] in ['trading', 'pre_market', 'post_market'] and period['date'] in tdays_list:
+        if c['day_status'] in ['trading', 'pre_market', 'post_market', 'all'] and period['date'] in tdays_list:
             period['day_status'] = c['day_status']
-        elif c['day_status'] in ['non_trading'] and period['date'] not in tdays_list:
+        elif c['day_status'] in ['non_trading', 'all'] and period['date'] not in tdays_list:
             period['day_status'] = c['day_status']
         else:
             logger.debug('Skipping date %s. Do not apply the "%s" contition', period['date'], c['day_status'])

@@ -4,35 +4,26 @@ from dateutil import tz
 import logging
 import sys
 
-from sqlalchemy import Table, create_engine, MetaData, func, Column, BigInteger, String, DateTime, distinct, Time, cast, Date
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.sql.expression import true
-from sqlalchemy.dialects import postgresql
+import psycopg2
 
 import settings
 
-Base = declarative_base()
 pg_config = {
     'username': settings.PG_USER,
     'password': settings.PG_PASSWORD,
-    'database': settings.PG_DBNAME,
-    'host': settings.DB_HOST}
-pg_dsn = "postgresql+psycopg2://{username}:{password}@{host}:5432/{database}".format(**pg_config)
-db_engine = create_engine(
-    pg_dsn,
-    connect_args={"application_name": 'counts:' + str(__name__)},
-    pool_size=300,
-    pool_recycle=600,
-    max_overflow=0,
-    encoding='utf-8'
-    )
-fintweet_meta = MetaData(bind=db_engine, schema="fintweet")
-project_meta = MetaData(bind=db_engine, schema="dashboard")
-stocktwits_meta = MetaData(bind=db_engine, schema="stocktwits")
-Session = sessionmaker(bind=db_engine, autoflush=False)
-ScopedSessionAuto = scoped_session(sessionmaker(bind=db_engine, autocommit=True, autoflush=False))
+    'host': settings.DB_HOST,
+    'dbname': settings.PG_DBNAME}
+
 logger = logging.getLogger(__name__)
+
+try:
+    cnx = psycopg2.connect(**pg_config)
+    cur = cnx.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SET SEARCH_PATH = %s" % 'fintweet')
+    cnx.commit()
+    logger.info('Connected to database')
+except psycopg2.Error as err:
+    logger.error(err)
 
 
 class Tweet(Base):
@@ -117,3 +108,59 @@ class FintweetCounts(Base):
 class FintweetCountTweets(Base):
     __table__ = Table('fintweet_count_tweets', project_meta, autoload=True)
 
+
+def ft_tweets_trade(t, sess):
+    logger.info('Getting tweets_trade for %s', t['cashtag'])
+    
+    try:
+        session = sess()
+        trading_days = session.query(TradingDays.date).subquery()
+        q = session.query(mvCashtags) \
+            .filter(mvCashtags.cashtags == t['cashtag']) \
+            .filter(cast(mvCashtags.datetime, Date).in_(trading_days))
+        print(q.count())
+    except Exception:
+        logging.exception('message')
+    finally:
+        session.close()
+
+
+def get_fintweet_data(t):
+    print(t)
+    try:
+        logger.debug('Getting counts for %s', t['cashtag'])
+        ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+        t['tweets_trade'] = ft_tweets_trade(t, ScopedSession)
+    except Exception:
+        logger.exception('message')
+    finally:
+        ScopedSession.remove()
+    return t
+
+
+def get_ft_periods(c):
+    logger.info('Getting fintweet periods for %s', c['cashtag'])
+    date_start = c['date_from'].date()
+    date_end = c['date_to'].date()
+    ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+    session = ScopedSession()
+    try:
+        trading_days = session.query(TradingDays.date) \
+            .filter(TradingDays.is_trading == true()) \
+            .filter(TradingDays.date.between(date_start, date_end))
+        tdays_list = [d[0] for d in trading_days.all()]
+        tweets = session.query(
+                cast(mvCashtags.datetime, Date).label('date'),
+                func.array_agg(mvCashtags.tweet_id).label('tweet_ids'),
+                func.sum(TweetCount.reply).label('replies'),
+                func.sum(TweetCount.retweet).label('retweets'),
+                func.sum(TweetCount.favorite).label('favorites'),
+            ) \
+            .join(TweetCount, TweetCount.tweet_id == mvCashtags.tweet_id) \
+            .filter(mvCashtags.cashtags == c['cashtag']) \
+            .filter(cast(mvCashtags.datetime, Date).between(date_start, date_end)) \
+            .filter(cast(mvCashtags.datetime, Time).between(time_start, time_end))
+    except Exception:
+        pass
+    finally:
+        pass

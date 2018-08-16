@@ -8,9 +8,16 @@ import re
 import sys
 
 import pandas as pd
+import psycopg2
+import psycopg2.extras
 
 import settings
-from panama_helper import *
+
+pg_config = {
+    'user': settings.PG_USER,
+    'password': settings.PG_PASSWORD,
+    'host': settings.DB_HOST,
+    'dbname': settings.PG_DBNAME}
 
 
 def create_logger():
@@ -42,29 +49,72 @@ def dataframe_from_file(filename):
     return None
 
 
+def get_counts(cashtags):
+    q = """
+        SELECT
+            cashtags,
+            sum(case when datetime::DATE IN (SELECT DATE FROM dashboard.trading_days) 
+                then 1 else 0 end) as trading,
+            sum(case when datetime::DATE NOT IN (SELECT DATE FROM dashboard.trading_days) 
+                then 1 else 0 end) as nontrading,
+            sum(case when datetime::DATE IN (SELECT DATE FROM dashboard.trading_days) 
+                AND datetime::time < '09:00:00' then 1 else 0 end) as pretrading,
+            sum(case when datetime::DATE IN (SELECT DATE FROM dashboard.trading_days) 
+                AND datetime::time > '16:00:00' then 1 else 0 end) as posttrading,
+            sum(1) as total
+        FROM
+            mv_cashtags
+        WHERE
+            cashtags in %s 
+        GROUP BY cashtags
+        """
+    # q = "SELECT id, status, filename, date_string FROM file_info WHERE url = %s or filename = %s"
+    try:
+        cur = cnx.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(q, (cashtags,))
+        results = cur.fetchall()
+        cnx.commit()
+    except psycopg2.Error as err:
+        results = None
+        logger.error(err)
+        cnx.rollback()
+    finally:
+        cur.close()
+    return results
+
+
 logger = create_logger()
+
+try:
+    cnx = psycopg2.connect(**pg_config)
+    cur = cnx.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SET SEARCH_PATH = %s" % 'fintweet')
+    cnx.commit()
+    logger.info('Connected to database')
+except psycopg2.Error as err:
+    logger.error(err)
+finally:
+    cur.close()
 
 if __name__ == '__main__':
     logger.info('*** Script started')
-    df_in = dataframe_from_file(settings.input_file_name)
-    if df_in is None or df_in.empty:
-        logger.error('Could not load imput parameters from file %s', settings.input_file_name)
-        logger.error('The input file should contain two columns: "gvkey" and "cashtag"')
-        exit()
-    else:
-        logger.info('Loaded data from %s', settings.input_file_name)
-    df_output = pd.DataFrame()
-    index2 = 0
-    for index, row in df_in.iterrows():
-        conditions = {
-            'cashtag': row['cashtag'],
-            'date_from': datetime.strptime(settings.date_from, '%Y-%m-%d %H:%M:%S'),
-            'date_to': datetime.strptime(settings.date_to, '%Y-%m-%d %H:%M:%S'),
-        }
-        with cf.ThreadPoolExecutor(max_workers=16) as executor:
-            try:
-                future_to_tweet = {executor.submit(load_counts_v2, t): t for t in get_cashtag_periods(conditions)}
-                logger.info('Starting count process for %s tweet list', row['cashtag'])
-                for future in cf.as_completed(future_to_tweet):
-                    i += 1
+    cashtags_list = ('$AAPL', '$FB', '$MSFT')
+    results = get_counts(cashtags_list)
+    print(results)
 
+
+
+'''
+SELECT
+	cashtags,
+	sum(case when datetime :: DATE IN ( SELECT DATE FROM dashboard.trading_days ) then 1 else 0 end) as trading,
+	sum(case when datetime :: DATE NOT IN ( SELECT DATE FROM dashboard.trading_days ) then 1 else 0 end) as nontrading,
+	sum(case when datetime :: DATE IN ( SELECT DATE FROM dashboard.trading_days ) AND datetime::time < '09:00:00' then 1 else 0 end) as pretrading,
+	sum(case when datetime :: DATE IN ( SELECT DATE FROM dashboard.trading_days ) AND datetime::time > '16:00:00' then 1 else 0 end) as posttrading,
+	sum(1) as total
+FROM
+	mv_cashtags 
+WHERE
+	cashtags in ('$FB', '$AAPL') 
+GROUP BY cashtags;
+'''

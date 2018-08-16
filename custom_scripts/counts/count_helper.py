@@ -29,6 +29,7 @@ db_engine = create_engine(
     )
 fintweet_meta = MetaData(bind=db_engine, schema="fintweet")
 project_meta = MetaData(bind=db_engine, schema="dashboard")
+stocktwits_meta = MetaData(bind=db_engine, schema="stocktwits")
 Session = sessionmaker(bind=db_engine, autoflush=False)
 ScopedSessionAuto = scoped_session(sessionmaker(bind=db_engine, autocommit=True, autoflush=False))
 ZONE_NY = tz.gettz('America/New_York')
@@ -59,11 +60,11 @@ class TweetCount(Base):
     __table__ = Table('tweet_count', fintweet_meta, autoload=True)
 
 
-class User(Base):
+class FtUser(Base):
     __table__ = Table('user', fintweet_meta, autoload=True)
 
 
-class UserCount(Base):
+class FtUserCount(Base):
     __table__ = Table('user_count', fintweet_meta, autoload=True)
 
 
@@ -91,6 +92,37 @@ class mvCashtags(Base):
     datetime = Column(DateTime)
 
 
+class StUser(Base):
+    __table__ = Table('user', stocktwits_meta, autoload=True)
+
+
+class StUserCount(Base):
+    __table__ = Table('user_count', stocktwits_meta, autoload=True)
+
+
+class Idea(Base):
+    __table__ = Table('ideas', stocktwits_meta, autoload=True)
+
+
+class IdeasCount(Base):
+    __table__ = Table('ideas_count', stocktwits_meta, autoload=True)
+
+
+class IdeaHashtag(Base):
+    __table__ = Table('idea_hashtags', stocktwits_meta, autoload=True)
+
+
+class StmvCashtags(Base):
+    __tablename__ = 'mv_cashtags'
+    __table_args__ = {"schema": "stocktwits"}
+
+    id = Column(BigInteger, primary_key=True)
+    ideas_id = Column(BigInteger)
+    user_id = Column(BigInteger)
+    cashtag = Column(String(120))
+    datetime = Column(DateTime)
+
+
 class TradingDays(Base):
     __table__ = Table('trading_days', project_meta, autoload=True)
 
@@ -108,18 +140,43 @@ def get_users_count(tweet_list, sess):
         session = sess()
         q = session.query(
             Tweet.user_id,
-            User.twitter_handle,
-            User.date_joined,
-            User.location,
+            FtUser.twitter_handle,
+            FtUser.date_joined,
+            FtUser.location,
             func.count(distinct(Tweet.tweet_id))
             ) \
-            .join(User, User.user_id == Tweet.user_id) \
+            .join(FtUser, FtUser.user_id == Tweet.user_id) \
             .filter(Tweet.tweet_id.in_(tweet_list)) \
-            .group_by(Tweet.user_id, User.twitter_handle, User.date_joined, User.location)
+            .group_by(Tweet.user_id, FtUser.twitter_handle, FtUser.date_joined, FtUser.location)
         fields = ['user_id', 'twiiter_handle', 'date_joined', 'location', 'counts']
         result = [dict(zip(fields, d)) for d in q.all()]
     except Exception:
         logger.error('Cannot run get_hashtag_count query')
+        logger.exception('message')
+    finally:
+        session.close()
+    # print(q)
+    # sys.exit()
+    return result
+
+
+def get_st_users_count(tweet_list, sess):
+    try:
+        session = sess()
+        q = session.query(
+            Idea.user_id,
+            StUser.user_handle,
+            StUser.date_joined,
+            StUser.location,
+            func.count(distinct(Idea.ideas_id))
+            ) \
+            .join(StUser, StUser.user_id == Idea.user_id) \
+            .filter(Idea.ideas_id.in_(tweet_list)) \
+            .group_by(Idea.user_id, StUser.user_handle, StUser.date_joined, StUser.location)
+        fields = ['user_id', 'user_handle', 'date_joined', 'location', 'counts']
+        result = [dict(zip(fields, d)) for d in q.all()]
+    except Exception:
+        logger.error('Cannot run get_st_users_count query')
         logger.exception('message')
     finally:
         session.close()
@@ -139,6 +196,23 @@ def get_hashtag_count(tweet_list, sess):
         result = [dict(zip(fields, d)) for d in q.all()]
     except Exception:
         logger.error('Cannot run get_hashtag_count query')
+        logger.exception('message')
+    finally:
+        session.close()
+    return result
+
+
+def get_st_hashtag_count(tweet_list, sess):
+    try:
+        session = sess()
+        q = session.query(IdeaHashtag.hashtag, func.count(distinct(IdeaHashtag.ideas_id))) \
+            .filter(IdeaHashtag.ideas_id.in_(tweet_list)) \
+            .group_by(IdeaHashtag.hashtag)
+        fields = ['hashtag', 'counts']
+        # print(q.all())
+        result = [dict(zip(fields, d)) for d in q.all()]
+    except Exception:
+        logger.error('Cannot run get_st_hashtag_count query')
         logger.exception('message')
     finally:
         session.close()
@@ -181,8 +255,8 @@ def get_tweet_counts(tweet_list, sess):
 def get_user_counts(tweet_list, sess):
     try:
         session = sess()
-        q = session.query(distinct(UserCount.user_id), UserCount.follower) \
-            .join(Tweet, UserCount.user_id == Tweet.user_id) \
+        q = session.query(distinct(FtUserCount.user_id), FtUserCount.follower) \
+            .join(Tweet, FtUserCount.user_id == Tweet.user_id) \
             .filter(Tweet.tweet_id.in_(tweet_list))
         fields = ['user_id', 'follower']
         result = [dict(zip(fields, d)) for d in q.all()]
@@ -192,6 +266,26 @@ def get_user_counts(tweet_list, sess):
                 followers += r['follower']
     except Exception:
         logger.error('Cannot run get_user_counts query')
+        logger.exception('message')
+    finally:
+        session.close()
+    return followers
+
+
+def get_st_user_counts(tweet_list, sess):
+    try:
+        session = sess()
+        q = session.query(distinct(StUserCount.user_id), StUserCount.followers) \
+            .join(Idea, StUserCount.user_id == Idea.user_id) \
+            .filter(Idea.ideas_id.in_(tweet_list))
+        fields = ['user_id', 'followers']
+        result = [dict(zip(fields, d)) for d in q.all()]
+        followers = 0
+        for r in result:
+            if isinstance(r['followers'], int):
+                followers += r['followers']
+    except Exception:
+        logger.error('Cannot run get_st_user_counts query')
         logger.exception('message')
     finally:
         session.close()
@@ -223,6 +317,25 @@ def load_counts_v2(t):
         t['users'] = len(t['users_list'])
         t['mentions'] = len(t['mentions_list'])
         t['hashtags'] = len(t['hashtags_list'])
+    except Exception:
+        logger.exception('message')
+    finally:
+        ScopedSession.remove()
+    return t
+
+
+def load_stocktwits_counts(t):
+    # print(t)
+    try:
+        logger.debug('Inspecting %s ideas for %s', t['tweets_count'], t['date'])
+        ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+        t['users_list'] = get_st_users_count(t['tweet_ids'], ScopedSession)
+        t['hashtags_list'] = get_st_hashtag_count(t['tweet_ids'], ScopedSession)
+        t['user_followers'] = get_st_user_counts(t['tweet_ids'], ScopedSession)
+        t['users'] = len(t['users_list'])
+        t['hashtags'] = len(t['hashtags_list'])
+        t['mentions_list'] = []
+        t['mentions'] = len(t['mentions_list'])
     except Exception:
         logger.exception('message')
     finally:
@@ -267,7 +380,7 @@ def get_cashtag_periods(c):
     time_start = c['date_from'].time()
     time_end = c['date_to'].time()
     duration = (datetime.combine(date.min, time_end) - datetime.combine(date.min, time_start)).total_seconds()
-    if c['day_status'] in ['non_trading', 'post_market']:
+    if c['day_status'] in ['non_trading', 'post_market', 'all']:
         duration += 1
     # print(time_start, time_end)
     ScopedSession = scoped_session(sessionmaker(bind=db_engine))
@@ -295,30 +408,22 @@ def get_cashtag_periods(c):
         elif c['day_status'] == 'non_trading':
             tweets = tweets.filter(cast(mvCashtags.datetime, Date).notin_(tdays_list))
         if 'date_joined' in c and c['date_joined']:
-            tweets = tweets.join(User, mvCashtags.user_id == User.user_id).filter(User.date_joined >= c['date_joined'])
+            tweets = tweets.join(FtUser, mvCashtags.user_id == FtUser.user_id).filter(FtUser.date_joined >= c['date_joined'])
         if 'following' in c and c['following']:
-            tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
-                .filter(UserCount.following >= c['following'])
+            tweets = tweets.join(FtUserCount, mvCashtags.user_id == FtUserCount.user_id) \
+                .filter(FtUserCount.following >= c['following'])
         if 'followers' in c and c['followers']:
-            tweets = tweets.join(UserCount, mvCashtags.user_id == UserCount.user_id) \
-                .filter(UserCount.follower >= c['followers'])
+            tweets = tweets.join(FtUserCount, mvCashtags.user_id == FtUserCount.user_id) \
+                .filter(FtUserCount.follower >= c['followers'])
         tweets = tweets.group_by('date')
-        # print(tweets.statement.compile(dialect=postgresql.dialect()))
-        # sys.exit()
     except Exception:
         logger.error('Could not execute get_cashtag_periods')
         logger.exception('message')
     finally:
         session.close()
         ScopedSession.remove()
-    period_list = []
-    # print(tweets)
-    # print(tweets.first())
     for t in tweets.execution_options(stream_results=True):
-        # sys.exit()
-        # print(t[1])
         period = {
-            # 'cashtag': t[0],
             'date': t[0],
             'tweets_count': len(t[1]),
             'tweet_ids': t[1],
@@ -334,8 +439,74 @@ def get_cashtag_periods(c):
         else:
             logger.debug('Skipping date %s. Do not apply the "%s" contition', period['date'], c['day_status'])
             continue
-        # period = load_counts(period)
         yield period
-        # period_list.append(period)
     logger.info('Completed tweet list for %s', c['cashtag'])
-    # return period_list
+
+
+def get_st_cashtag_periods(c):
+    logger.info('Getting idea list for %s', c['cashtag'])
+    date_start = c['date_from'].date()
+    date_end = c['date_to'].date()
+    time_start = c['date_from'].time()
+    time_end = c['date_to'].time()
+    duration = (datetime.combine(date.min, time_end) - datetime.combine(date.min, time_start)).total_seconds()
+    if c['day_status'] in ['non_trading', 'post_market', 'all']:
+        duration += 1
+    ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+    session = ScopedSession()
+    try:
+        trading_days = session.query(TradingDays.date) \
+            .filter(TradingDays.is_trading == true()) \
+            .filter(TradingDays.date.between(date_start, date_end))
+        tdays_list = [d[0] for d in trading_days.all()]
+        ideas = session.query(
+                cast(StmvCashtags.datetime, Date).label('date'),
+                func.array_agg(StmvCashtags.ideas_id).label('ideas_id'),
+                func.sum(func.coalesce(IdeasCount.replies, 0)).label('replies'),
+                func.sum(func.coalesce(IdeasCount.reshares, 0)).label('retweets'),
+                func.sum(func.coalesce(IdeasCount.likes, 0)).label('favorites'),
+            ) \
+            .join(IdeasCount, IdeasCount.ideas_id == StmvCashtags.ideas_id) \
+            .filter(StmvCashtags.cashtag == c['cashtag']) \
+            .filter(cast(StmvCashtags.datetime, Date).between(date_start, date_end)) \
+            .filter(cast(StmvCashtags.datetime, Time).between(time_start, time_end))
+        if c['day_status'] in ['trading', 'pre_market', 'post_market']:
+            ideas = ideas.filter(cast(StmvCashtags.datetime, Date).in_(tdays_list))
+        elif c['day_status'] == 'non_trading':
+            ideas = ideas.filter(cast(StmvCashtags.datetime, Date).notin_(tdays_list))
+        if 'date_joined' in c and c['date_joined']:
+            ideas = ideas.join(FtUser, StmvCashtags.user_id == StUser.user_id).filter(StUser.date_joined >= c['date_joined'])
+        if 'following' in c and c['following']:
+            ideas = ideas.join(StUserCount, StmvCashtags.user_id == StUserCount.user_id) \
+                .filter(StUserCount.following >= c['following'])
+        if 'followers' in c and c['followers']:
+            ideas = ideas.join(StUserCount, StmvCashtags.user_id == StUserCount.user_id) \
+                .filter(StUserCount.follower >= c['followers'])
+        ideas = ideas.group_by(cast(StmvCashtags.datetime, Date))
+        # print(tweets.statement.compile(dialect=postgresql.dialect()))
+        # sys.exit()
+    except Exception:
+        logger.error('Could not execute get_st_cashtag_periods')
+        logger.exception('message')
+    finally:
+        session.close()
+        ScopedSession.remove()
+    for t in ideas.execution_options(stream_results=True):
+        period = {
+            'date': t[0],
+            'tweets_count': len(t[1]),
+            'tweet_ids': t[1],
+            'replies': t[2],
+            'retweets': t[3],
+            'favorites': t[4],
+            'hours': duration / 3600
+        }
+        if c['day_status'] in ['trading', 'pre_market', 'post_market', 'all'] and period['date'] in tdays_list:
+            period['day_status'] = c['day_status']
+        elif c['day_status'] in ['non_trading', 'all'] and period['date'] not in tdays_list:
+            period['day_status'] = c['day_status']
+        else:
+            logger.debug('Skipping date %s. Do not apply the "%s" contition', period['date'], c['day_status'])
+            continue
+        yield period
+    logger.info('Completed ideas list for %s', c['cashtag'])

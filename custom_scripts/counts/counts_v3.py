@@ -4,7 +4,6 @@ from datetime import datetime
 import logging
 import logging.config
 import os
-from pprint import pprint
 import re
 import sys
 

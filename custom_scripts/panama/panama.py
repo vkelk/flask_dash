@@ -105,16 +105,27 @@ if __name__ == '__main__':
 
 
 '''
-SELECT
-	cashtags,
-	sum(case when datetime :: DATE IN ( SELECT DATE FROM dashboard.trading_days ) then 1 else 0 end) as trading,
-	sum(case when datetime :: DATE NOT IN ( SELECT DATE FROM dashboard.trading_days ) then 1 else 0 end) as nontrading,
-	sum(case when datetime :: DATE IN ( SELECT DATE FROM dashboard.trading_days ) AND datetime::time < '09:00:00' then 1 else 0 end) as pretrading,
-	sum(case when datetime :: DATE IN ( SELECT DATE FROM dashboard.trading_days ) AND datetime::time > '16:00:00' then 1 else 0 end) as posttrading,
-	sum(1) as total
-FROM
-	mv_cashtags 
-WHERE
-	cashtags in ('$FB', '$AAPL') 
-GROUP BY cashtags;
+SELECT 
+A.date, 
+count(A.trading),
+count(A.nontrading),
+case when count(A.trading) > 0 then 1 else 0 end as trading, 
+case when count(A.nontrading) > 0 then 1 else 0 end as nontrading, 
+case when count(A.pretrading) > 0 then 1 else 0 end as pretrading, 
+case when count(A.posttrading) > 0 then 1 else 0 end as posttrading
+FROM (
+	SELECT
+		datetime::date as date, 
+		case when datetime :: DATE IN ( SELECT DATE FROM dashboard.trading_days ) then 1 else 0 end as trading,
+		case when datetime :: DATE NOT IN ( SELECT DATE FROM dashboard.trading_days ) then 1 else 0 end as nontrading,
+		case when datetime :: DATE IN ( SELECT DATE FROM dashboard.trading_days ) AND datetime::time < '09:00:00' then 1 else 0 end as pretrading,
+		case when datetime :: DATE IN ( SELECT DATE FROM dashboard.trading_days ) AND datetime::time > '16:00:00' then 1 else 0 end as posttrading
+		FROM
+		mv_cashtags 
+	WHERE
+		cashtags = '$AAPL' 
+	GROUP BY datetime::date, datetime::time
+	ORDER BY datetime::date) as A 
+group by A.date
+order by A.date;
 '''

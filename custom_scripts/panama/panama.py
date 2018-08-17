@@ -103,6 +103,12 @@ def get_ft_counts(t):
         t['pre_lastdate'] = results['pretrading_last']
         t['post_firstdate'] = results['posttrading_first']
         t['post_lastdate'] = results['posttrading_last']
+    else:
+        for key in ['tweets_trade', 'tweets_nontrade', 'tweets_pre', 'tweets_post', 'tot_tweets']:
+            t[key] = 0
+        for key in ['trade_firstdate', 'trade_lastdate', 'nontrade_firstdate', 'nontrade_lastdate',
+                    'pre_firstdate', 'pre_lastdate', 'post_firstdate', 'post_lastdate']:
+            t[key] = None
     return t
 
 
@@ -214,6 +220,12 @@ def get_st_counts(t):
         t['pre_lastdate'] = results['pretrading_last']
         t['post_firstdate'] = results['posttrading_first']
         t['post_lastdate'] = results['posttrading_last']
+    else:
+        for key in ['tweets_trade', 'tweets_nontrade', 'tweets_pre', 'tweets_post', 'tot_tweets']:
+            t[key] = 0
+        for key in ['trade_firstdate', 'trade_lastdate', 'nontrade_firstdate', 'nontrade_lastdate',
+                    'pre_firstdate', 'pre_lastdate', 'post_firstdate', 'post_lastdate']:
+            t[key] = None
     return t
 
 

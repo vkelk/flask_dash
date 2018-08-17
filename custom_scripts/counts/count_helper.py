@@ -405,7 +405,7 @@ def get_cashtag_periods(c):
             .filter(cast(mvCashtags.datetime, Time).between(time_start, time_end))
         if c['day_status'] in ['trading', 'pre_market', 'post_market']:
             tweets = tweets.filter(cast(mvCashtags.datetime, Date).in_(tdays_list))
-        elif c['day_status'] == 'non_trading':
+        elif c['day_status'] in 'non_trading':
             tweets = tweets.filter(cast(mvCashtags.datetime, Date).notin_(tdays_list))
         if 'date_joined' in c and c['date_joined']:
             tweets = tweets.join(FtUser, mvCashtags.user_id == FtUser.user_id).filter(FtUser.date_joined >= c['date_joined'])
@@ -433,9 +433,9 @@ def get_cashtag_periods(c):
             'hours': duration / 3600
         }
         if c['day_status'] in ['trading', 'pre_market', 'post_market', 'all'] and period['date'] in tdays_list:
-            period['day_status'] = c['day_status']
+            period['day_status'] = 'trading'
         elif c['day_status'] in ['non_trading', 'all'] and period['date'] not in tdays_list:
-            period['day_status'] = c['day_status']
+            period['day_status'] = 'non_trading'
         else:
             logger.debug('Skipping date %s. Do not apply the "%s" contition', period['date'], c['day_status'])
             continue
@@ -502,9 +502,9 @@ def get_st_cashtag_periods(c):
             'hours': duration / 3600
         }
         if c['day_status'] in ['trading', 'pre_market', 'post_market', 'all'] and period['date'] in tdays_list:
-            period['day_status'] = c['day_status']
+            period['day_status'] = 'trading'
         elif c['day_status'] in ['non_trading', 'all'] and period['date'] not in tdays_list:
-            period['day_status'] = c['day_status']
+            period['day_status'] = 'non_trading'
         else:
             logger.debug('Skipping date %s. Do not apply the "%s" contition', period['date'], c['day_status'])
             continue

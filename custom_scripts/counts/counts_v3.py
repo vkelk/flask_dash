@@ -184,91 +184,99 @@ if __name__ == '__main__':
         # sys.exit()
 
         # Tweets
-        with cf.ThreadPoolExecutor(max_workers=16) as executor:
-            try:
-                future_to_tweet = {executor.submit(load_counts_v2, t): t for t in get_cashtag_periods(conditions)}
-                logger.info('Starting count process for %s tweet list', row['cashtag'])
-                for future in cf.as_completed(future_to_tweet):
-                    i += 1
-                    # print(i)
-                    # progress = i / period_items * 100
-                    sys.stdout.write("\r[%d]" % i)
-                    sys.stdout.flush()
-                    t = future.result()
-                    t['gvkey'] = row['gvkey']
-                    t['cashtag'] = row['cashtag']
-                    t['database'] = 'twitter'
-                    df_output = populate_df_output(df_output, index2, t)
-                    index2 += 1
+        if settings.database in ['twitter', 'all']:
+            with cf.ThreadPoolExecutor(max_workers=16) as executor:
+                try:
+                    future_to_tweet = {executor.submit(load_counts_v2, t): t for t in get_cashtag_periods(conditions)}
+                    logger.info('Starting count process for %s tweet list', row['cashtag'])
+                    for future in cf.as_completed(future_to_tweet):
+                        i += 1
+                        # print(i)
+                        # progress = i / period_items * 100
+                        sys.stdout.write("\r[%d]" % i)
+                        sys.stdout.flush()
+                        t = future.result()
+                        t['gvkey'] = row['gvkey']
+                        t['cashtag'] = row['cashtag']
+                        t['database'] = 'twitter'
+                        df_output = populate_df_output(df_output, index2, t)
+                        index2 += 1
 
-                    if settings.download_users:
-                        for di in t['users_list']:
-                            if di['user_id'] in users.keys():
-                                users[di['user_id']]['tweet_counts'] = users[di['user_id']]['tweet_counts'] + di['counts']
-                            else:
-                                users[di['user_id']] = {
-                                    'twitter_handle': di['twiiter_handle'],
-                                    'tweet_counts': di['counts'],
-                                    'date_joined': di['date_joined'],
-                                    'location': di['location']
-                                }
+                        if settings.download_users:
+                            for di in t['users_list']:
+                                if di['user_id'] in users.keys():
+                                    users[di['user_id']]['tweet_counts'] = users[di['user_id']]['tweet_counts'] + di['counts']
+                                else:
+                                    users[di['user_id']] = {
+                                        'twitter_handle': di['twiiter_handle'],
+                                        'tweet_counts': di['counts'],
+                                        'date_joined': di['date_joined'],
+                                        'location': di['location']
+                                    }
 
-                    if settings.download_mentions:
-                        for di in t['mentions_list']:
-                            if di['mention'] in mentions.keys():
-                                mentions[di['mention']] = mentions[di['mention']] + di['counts']
-                            else:
-                                mentions[di['mention']] = di['counts']
+                        if settings.download_mentions:
+                            for di in t['mentions_list']:
+                                if di['mention'] in mentions.keys():
+                                    mentions[di['mention']] = mentions[di['mention']] + di['counts']
+                                else:
+                                    mentions[di['mention']] = di['counts']
 
-                    if settings.download_hashtags and len(t['hashtags_list']) > 0:
-                        for di in t['hashtags_list']:
-                            if di['hashtag'] in hashtags.keys():
-                                hashtags[di['hashtag']] = hashtags[di['hashtag']] + di['counts']
-                            else:
-                                hashtags[di['hashtag']] = di['counts']
-                future_to_tweet = None
-            except Exception:
-                logger.exception('message')
-                sys.exit()
-            logger.info('Finished count process for tweet lists')
+                        if settings.download_hashtags and len(t['hashtags_list']) > 0:
+                            for di in t['hashtags_list']:
+                                if di['hashtag'] in hashtags.keys():
+                                    hashtags[di['hashtag']] = hashtags[di['hashtag']] + di['counts']
+                                else:
+                                    hashtags[di['hashtag']] = di['counts']
+                    future_to_tweet = None
+                except Exception:
+                    logger.exception('message')
+                    sys.exit()
+                logger.info('Finished count process for tweet lists')
 
-        if settings.download_hashtags:
-            for k, v in hashtags.items():
-                d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'],
-                     'hashtag': k.encode('latin-1', 'ignore').decode('latin-1'), 'count': v}
-                hashtags_map.append(d)
+            if settings.download_hashtags:
+                for k, v in hashtags.items():
+                    d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'],
+                        'hashtag': k.encode('latin-1', 'ignore').decode('latin-1'), 'count': v}
+                    hashtags_map.append(d)
 
-        if settings.download_mentions:
-            for k, v in mentions.items():
-                d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'], 'mention': k, 'count': v}
-                mentions_map.append(d)
+            if settings.download_mentions:
+                for k, v in mentions.items():
+                    d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'], 'mention': k, 'count': v}
+                    mentions_map.append(d)
 
-        if settings.download_users:
-            for k, v in users.items():
-                d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'], 'user': k,
-                     'twitter_handle': str(v['twitter_handle']).encode('latin-1', 'ignore').decode('latin-1'),
-                     'tweet_counts': v['tweet_counts'],
-                     'date_joined': str(v['date_joined']),
-                     'location': str(v['location']).encode('latin-1', 'ignore').decode('latin-1')}
-                users_map.append(d)
+            if settings.download_users:
+                for k, v in users.items():
+                    d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'], 'user': k,
+                        'twitter_handle': str(v['twitter_handle']).encode('latin-1', 'ignore').decode('latin-1'),
+                        'tweet_counts': v['tweet_counts'],
+                        'date_joined': str(v['date_joined']),
+                        'location': str(v['location']).encode('latin-1', 'ignore').decode('latin-1')}
+                    users_map.append(d)
+            if settings.download_hashtags:
+                download_hashtags(hashtags_map, args.period[0])
+            if settings.download_users:
+                download_users(users_map, args.period[0])
+            if settings.download_mentions:
+                download_mentions(mentions_map, args.period[0])
 
         # Stocktwits
-        with cf.ThreadPoolExecutor(max_workers=16) as executor:
-            try:
-                future_to_tweet = {executor.submit(load_stocktwits_counts, t): t for t in get_st_cashtag_periods(conditions)}
-                logger.info('Starting count process for %s ideas list', row['cashtag'])
-                for future in cf.as_completed(future_to_tweet):
-                    i += 1
-                    sys.stdout.write("\r[%d]" % i)
-                    sys.stdout.flush()
-                    t = future.result()
-                    t['gvkey'] = row['gvkey']
-                    t['cashtag'] = row['cashtag']
-                    t['database'] = 'stocktwits'
-                    df_output = populate_df_output(df_output, index2, t)
-                    index2 += 1
-            except Exception:
-                logger.exception('message')
+        if settings.database in ['stocktwits', 'all']:
+            with cf.ThreadPoolExecutor(max_workers=16) as executor:
+                try:
+                    future_to_tweet = {executor.submit(load_stocktwits_counts, t): t for t in get_st_cashtag_periods(conditions)}
+                    logger.info('Starting count process for %s ideas list', row['cashtag'])
+                    for future in cf.as_completed(future_to_tweet):
+                        i += 1
+                        sys.stdout.write("\r[%d]" % i)
+                        sys.stdout.flush()
+                        t = future.result()
+                        t['gvkey'] = row['gvkey']
+                        t['cashtag'] = row['cashtag']
+                        t['database'] = 'stocktwits'
+                        df_output = populate_df_output(df_output, index2, t)
+                        index2 += 1
+                except Exception:
+                    logger.exception('message')
 
     if df_output is None or df_output.empty:
         logger.warning('Output results are empty. Exiting...')
@@ -279,11 +287,4 @@ if __name__ == '__main__':
     print(df_output)
     logger.info('Output file is saved')
     # print(df_output)
-    if settings.download_hashtags:
-        download_hashtags(hashtags_map, args.period[0])
-    if settings.download_users:
-        download_users(users_map, args.period[0])
-    if settings.download_mentions:
-        download_mentions(mentions_map, args.period[0])
-
     logger.info('Process succesfuly finished.')

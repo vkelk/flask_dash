@@ -149,8 +149,10 @@ def get_ft_days(t):
 
 
 def get_ft_data(t):
+    logger.info('Getting data for fintweet cashtag %s', t['cashtag'])
     t = get_ft_counts(t)
     t = get_ft_days(t)
+    logger.info('Done for fintweet cashtag %s', t['cashtag'])
     return t
 
 
@@ -258,8 +260,10 @@ def get_st_days(t):
 
 
 def get_st_data(t):
+    logger.info('Getting data for fintweet cashtag %s', t['cashtag'])
     t = get_st_counts(t)
     t = get_st_days(t)
+    logger.info('Done for fintweet cashtag %s', t['cashtag'])
     return t
 
 

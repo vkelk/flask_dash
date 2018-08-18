@@ -416,6 +416,8 @@ def get_cashtag_periods(c):
             tweets = tweets.join(FtUserCount, mvCashtags.user_id == FtUserCount.user_id) \
                 .filter(FtUserCount.follower >= c['followers'])
         tweets = tweets.group_by('date')
+        print(tweets)
+        sys.exit()
     except Exception:
         logger.error('Could not execute get_cashtag_periods')
         logger.exception('message')

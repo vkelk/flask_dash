@@ -143,14 +143,7 @@ if __name__ == '__main__':
         logger.info('Loaded data from %s', settings.input_file_name)
     df_output = pd.DataFrame()
     index2 = 0
-    users_map = []
-    mentions_map = []
-    hashtags_map = []
     for index, row in df_in.iterrows():
-        users = {}
-        mentions = {}
-        hashtags = {}
-
         conditions = {
             'cashtag': row['cashtag'],
             'date_from': datetime.strptime(settings.date_from + ' ' + time_from, '%Y-%m-%d %H:%M:%S'),
@@ -185,6 +178,12 @@ if __name__ == '__main__':
 
         # Tweets
         if settings.database in ['twitter', 'all']:
+            users_map = []
+            mentions_map = []
+            hashtags_map = []
+            users = {}
+            mentions = {}
+            hashtags = {}
             with cf.ThreadPoolExecutor(max_workers=16) as executor:
                 try:
                     future_to_tweet = {executor.submit(load_counts_v2, t): t for t in get_cashtag_periods(conditions)}
@@ -196,13 +195,14 @@ if __name__ == '__main__':
                         sys.stdout.write("\r[%d]" % i)
                         sys.stdout.flush()
                         t = future.result()
+                        del future
                         t['gvkey'] = row['gvkey']
                         t['cashtag'] = row['cashtag']
                         t['database'] = 'twitter'
                         df_output = populate_df_output(df_output, index2, t)
                         index2 += 1
 
-                        if settings.download_users:
+                        if settings.download_users and len(t['users_list']) > 0:
                             for di in t['users_list']:
                                 if di['user_id'] in users.keys():
                                     users[di['user_id']]['tweet_counts'] = users[di['user_id']]['tweet_counts'] + di['counts']
@@ -213,13 +213,17 @@ if __name__ == '__main__':
                                         'date_joined': di['date_joined'],
                                         'location': di['location']
                                     }
+                        else:
+                            t['users_list'] = None
 
-                        if settings.download_mentions:
+                        if settings.download_mentions and len(t['mentions_list']):
                             for di in t['mentions_list']:
                                 if di['mention'] in mentions.keys():
                                     mentions[di['mention']] = mentions[di['mention']] + di['counts']
                                 else:
                                     mentions[di['mention']] = di['counts']
+                        else:
+                            t['mentions_list'] = None
 
                         if settings.download_hashtags and len(t['hashtags_list']) > 0:
                             for di in t['hashtags_list']:
@@ -227,40 +231,48 @@ if __name__ == '__main__':
                                     hashtags[di['hashtag']] = hashtags[di['hashtag']] + di['counts']
                                 else:
                                     hashtags[di['hashtag']] = di['counts']
+                        else:
+                            t['hashtags_list'] = None
                     future_to_tweet = None
                 except Exception:
                     logger.exception('message')
                     sys.exit()
                 logger.info('Finished count process for tweet lists')
 
-            if settings.download_hashtags:
+            if settings.download_hashtags and len(hashtags) > 0:
                 for k, v in hashtags.items():
                     d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'],
-                        'hashtag': k.encode('latin-1', 'ignore').decode('latin-1'), 'count': v}
+                         'hashtag': k.encode('latin-1', 'ignore').decode('latin-1'), 'count': v}
                     hashtags_map.append(d)
+                download_hashtags(hashtags_map, 'twitter')
+                del hashtags_map
 
-            if settings.download_mentions:
+            if settings.download_mentions and len(mentions) > 0:
                 for k, v in mentions.items():
                     d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'], 'mention': k, 'count': v}
                     mentions_map.append(d)
+                download_mentions(mentions_map, 'twitter')
+                del mentions_map
 
-            if settings.download_users:
+            if settings.download_users and len(users) > 0:
                 for k, v in users.items():
                     d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'], 'user': k,
-                        'twitter_handle': str(v['twitter_handle']).encode('latin-1', 'ignore').decode('latin-1'),
-                        'tweet_counts': v['tweet_counts'],
-                        'date_joined': str(v['date_joined']),
-                        'location': str(v['location']).encode('latin-1', 'ignore').decode('latin-1')}
+                         'twitter_handle': str(v['twitter_handle']).encode('latin-1', 'ignore').decode('latin-1'),
+                         'tweet_counts': v['tweet_counts'],
+                         'date_joined': str(v['date_joined']),
+                         'location': str(v['location']).encode('latin-1', 'ignore').decode('latin-1')}
                     users_map.append(d)
-            if settings.download_hashtags:
-                download_hashtags(hashtags_map, args.period[0])
-            if settings.download_users:
-                download_users(users_map, args.period[0])
-            if settings.download_mentions:
-                download_mentions(mentions_map, args.period[0])
+                download_users(users_map, 'twitter')
+                del users_map
 
         # Stocktwits
         if settings.database in ['stocktwits', 'all']:
+            users_map = []
+            mentions_map = []
+            hashtags_map = []
+            users = {}
+            mentions = {}
+            hashtags = {}
             with cf.ThreadPoolExecutor(max_workers=16) as executor:
                 try:
                     future_to_tweet = {executor.submit(load_stocktwits_counts, t): t for t in get_st_cashtag_periods(conditions)}
@@ -270,19 +282,64 @@ if __name__ == '__main__':
                         sys.stdout.write("\r[%d]" % i)
                         sys.stdout.flush()
                         t = future.result()
+                        del future
                         t['gvkey'] = row['gvkey']
                         t['cashtag'] = row['cashtag']
                         t['database'] = 'stocktwits'
                         df_output = populate_df_output(df_output, index2, t)
                         index2 += 1
+
+                        if settings.download_users and len(t['users_list']) > 0:
+                            for di in t['users_list']:
+                                if di['user_id'] in users.keys():
+                                    users[di['user_id']]['tweet_counts'] = users[di['user_id']]['tweet_counts'] + di['counts']
+                                else:
+                                    users[di['user_id']] = {
+                                        'user_handle': di['user_handle'],
+                                        'tweet_counts': di['counts'],
+                                        'date_joined': di['date_joined'],
+                                        'location': di['location']
+                                    }
+                        else:
+                            t['users_list'] = None
+
+                        if settings.download_hashtags and len(t['hashtags_list']) > 0:
+                            for di in t['hashtags_list']:
+                                if di['hashtag'] in hashtags.keys():
+                                    hashtags[di['hashtag']] = hashtags[di['hashtag']] + di['counts']
+                                else:
+                                    hashtags[di['hashtag']] = di['counts']
+                        else:
+                            t['hashtags_list'] = None
+                    future_to_tweet = None
                 except Exception:
                     logger.exception('message')
+                logger.info('Finished count process for stocktwits lists')
+            
+            if settings.download_hashtags and len(hashtags) > 0:
+                for k, v in hashtags.items():
+                    d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'],
+                         'hashtag': k.encode('latin-1', 'ignore').decode('latin-1'), 'count': v}
+                    hashtags_map.append(d)
+                download_hashtags(hashtags_map, 'stocktwits')
+                del hashtags_map
+
+            if settings.download_users and len(users) > 0:
+                for k, v in users.items():
+                    d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'], 'user': k,
+                         'user_handle': str(v['user_handle']).encode('latin-1', 'ignore').decode('latin-1'),
+                         'tweet_counts': v['tweet_counts'],
+                         'date_joined': str(v['date_joined']),
+                         'location': str(v['location']).encode('latin-1', 'ignore').decode('latin-1')}
+                    users_map.append(d)
+                download_users(users_map, 'stocktwits')
+                del users_map
 
     if df_output is None or df_output.empty:
         logger.warning('Output results are empty. Exiting...')
         sys.exit()
     df_output.sort_values(by=['cashtag', 'datetime'], ascending=[True, True], inplace=True)
-    df_output.to_stata(str(args.period[0]) + '_output.dta', write_index=False)
+    df_output.to_stata('full_' + str(args.period[0]) + '_output.dta', write_index=False)
     pd.set_option('display.expand_frame_repr', False)
     print(df_output)
     logger.info('Output file is saved')

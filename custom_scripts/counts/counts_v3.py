@@ -95,7 +95,7 @@ def populate_df_output(df_output, index2, t):
     df_output.at[index2, 'users'] = str(t['users'])
     df_output.at[index2, 'user_followers'] = str(t['user_followers'])
     df_output.at[index2, 'tweet_velocity'] = (t['retweets'] + t['tweets_count']) / t['hours']
-    df_output.at[index2, 'datetime'] = str(t['date'])
+    df_output.at[index2, 'datetime'] = t['date']
     return df_output
 
 
@@ -315,7 +315,7 @@ if __name__ == '__main__':
                 except Exception:
                     logger.exception('message')
                 logger.info('Finished count process for stocktwits lists')
-            
+
             if settings.download_hashtags and len(hashtags) > 0:
                 for k, v in hashtags.items():
                     d = {'gvkey': row['gvkey'], 'cashtag': row['cashtag'],
@@ -338,10 +338,14 @@ if __name__ == '__main__':
     if df_output is None or df_output.empty:
         logger.warning('Output results are empty. Exiting...')
         sys.exit()
+    df_output['datetime'] = pd.to_datetime(df_output['datetime'])
+    df_output.index = pd.DatetimeIndex(df_output['datetime']).floor('D')
+    all_days = pd.date_range(df_output.index.min(), df_output.index.max(), freq='D')
     df_output.sort_values(by=['cashtag', 'datetime'], ascending=[True, True], inplace=True)
+    df_output.loc[all_days]
+    df_output.drop(columns=['datetime'])
     df_output.to_stata('full_' + str(args.period[0]) + '_output.dta', write_index=False)
     pd.set_option('display.expand_frame_repr', False)
     print(df_output)
     logger.info('Output file is saved')
-    # print(df_output)
     logger.info('Process succesfuly finished.')

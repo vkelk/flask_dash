@@ -372,13 +372,19 @@ def insert_new_idea(t, sess, reply_to=None):
     cashtags = set([term.upper() for term in tokens if term.startswith('$') and len(term) > 2])
     if len(cashtags) > 0:
         for cashtag in cashtags:
-            ctag = IdeasCashtags(ideas_id=idea.ideas_id, cashtag=cashtag[:64])
-            idea.cash_s.append(ctag)
+            try:
+                ctag = IdeasCashtags(ideas_id=idea.ideas_id, cashtag=cashtag[:64])
+                idea.cash_s.append(ctag)
+            except Exception:
+                logger.warning('Could not map cashtag %s to table', cashtag)
     hashtags = set([term.upper() for term in tokens if term.startswith('#') and len(term) > 2])
     if len(hashtags) > 0:
         for hashtag in hashtags:
-            htag = IdeasHashtags(ideas_id=idea.ideas_id, hashtag=hashtag[:64])
-            idea.hash_s.append(htag)
+            try:
+                htag = IdeasHashtags(ideas_id=idea.ideas_id, hashtag=hashtag[:64])
+                idea.hash_s.append(htag)
+            except Exception:
+                logger.warning('Could not map hashtag %s to table', hashtag)
 
     if t.get('links', False):
         for u in t['links']:

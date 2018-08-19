@@ -92,6 +92,9 @@ class Ideas(Base):
     hash_s = relationship('IdeasHashtags')
     url_s = relationship('IdeasUrls')
 
+    def as_dict(self):
+       return {c.name: getattr(self, c.name) for c in self.__table__.columns} 
+
 
 class Ideas_Count(Base):
     __table__ = Table('ideas_count', pg_meta, autoload=True)
@@ -340,6 +343,7 @@ def insert_new_user(t, sess, watch_list=None):
             logger.warning('%s ROLLBACK USER Duplicate entry %s', n, t['user']['username'])
             session.rollback()
     except Exception:
+        logger.error('Failed inserting user')
         logger.exception('message')
     finally:
         session.close()
@@ -348,6 +352,9 @@ def insert_new_user(t, sess, watch_list=None):
 
 def insert_new_idea(t, sess, reply_to=None):
     logger.debug('Inserting new idea')
+
+    if t['body']:
+        t['body'] = t['body'].encode().decode()
 
     idea = Ideas(
         ideas_id=t['id'],
@@ -362,9 +369,9 @@ def insert_new_idea(t, sess, reply_to=None):
     # if 'reshare_message' in t:
     #     pprint(t['reshare_message'])
     idea_count = Ideas_Count(
-        replies=t['conversation']['replies'] if t.get('conversation', False) else None,
-        likes=t['likes']['total'] if t.get('likes', False) else None,
-        reshares=t['reshare_message']['reshared_count'] if t.get('reshare_message', False) else None
+        replies=t['conversation']['replies'] if t.get('conversation', False) else 0,
+        likes=t['likes']['total'] if t.get('likes', False) else 0,
+        reshares=t['reshare_message']['reshared_count'] if t.get('reshare_message', False) else 0
         )
     idea.counts.append(idea_count)
 
@@ -406,7 +413,7 @@ def insert_new_idea(t, sess, reply_to=None):
             session.rollback()
     except Exception:
         logger.exception('message')
-        print(idea)
+        print(idea.as_dict())
     finally:
         session.close()
 

@@ -361,7 +361,7 @@ def insert_new_idea(t, sess, reply_to=None):
         user_id=t['user']['id'],
         datetime=t['created_at'],
         reply_to=reply_to if reply_to else None,
-        text=t['body'],
+        text=t['body'].encode('latin-1', 'ignore').decode('latin-1'),
         sentiment=t['entities']['sentiment']['basic'] if t['entities']['sentiment'] else None,
         permalink='https://stocktwits.com/' + t['user']['username'] + '/message/' + str(t['id'])
     )
@@ -380,7 +380,7 @@ def insert_new_idea(t, sess, reply_to=None):
     if len(cashtags) > 0:
         for cashtag in cashtags:
             try:
-                ctag = IdeasCashtags(ideas_id=idea.ideas_id, cashtag=cashtag[:64])
+                ctag = IdeasCashtags(ideas_id=idea.ideas_id, cashtag=cashtag[:60])
                 idea.cash_s.append(ctag)
             except Exception:
                 logger.warning('Could not map cashtag %s to table', cashtag)
@@ -388,7 +388,7 @@ def insert_new_idea(t, sess, reply_to=None):
     if len(hashtags) > 0:
         for hashtag in hashtags:
             try:
-                htag = IdeasHashtags(ideas_id=idea.ideas_id, hashtag=hashtag[:64])
+                htag = IdeasHashtags(ideas_id=idea.ideas_id, hashtag=hashtag[:60])
                 idea.hash_s.append(htag)
             except Exception:
                 logger.warning('Could not map hashtag %s to table', hashtag)

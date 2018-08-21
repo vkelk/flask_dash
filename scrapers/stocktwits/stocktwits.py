@@ -354,14 +354,14 @@ def insert_new_idea(t, sess, reply_to=None):
     logger.debug('Inserting new idea')
 
     if t['body']:
-        t['body'] = t['body'].encode().decode()
+        t['body'] = t['body'].encode('ascii', 'ignore').decode('ascii')
 
     idea = Ideas(
         ideas_id=t['id'],
         user_id=t['user']['id'],
         datetime=t['created_at'],
         reply_to=reply_to if reply_to else None,
-        text=t['body'].encode('latin-1', 'ignore').decode('latin-1'),
+        text=t['body'],
         sentiment=t['entities']['sentiment']['basic'] if t['entities']['sentiment'] else None,
         permalink='https://stocktwits.com/' + t['user']['username'] + '/message/' + str(t['id'])
     )
@@ -628,7 +628,11 @@ if __name__ == '__main__':
         # Single process for testing
         # scrape(0, user_queue, proxy_list[0], lock)
         # exit()
-        pool = ThreadPool(len(settings.proxy_list))
+        if len(settings.proxy_list) <= user_queue.qsize():
+            pool = ThreadPool(len(settings.proxy_list))
+        else:
+            pool = ThreadPool(user_queue.qsize())
+            proxy_list = proxy_list[:user_queue.qsize()]
         while True:
             pool.map(lambda x: (scrape(x['num'], user_queue, x['proxy'], lock)), proxy_list)
             pool.close()

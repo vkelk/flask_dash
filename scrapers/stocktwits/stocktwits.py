@@ -93,7 +93,7 @@ class Ideas(Base):
     url_s = relationship('IdeasUrls')
 
     def as_dict(self):
-       return {c.name: getattr(self, c.name) for c in self.__table__.columns} 
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns} 
 
 
 class Ideas_Count(Base):
@@ -300,7 +300,7 @@ def login(n, page):
     logger.debug('%s Login success', n)
 
 
-def insert_new_user(t, sess, watch_list=None):
+def insert_new_user(t, watch_list=None):
     user = User(
         user_id=t['user']['id'],
         user_name=t['user']['name'],
@@ -329,7 +329,7 @@ def insert_new_user(t, sess, watch_list=None):
         watchlist_stocks=watch_list,
         ideas=t['user']['ideas'])
     try:
-        session = sess()
+        session = ScopedSession()
         user.counts.append(user_count)
         user.strategy.append(user_strategy)
         session.add(user_count)
@@ -350,11 +350,12 @@ def insert_new_user(t, sess, watch_list=None):
         return user.user_id
 
 
-def insert_new_idea(t, sess, reply_to=None):
+def insert_new_idea(t, reply_to=None):
     logger.debug('Inserting new idea')
 
     if t['body']:
-        t['body'] = t['body'].encode('ascii', 'ignore').decode('ascii')
+        # t['body'] = t['body'].encode('ascii', 'ignore').decode('utf-8')
+        t['body'] = t['body'].replace('\x00', '')
 
     idea = Ideas(
         ideas_id=t['id'],
@@ -399,7 +400,7 @@ def insert_new_idea(t, sess, reply_to=None):
             idea.url_s.append(utag)
 
     try:
-        session = sess()
+        session = ScopedSession()
         session.add(idea_count)
         session.add(idea)
         session.commit()
@@ -419,7 +420,7 @@ def insert_new_idea(t, sess, reply_to=None):
 
 
 def get_tweets(n, dateto, permno, proxy, query, lock):
-    ScopedSession = scoped_session(sessionmaker(bind=db_engine))
+    # ScopedSession = scoped_session(sessionmaker(bind=db_engine))
     query = query.strip('$').upper()
     count = 0
     page = Page(proxy)
@@ -434,6 +435,7 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
         idea = session.query(Ideas).filter_by(ideas_id=t['id']).first()
         if idea:
             logger.debug('Idea id [%s] exists in db', t['id'])
+            session.close()
             continue
 
         user = session.query(User).filter_by(user_id=t['user']['id']).first()
@@ -455,14 +457,14 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
                         watch_list = ' '.join([f['symbol'] for f in j['watchlist']['symbols']])[:500]
                 else:
                     watch_list = None
-                insert_new_user(t, ScopedSession, watch_list)
+                insert_new_user(t, watch_list)
             except Exception:
                 logger.exception('message')
         if t.get('conversation', False):
             reply_to = t['conversation']['in_reply_to_message_id']
         else:
             reply_to = None
-        idea_id = insert_new_idea(t, ScopedSession, reply_to)
+        idea_id = insert_new_idea(t, reply_to)
 
         if t.get('conversation', False) and settings.GET_REPLYS:
             count_repl = 0
@@ -503,11 +505,11 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
                                     watch_list = ' '.join([f['symbol'] for f in j['watchlist']['symbols']])[:500]
                             else:
                                 watch_list = None
-                            insert_new_user(child, ScopedSession, watch_list)
+                            insert_new_user(child, watch_list)
                         except Exception:
                             logger.exception('message')
                     if not reply:
-                        reply_id = insert_new_idea(child, ScopedSession, reply_to=t['id'])
+                        reply_id = insert_new_idea(child, reply_to=t['id'])
                         count += 1
 
                 if mess['cursor']['more']:
@@ -516,7 +518,6 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
                     flag_conv = True
                     continue
                 break
-        ScopedSession.remove()
         count += 1
 
     if count:
@@ -553,7 +554,7 @@ def get_tweets(n, dateto, permno, proxy, query, lock):
 
 def scrape(n, user_queue, proxy, lock):
     # db_engine = create_engine(pg_dsn, pool_size=1)
-    # add_engine_pidguard(db_engine)
+    add_engine_pidguard(db_engine)
     # Session = sessionmaker(bind=db_engine)
     # session = Session()
 
@@ -586,6 +587,7 @@ def create_logger():
 
 
 logger = create_logger()
+ScopedSession = scoped_session(sessionmaker(bind=db_engine))
 
 if __name__ == '__main__':
     # multiprocessing.set_start_method('forkserver')

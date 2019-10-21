@@ -91,7 +91,7 @@ urllib3==1.22
 validators==0.12.2
 wcwidth==0.1.7
 webassets==0.12.1
-Werkzeug==0.14.1
+Werkzeug==0.15.3
 wrapt==1.10.11
 WTForms==2.1
 WTForms-Components==0.10.3

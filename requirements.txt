@@ -53,7 +53,7 @@ mccabe==0.6.1
 mimerender==0.6.0
 mysql-connector==2.1.6
 nltk==3.4.5
-numpy==1.14.0
+numpy==1.22.0
 openpyxl==2.4.10
 pandas==0.22.0
 parso==0.1.1
